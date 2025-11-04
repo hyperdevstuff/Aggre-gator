@@ -28,13 +28,6 @@ const app = new Elysia()
     }),
   )
   .use(errorPlugin)
-  .use(
-    rateLimit({
-      duration: 60000,
-      max: 30, // reasonable for all endpoints
-      generator: (req) => req.headers.get("x-forwarded-for") || "anon",
-    }),
-  )
   .all("/api/auth/*", ({ request }) => auth.handler(request))
   .use(bookmarksRouter)
   .use(collectionRouter)
