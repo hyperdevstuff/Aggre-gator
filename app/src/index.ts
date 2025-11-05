@@ -9,13 +9,6 @@ import { errorPlugin } from "./error";
 import openapi from "@elysiajs/openapi";
 
 const app = new Elysia()
-  // .use(
-  //  rateLimit({
-  // duration: 100000000,
-  // max: 100000000000,
-  // generator: (req) => req.headers.get("x-forwarded-for") || "anon",
-  // }),
-  // )
   .onRequest(({ request }) => {
     console.log(`[${request.method}] ${new URL(request.url).pathname}`);
   }) // generous logger

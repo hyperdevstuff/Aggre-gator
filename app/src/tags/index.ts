@@ -18,13 +18,16 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
         name: tags.name,
         color: tags.color,
         createdAt: tags.createdAt,
-        count: sql<number>`COALESCE(COUNT(${bookmarkTags.bookmarkId}), 0)::int`,
+        count:
+          sql<number>`COALESCE(COUNT(${bookmarkTags.bookmarkId}), 0)::int`.as(
+            "tag_count",
+          ),
       })
       .from(tags)
       .leftJoin(bookmarkTags, eq(tags.id, bookmarkTags.tagId))
       .where(eq(tags.userId, userId))
       .groupBy(tags.id)
-      .orderBy(sql`count DESC, ${tags.name}`);
+      .orderBy(sql`tag_count DESC`, tags.name);
   })
   .get(
     "/search",
