@@ -6,7 +6,6 @@ import { bookmarksRouter } from "./bookmarks";
 import { collectionRouter } from "./collections";
 import { tagsRouter } from "./tags";
 import { errorPlugin } from "./error";
-import openapi from "@elysiajs/openapi";
 
 const app = new Elysia()
   .use(
@@ -16,10 +15,6 @@ const app = new Elysia()
       generator: (req) => req.headers.get("x-forwarded-for") || "anon",
     }),
   )
-  .onRequest(({ request }) => {
-    console.log(`[${request.method}] ${new URL(request.url).pathname}`);
-  }) // generous logger
-  .use(openapi())
   .use(
     cors({
       origin:
@@ -53,8 +48,4 @@ const app = new Elysia()
     env: process.env.NODE_ENV || "development",
   }))
   .get("/", () => "Do the frontend")
-  .listen(3000);
-
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port} ${process.env.NODE_ENV}`,
-);
+  .listen(process.env.PORT || 3000);
