@@ -6,7 +6,6 @@ import { bookmarksRouter } from "./bookmarks";
 import { collectionRouter } from "./collections";
 import { tagsRouter } from "./tags";
 import { errorPlugin } from "./error";
-import openapi from "@elysiajs/openapi";
 
 const app = new Elysia()
   .onRequest(({ request }) => {
@@ -39,8 +38,4 @@ const app = new Elysia()
     env: process.env.NODE_ENV || "development",
   }))
   .get("/", () => "Do the frontend")
-  .listen(3000);
-
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port} ${process.env.NODE_ENV}`,
-);
+  .listen(process.env.PORT || 3000);
