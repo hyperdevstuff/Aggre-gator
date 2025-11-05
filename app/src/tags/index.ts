@@ -18,19 +18,22 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
         name: tags.name,
         color: tags.color,
         createdAt: tags.createdAt,
-        count: sql<number>`COALESCE(COUNT(${bookmarkTags.bookmarkId}), 0)::int`,
+        count:
+          sql<number>`COALESCE(COUNT(${bookmarkTags.bookmarkId}), 0)::int`.as(
+            "tag_count",
+          ),
       })
       .from(tags)
       .leftJoin(bookmarkTags, eq(tags.id, bookmarkTags.tagId))
       .where(eq(tags.userId, userId))
       .groupBy(tags.id)
-      .orderBy(sql`count DESC, ${tags.name}`);
+      .orderBy(sql`tag_count DESC`, tags.name);
   })
   .get(
     "/search",
     async ({ userId, query: { q } }) => {
       if (!q || q.length < 1) return [];
-      const result = db
+      return await db
         .select()
         .from(tags)
         .where(
@@ -40,7 +43,6 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
           ),
         )
         .limit(10);
-      return await result;
     },
     {
       query: t.Object({ q: t.String({ minLength: 1, maxLength: 100 }) }), // typesafe bros

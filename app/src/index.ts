@@ -8,13 +8,10 @@ import { tagsRouter } from "./tags";
 import { errorPlugin } from "./error";
 
 const app = new Elysia()
-  .use(
-    rateLimit({
-      duration: 60000,
-      max: 30,
-      generator: (req) => req.headers.get("x-forwarded-for") || "anon",
-    }),
-  )
+  .onRequest(({ request }) => {
+    console.log(`[${request.method}] ${new URL(request.url).pathname}`);
+  }) // generous logger
+  .use(openapi())
   .use(
     cors({
       origin:
@@ -23,13 +20,6 @@ const app = new Elysia()
     }),
   )
   .use(errorPlugin)
-  .use(
-    rateLimit({
-      duration: 60000,
-      max: 30, // reasonable for all endpoints
-      generator: (req) => req.headers.get("x-forwarded-for") || "anon",
-    }),
-  )
   .all("/api/auth/*", ({ request }) => auth.handler(request))
   .use(bookmarksRouter)
   .use(collectionRouter)
