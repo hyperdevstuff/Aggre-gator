@@ -11,7 +11,6 @@ const app = new Elysia()
   .onRequest(({ request }) => {
     console.log(`[${request.method}] ${new URL(request.url).pathname}`);
   }) // generous logger
-  .use(openapi())
   .use(
     cors({
       origin:
