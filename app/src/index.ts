@@ -4,6 +4,7 @@ import { cors } from "@elysiajs/cors";
 import { auth } from "./utils/auth";
 import { bookmarksRouter } from "./bookmarks";
 import { collectionRouter } from "./collections";
+import { searchRouter } from "./search";
 import { tagsRouter } from "./tags";
 import { errorPlugin } from "./error";
 import openapi from "@elysiajs/openapi";
@@ -25,6 +26,7 @@ const app = new Elysia()
   .use(bookmarksRouter)
   .use(collectionRouter)
   .use(tagsRouter)
+  .use(searchRouter)
   .get("/api/auth/session", async ({ request }) => {
     const session = await auth.api.getSession({ headers: request.headers });
     return session || { user: null, session: null };
