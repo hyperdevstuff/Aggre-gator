@@ -16,16 +16,6 @@ const app = new Elysia()
       credentials: true,
     }),
   )
-  .use(
-    rateLimit({
-      duration: 60000,
-      max: 100,
-      generator: (req) => {
-        const authHeader = req.headers.get("authorization");
-        return authHeader || req.headers.get("x-forwarded-for") || "anonymous";
-      },
-    }),
-  )
   .use(errorPlugin)
   .all("/api/auth/*", ({ request }) => auth.handler(request))
   .use(bookmarksRouter)
