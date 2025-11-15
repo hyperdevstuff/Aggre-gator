@@ -92,6 +92,26 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
       }),
     },
   )
+  .patch(
+    "/:id",
+    async ({ userId, params: { id }, body }) => {
+      const [updated] = await db
+        .update(tags)
+        .set(body)
+        .where(and(eq(tags.id, id), eq(tags.userId, userId)))
+        .returning();
+
+      if (!updated) throw new NotFoundError();
+      return updated;
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+        color: t.Optional(t.String({ pattern: "^#[0-9A-Fa-f]{6}$" })),
+      }),
+    },
+  )
   .delete(
     "/:id",
     async ({ userId, params: { id } }) => {
