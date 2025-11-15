@@ -3,7 +3,7 @@ import { auth } from "../utils/auth";
 import { db } from "../db";
 import { eq, and, sql } from "drizzle-orm";
 import { bookmarkTags, tags } from "../db/schema";
-import { UnauthorizedError, NotFoundError } from "../error";
+import { UnauthorizedError, NotFoundError, ConflictError } from "../error";
 
 export const tagsRouter = new Elysia({ prefix: "/tags" })
   .derive(async ({ request }) => {
@@ -11,6 +11,31 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
     if (!session?.user?.id) throw new UnauthorizedError();
     return { userId: session.user.id };
   })
+  .post(
+    "/",
+    async ({ userId, body }) => {
+      const [existing] = await db
+        .select()
+        .from(tags)
+        .where(and(eq(tags.userId, userId), eq(tags.name, body.name)))
+        .limit(1);
+
+      if (existing) throw new ConflictError("tag already exists");
+
+      const [tag] = await db
+        .insert(tags)
+        .values({ userId, name: body.name, color: body.color })
+        .returning();
+
+      return tag;
+    },
+    {
+      body: t.Object({
+        name: t.String({ minLength: 1, maxLength: 50 }),
+        color: t.Optional(t.String({ pattern: "^#[0-9A-Fa-f]{6}$" })),
+      }),
+    },
+  )
   .get("/", async ({ userId }) => {
     return await db
       .select({
@@ -46,6 +71,26 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
     },
     {
       query: t.Object({ q: t.String({ minLength: 1, maxLength: 100 }) }), // typesafe bros
+    },
+  )
+  .patch(
+    "/:id",
+    async ({ userId, params: { id }, body }) => {
+      const [updated] = await db
+        .update(tags)
+        .set(body)
+        .where(and(eq(tags.id, id), eq(tags.userId, userId)))
+        .returning();
+
+      if (!updated) throw new NotFoundError();
+      return updated;
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+        color: t.Optional(t.String({ pattern: "^#[0-9A-Fa-f]{6}$" })),
+      }),
     },
   )
   .delete(
