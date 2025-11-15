@@ -1,9 +1,9 @@
 import Elysia, { t } from "elysia";
 import { auth } from "../utils/auth";
 import { db } from "../db";
-import { collections } from "../db/schema";
+import { bookmarks, collections } from "../db/schema";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { NotFoundError, UnauthorizedError } from "../error";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
@@ -33,15 +33,45 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
   )
   .get("/", async ({ userId }) => {
     return db
-      .select()
+      .select({
+        id: collections.id,
+        userId: collections.userId,
+        name: collections.name,
+        description: collections.description,
+        icon: collections.icon,
+        color: collections.color,
+        parentId: collections.parentId,
+        createdAt: collections.createdAt,
+        updatedAt: collections.updatedAt,
+        bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
+          "bookmark_count",
+        ),
+      })
       .from(collections)
-      .where(and(eq(collections.userId, userId), isNull(collections.parentId)));
+      .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
+      .where(and(eq(collections.userId, userId), isNull(collections.parentId)))
+      .groupBy(collections.id);
   })
   .get("/:id", async ({ params: { id }, userId }) => {
     const [col] = await db
-      .select()
+      .select({
+        id: collections.id,
+        userId: collections.userId,
+        name: collections.name,
+        description: collections.description,
+        icon: collections.icon,
+        color: collections.color,
+        parentId: collections.parentId,
+        createdAt: collections.createdAt,
+        updatedAt: collections.updatedAt,
+        bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
+          "bookmark_count",
+        ),
+      })
       .from(collections)
+      .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
       .where(and(eq(collections.id, id), eq(collections.userId, userId)))
+      .groupBy(collections.id)
       .limit(1);
     if (!col) throw new NotFoundError();
     return col;
@@ -83,7 +113,22 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
   )
   .get("/:id/children", async ({ params: { id }, userId }) => {
     return db
-      .select()
+      .select({
+        id: collections.id,
+        userId: collections.userId,
+        name: collections.name,
+        description: collections.description,
+        icon: collections.icon,
+        color: collections.color,
+        parentId: collections.parentId,
+        createdAt: collections.createdAt,
+        updatedAt: collections.updatedAt,
+        bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
+          "bookmark_count",
+        ),
+      })
       .from(collections)
-      .where(and(eq(collections.userId, userId), eq(collections.parentId, id)));
+      .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
+      .where(and(eq(collections.userId, userId), eq(collections.parentId, id)))
+      .groupBy(collections.id);
   });
