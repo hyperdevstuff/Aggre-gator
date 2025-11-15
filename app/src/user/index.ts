@@ -1,17 +1,13 @@
-import Elysia, { t } from "elysia";
+import { Elysia, t } from "elysia";
 import { auth } from "../utils/auth";
-import { UnauthorizedError } from "../error";
 import { db } from "../db";
 import { bookmarks, collections, tags } from "../db/schema";
 import { eq, sql } from "drizzle-orm";
+import { UnauthorizedError } from "../error";
 
-export const userRouter = new Elysia({
-  prefix: "/user",
-})
+export const userRouter = new Elysia({ prefix: "/user" })
   .derive(async ({ request }) => {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
+    const session = await auth.api.getSession({ headers: request.headers });
     if (!session?.user?.id) throw new UnauthorizedError();
     return { userId: session.user.id, session };
   })

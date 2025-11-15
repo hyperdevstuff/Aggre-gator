@@ -1,8 +1,7 @@
 import Elysia, { t } from "elysia";
 import { auth } from "../utils/auth";
 import { db } from "../db";
-import { bookmarks, collections } from "../db/schema";
-
+import { collections, bookmarks } from "../db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { NotFoundError, UnauthorizedError } from "../error";
 

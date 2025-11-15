@@ -1,5 +1,4 @@
 import { Elysia, t } from "elysia";
-import { rateLimit } from "elysia-rate-limit";
 import { cors } from "@elysiajs/cors";
 import { auth } from "./utils/auth";
 import { bookmarksRouter } from "./bookmarks";

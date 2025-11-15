@@ -5,6 +5,7 @@ import { auth } from "../utils/auth";
 import { bookmarks, bookmarkTags, tags } from "../db/schema";
 import { eq, and, desc, asc, sql, inArray } from "drizzle-orm";
 import scrapeMetadata from "../utils/metadata";
+import { normalizePagination, createPaginationMeta } from "../utils/pagination";
 
 export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
   .derive(async ({ request }) => {
@@ -18,7 +19,6 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
     "/",
     async ({ body, userId }) => {
       const { tags: tagNames } = body;
-      // const domain = new URL(body.url).hostname;
       const existing = await db
         .select()
         .from(bookmarks)
@@ -29,7 +29,6 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         throw new ConflictError();
       }
 
-      // not sure about this
       const metadata = body.title
         ? {
             title: body.title,
@@ -100,8 +99,6 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
     "/",
     async ({ query, userId }) => {
       const {
-        page = 1,
-        limit = 20,
         collectionId,
         isFavorite,
         search,
@@ -109,7 +106,11 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         tagIds,
       } = query;
 
-      const offset = (page - 1) * limit;
+      // normalize pagination w/ server-side limits
+      const { page, limit, offset } = normalizePagination({
+        page: query.page,
+        limit: query.limit,
+      });
 
       let conditions = [eq(bookmarks.userId, userId)];
 
@@ -127,7 +128,6 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         );
       }
 
-      // filter by tags if provided
       if (tagIds && tagIds.length > 0) {
         const bookmarkIdsWithTags = await db
           .select({ bookmarkId: bookmarkTags.bookmarkId })
@@ -142,7 +142,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         if (ids.length === 0)
           return {
             data: [],
-            pagination: { page, limit, total: 0, totalPages: 0 },
+            pagination: createPaginationMeta(page, limit, 0),
           };
         conditions.push(inArray(bookmarks.id, ids));
       }
@@ -168,7 +168,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
           .from(bookmarks)
           .where(and(...conditions)),
       ]);
-      // pain
+
       const bookmarkIds = data.map((b) => b.id);
       const tagsData =
         bookmarkIds.length > 0
@@ -183,7 +183,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
               .innerJoin(tags, eq(bookmarkTags.tagId, tags.id))
               .where(inArray(bookmarkTags.bookmarkId, bookmarkIds))
           : [];
-      // what ?
+
       const tagsByBookmark = tagsData.reduce(
         (acc, t) => {
           if (!acc[t.bookmarkId]) acc[t.bookmarkId] = [];
@@ -198,7 +198,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
           string,
           Array<{ id: string; name: string; color: string | null }>
         >,
-      ); // gotta go learn drizzle/sql real quick
+      );
 
       const dataWithTags = data.map((bookmark) => ({
         ...bookmark,
@@ -207,18 +207,13 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
 
       return {
         data: dataWithTags,
-        pagination: {
-          page,
-          limit,
-          total: Number(count),
-          totalPages: Math.ceil(Number(count) / limit),
-        },
+        pagination: createPaginationMeta(page, limit, Number(count)),
       };
     },
     {
       query: t.Object({
         page: t.Optional(t.Numeric({ minimum: 1 })),
-        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+        limit: t.Optional(t.Numeric({ minimum: 1 })),
         collectionId: t.Optional(t.String()),
         isFavorite: t.Optional(t.Boolean()),
         search: t.Optional(t.String()),
@@ -274,7 +269,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
             and(
               eq(bookmarks.userId, userId),
               eq(bookmarks.url, updateData.url),
-              sql`${bookmarks.id} != ${id}`, // exclude current bookmark
+              sql`${bookmarks.id} != ${id}`,
             ),
           )
           .limit(1);
