@@ -57,7 +57,6 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
   .get(
     "/search",
     async ({ userId, query: { q } }) => {
-      if (!q || q.length < 1) return [];
       return await db
         .select()
         .from(tags)
@@ -70,7 +69,7 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
         .limit(10);
     },
     {
-      query: t.Object({ q: t.String({ minLength: 1, maxLength: 100 }) }), // typesafe bros
+      query: t.Object({ q: t.String({ minLength: 1, maxLength: 100 }) }),
     },
   )
   .patch(

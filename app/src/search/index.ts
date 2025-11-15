@@ -12,10 +12,8 @@ export const searchRouter = new Elysia({ prefix: "/search" }).get(
     if (!session?.user?.id) throw new UnauthorizedError();
 
     const userId = session.user.id;
-    if (!q || q.length < 1) {
-      return { results: [] };
-    }
     const searchPattern = `%${q}%`;
+
     const [bookmarksResults, collectionsResults, tagsResults] =
       await Promise.all([
         db
@@ -74,7 +72,7 @@ export const searchRouter = new Elysia({ prefix: "/search" }).get(
   },
   {
     query: t.Object({
-      q: t.String({ minLength: 1, maxLength: 100 }), // FIX: Duplicate check
+      q: t.String({ minLength: 1, maxLength: 100 }),
     }),
   },
 );
