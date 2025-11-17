@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { updateBoo } from "@/types";
 
 export function useCreateBookmark() {
   const qc = useQueryClient();

@@ -1,14 +1,13 @@
-import { RouterProvider } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { router } from "@/routes";
 import { ThemeProvider } from "@/components/theme-provider";
 import { queryClient } from "@/lib/query-client";
+import { SubmitButton } from "./components/custom/submit-button";
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-        <RouterProvider router={router} />
+        <SubmitButton loading={false}> test </SubmitButton>
       </ThemeProvider>
     </QueryClientProvider>
   );

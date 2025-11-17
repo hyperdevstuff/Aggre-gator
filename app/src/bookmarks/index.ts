@@ -105,8 +105,6 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         sort = "created_desc",
         tagIds,
       } = query;
-
-      // normalize pagination w/ server-side limits
       const { page, limit, offset } = normalizePagination({
         page: query.page,
         limit: query.limit,

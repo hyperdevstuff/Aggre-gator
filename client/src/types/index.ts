@@ -1,3 +1,4 @@
+// I have drizzle in backend I should recreate this file.
 export type Bookmark = {
   id: string;
   title: string;
