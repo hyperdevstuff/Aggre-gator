@@ -6,6 +6,7 @@ import { ThemeProvider } from "./components/theme-provider.tsx";
 import { queryClient } from "@/lib/query-client";
 import "./index.css";
 import { routeTree } from "./routeTree.gen.ts";
+import { AuthProvider } from "@/lib/auth-context";
 
 const router = createRouter({
   routeTree,
@@ -25,9 +26,11 @@ declare module "@tanstack/react-router" {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-        <RouterProvider router={router} />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+          <RouterProvider router={router} />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

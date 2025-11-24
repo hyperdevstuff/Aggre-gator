@@ -18,4 +18,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      "/api": {
+        target: (process.env.VITE_API_URL as string) || "http://localhost:3000",
+        changeOrigin: true,
+      },
+    },
+  },
 });

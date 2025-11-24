@@ -1,7 +1,7 @@
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { Toaster } from "sonner";
+// import { Toaster } from "sonner"; moving to protected layout no login page
 import type { QueryClient } from "@tanstack/react-query";
 
 type RouterContext = {
@@ -16,7 +16,6 @@ function RootLayout() {
   return (
     <>
       <Outlet />
-      <Toaster richColors position="bottom-right" />
       <TanStackRouterDevtools position="bottom-right" />
       <ReactQueryDevtools buttonPosition="bottom-left" />
     </>
