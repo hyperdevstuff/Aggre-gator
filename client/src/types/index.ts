@@ -1,16 +1,15 @@
-// I have drizzle in backend I should recreate this file.
 export type Bookmark = {
   id: string;
   title: string;
   url: string;
   description?: string;
   note?: string;
+  cover?: string;
   collectionId?: string;
   tags: string[];
   createdAt: string;
   updatedAt: string;
   isFavorite: boolean;
-  cover?: string;
   domain?: string;
 };
 

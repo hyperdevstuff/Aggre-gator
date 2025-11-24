@@ -16,7 +16,7 @@ function RootLayout() {
   return (
     <>
       <Outlet />
-      <Toaster richColors position="top-right" />
+      <Toaster richColors position="bottom-right" />
       <TanStackRouterDevtools position="bottom-right" />
       <ReactQueryDevtools buttonPosition="bottom-left" />
     </>

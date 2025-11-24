@@ -7,7 +7,7 @@ import { searchRouter } from "./search";
 import { tagsRouter } from "./tags";
 import { errorPlugin } from "./error";
 
-const app = new Elysia()
+export const app = new Elysia()
   .use(
     cors({
       origin:

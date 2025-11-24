@@ -1,3 +1,4 @@
+// new login page required with 
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { AuthForm } from "@/components/auth/auth-form";
 import { authClient } from "@/lib/auth-client";
