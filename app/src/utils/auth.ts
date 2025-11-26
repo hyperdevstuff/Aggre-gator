@@ -33,14 +33,12 @@ export const auth = betterAuth({
                 name: "Unsorted",
                 slug: "unsorted",
                 isSystem: true,
-                icon: "📥",
               },
               {
                 userId: user.id,
                 name: "Archived",
                 slug: "archived",
                 isSystem: true,
-                icon: "🗄️",
               },
             ]);
           } catch (error) {

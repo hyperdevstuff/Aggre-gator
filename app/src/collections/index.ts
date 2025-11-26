@@ -40,6 +40,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
           "bookmark_count",
         ),
+        isSystem: collections.isSystem,
+        slug: collections.slug,
       })
       .from(collections)
       .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
@@ -73,6 +75,17 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
   .patch(
     "/:id",
     async ({ params: { id }, userId, body }) => {
+      const [existing] = await db
+        .select({
+          isSystem: collections.isSystem,
+        })
+        .from(collections)
+        .where(and(eq(collections.id, id), eq(collections.userId, userId)))
+        .limit(1);
+      if (!existing) throw new NotFoundError();
+      if (existing.isSystem && (body.name || body.slug))
+        throw new ConflictError("cannot update system collection");
+
       const [col] = await db
         .update(collections)
         .set(body)
@@ -85,6 +98,7 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       params: t.Object({ id: t.String() }),
       body: t.Object({
         name: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
+        slug: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
         description: t.Optional(t.String()),
         icon: t.Optional(t.String()),
         color: t.Optional(t.String()),

@@ -62,8 +62,9 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         .returning();
 
       if (!body.title) {
-        scrapeMetadata(body.url)
-          .then(async (meta) => {
+        const attemptScrapping = async (retries = 2) => {
+          try {
+            const meta = await scrapeMetadata(body.url);
             await db
               .update(bookmarks)
               .set({
@@ -72,8 +73,13 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
                 cover: meta.image,
               })
               .where(eq(bookmarks.id, bookmark.id));
-          })
-          .catch(() => {});
+          } catch (error) {
+            if (retries > 0) {
+              setTimeout(() => attemptScrapping(retries - 1), 9000);
+            }
+          }
+        };
+        await attemptScrapping();
       }
 
       if (tagNames && tagNames.length > 0) {
@@ -128,13 +134,34 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         search,
         sort = "created_desc",
         tagIds,
+        includeArchived = false,
       } = query;
+
       const { page, limit, offset } = normalizePagination({
         page: query.page,
         limit: query.limit,
       });
 
       let conditions = [eq(bookmarks.userId, userId)];
+
+      if (!includeArchived) {
+        const archivedId = (
+          await db
+            .select({ id: collections.id })
+            .from(collections)
+            .where(
+              and(
+                eq(collections.userId, userId),
+                eq(collections.slug, "archived"),
+              ),
+            )
+            .limit(1)
+        )[0]?.id;
+
+        if (archivedId) {
+          conditions.push(sql`${bookmarks.collectionId} != ${archivedId}`);
+        }
+      }
 
       if (collectionId) {
         conditions.push(eq(bookmarks.collectionId, collectionId));
@@ -237,6 +264,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         limit: t.Optional(t.Numeric({ minimum: 1 })),
         collectionId: t.Optional(t.String()),
         isFavorite: t.Optional(t.Boolean()),
+        includeArchived: t.Optional(t.Boolean()),
         search: t.Optional(t.String()),
         sort: t.Optional(
           t.Union([
@@ -373,6 +401,41 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         .returning();
 
       if (!bookmark) throw new NotFoundError();
+
+      return { success: true, archived: archivedId };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+    },
+  )
+  .delete(
+    "/:id/sudo",
+    async ({ params: { id }, userId }) => {
+      const archivedId = (
+        await db
+          .select({ id: collections.id })
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, userId),
+              eq(collections.slug, "archived"),
+            ),
+          )
+          .limit(1)
+      )[0]?.id;
+
+      if (!archivedId) {
+        throw new ConflictError("bookmark must be archived first");
+      }
+
+      const [bookmark] = await db
+        .select({ collectionId: bookmarks.collectionId })
+        .from(bookmarks)
+        .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
+        .limit(1);
+
+      if (!bookmark) throw new NotFoundError();
+      await db.delete(bookmarks).where(eq(bookmarks.id, id));
 
       return { success: true, archived: archivedId };
     },
