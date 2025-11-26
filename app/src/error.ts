@@ -60,7 +60,10 @@ export const errorPlugin = new Elysia({ name: "error-handler" })
       return { error: "Route not found" };
     }
 
-    console.error("[Unhandled Error]", error); // Log it for debugging
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[Unhandled Error]", error);
+    }
+
     set.status = 500;
     return { error: "Internal Server Error" };
   });

@@ -36,8 +36,7 @@ export function normalizePagination(input: PaginationInput): PaginationResult {
   // clamp limit
   limit = Math.max(PAGINATION.MIN_LIMIT, Math.min(limit, PAGINATION.MAX_LIMIT));
 
-  const offset = (page - 1) * limit;
-
+  const offset = Math.min((page - 1) * limit, 100_000);
   return { page, limit, offset };
 }
 
