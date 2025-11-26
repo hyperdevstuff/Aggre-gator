@@ -22,6 +22,34 @@ export const auth = betterAuth({
       }
     : {}),
   session: { expiresIn: 60 * 60 * 24 * 7 }, // 7 days
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          try {
+            await db.insert(schema.collections).values([
+              {
+                userId: user.id,
+                name: "Unsorted",
+                slug: "unsorted",
+                isSystem: true,
+                icon: "📥",
+              },
+              {
+                userId: user.id,
+                name: "Archived",
+                slug: "archived",
+                isSystem: true,
+                icon: "🗄️",
+              },
+            ]);
+          } catch (error) {
+            throw new UnauthorizedError();
+          }
+        },
+      },
+    },
+  },
 });
 
 export const requireAuth = new Elysia({ name: "requireAuth" })

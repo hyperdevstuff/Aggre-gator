@@ -1,9 +1,9 @@
 import Elysia, { t } from "elysia";
-import { auth } from "../utils/auth";
+import { requireAuth } from "../utils/auth";
 import { db } from "../db";
 import { collections, bookmarks } from "../db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { NotFoundError, UnauthorizedError } from "../error";
+import { ConflictError, NotFoundError } from "../error";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
   .use(requireAuth)
@@ -99,6 +99,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         .where(and(eq(collections.id, id), eq(collections.userId, userId)))
         .returning();
       if (!col) throw new NotFoundError();
+      if (col.isSystem)
+        throw new ConflictError("cannot delete system collection");
       return { success: true };
     },
     {

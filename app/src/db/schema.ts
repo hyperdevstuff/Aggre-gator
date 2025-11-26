@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -96,6 +96,9 @@ export const bookmarks = pgTable(
   (table) => ({
     userIdIdx: index("bookmarks_user_id_idx").on(table.userId),
     urlIdx: index("bookmarks_url_idx").on(table.url),
+    collectionIdIdx: index("bookmarks_collection_id_idx").on(
+      table.collectionId,
+    ),
     domainIdx: index("bookmarks_domain_idx").on(table.domain),
     createdAtIdx: index("bookmarks_created_at_idx").on(table.createdAt),
     userUrlUnique: uniqueIndex("bookmarks_user_url_unique").on(
@@ -121,6 +124,8 @@ export const collections = pgTable(
     parentId: text("parent_id").references((): any => collections.id, {
       onDelete: "set null",
     }),
+    isSystem: boolean("is_system").notNull().default(false),
+    slug: text("slug"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -133,6 +138,9 @@ export const collections = pgTable(
       table.userId,
       table.name,
     ),
+    systemSlugUnique: uniqueIndex("collections_system_slug_unique")
+      .on(table.userId, table.slug)
+      .where(sql`${table.isSystem} = true`),
   }),
 );
 

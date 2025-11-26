@@ -31,12 +31,27 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
           }
         : await scrapeMetadata(body.url);
 
+      const collectionId =
+        body.collectionId ??
+        (
+          await db
+            .select({ id: collections.id })
+            .from(collections)
+            .where(
+              and(
+                eq(collections.userId, userId),
+                eq(collections.slug, "unsorted"),
+              ),
+            )
+            .limit(1)
+        )[0]?.id;
+
       const [bookmark] = await db
         .insert(bookmarks)
         .values({
           url: body.url,
           note: body.note,
-          collectionId: body.collectionId,
+          collectionId,
           userId,
           domain: new URL(body.url).hostname,
           isFavorite: body.isFavorite ?? false,
@@ -130,9 +145,8 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
       }
 
       if (search) {
-        conditions.push(
-          sql`(${bookmarks.title} ILIKE ${"%" + search + "%"} OR ${bookmarks.url} ILIKE ${"%" + search + "%"})`,
-        );
+        const sanitized = search.replace(/[%_]/g, "\\$&");
+        conditions.push(sql`${bookmarks.title} ILIKE ${"%" + sanitized + "%"}`);
       }
 
       if (tagIds && tagIds.length > 0) {
@@ -339,14 +353,28 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
   .delete(
     "/:id",
     async ({ params: { id }, userId }) => {
-      const [deleted] = await db
-        .delete(bookmarks)
+      const archivedId = (
+        await db
+          .select({ id: collections.id })
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, userId),
+              eq(collections.slug, "archived"),
+            ),
+          )
+          .limit(1)
+      )[0]?.id;
+
+      const [bookmark] = await db
+        .update(bookmarks)
+        .set({ collectionId: archivedId })
         .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
         .returning();
 
-      if (!deleted) throw new NotFoundError();
+      if (!bookmark) throw new NotFoundError();
 
-      return { success: true };
+      return { success: true, archived: archivedId };
     },
     {
       params: t.Object({ id: t.String() }),
