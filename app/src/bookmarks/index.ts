@@ -46,11 +46,26 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
           userId,
           domain: new URL(body.url).hostname,
           isFavorite: body.isFavorite ?? false,
-          title: metadata.title,
-          description: metadata.description,
-          cover: metadata.image || body.cover || null,
+          title: body.title || new URL(body.url).hostname,
+          description: metadata.description || null,
+          cover: body.cover || null,
         })
         .returning();
+
+      if (!body.title) {
+        scrapeMetadata(body.url)
+          .then(async (meta) => {
+            await db
+              .update(bookmarks)
+              .set({
+                title: meta.title,
+                description: meta.description,
+                cover: meta.image,
+              })
+              .where(eq(bookmarks.id, bookmark.id));
+          })
+          .catch(() => {});
+      }
 
       if (tagNames && tagNames.length > 0) {
         const tagIds = await Promise.all(
