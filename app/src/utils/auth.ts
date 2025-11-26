@@ -2,6 +2,8 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index";
 import * as schema from "../db/schema";
+import Elysia from "elysia";
+import { UnauthorizedError } from "../error";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -21,3 +23,14 @@ export const auth = betterAuth({
     : {}),
   session: { expiresIn: 60 * 60 * 24 * 7 }, // 7 days
 });
+
+export const requireAuth = new Elysia({ name: "requireAuth" })
+  .derive<{ userId: string }>(async ({ request }) => {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user?.id) {
+      throw new UnauthorizedError();
+    }
+    return { userId: session.user.id };
+  })
+  //@ts-ignore duck tapping a middleware
+  .as("requireAuth");

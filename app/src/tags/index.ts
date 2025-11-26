@@ -1,16 +1,12 @@
 import Elysia, { t } from "elysia";
-import { auth } from "../utils/auth";
+import { requireAuth } from "../utils/auth";
 import { db } from "../db";
 import { eq, and, sql } from "drizzle-orm";
 import { bookmarkTags, tags } from "../db/schema";
-import { UnauthorizedError, NotFoundError, ConflictError } from "../error";
+import { NotFoundError, ConflictError } from "../error";
 
 export const tagsRouter = new Elysia({ prefix: "/tags" })
-  .derive(async ({ request }) => {
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session?.user?.id) throw new UnauthorizedError();
-    return { userId: session.user.id };
-  })
+  .use(requireAuth)
   .post(
     "/",
     async ({ userId, body }) => {
@@ -70,26 +66,6 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
     },
     {
       query: t.Object({ q: t.String({ minLength: 1, maxLength: 100 }) }),
-    },
-  )
-  .patch(
-    "/:id",
-    async ({ userId, params: { id }, body }) => {
-      const [updated] = await db
-        .update(tags)
-        .set(body)
-        .where(and(eq(tags.id, id), eq(tags.userId, userId)))
-        .returning();
-
-      if (!updated) throw new NotFoundError();
-      return updated;
-    },
-    {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({
-        name: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
-        color: t.Optional(t.String({ pattern: "^#[0-9A-Fa-f]{6}$" })),
-      }),
     },
   )
   .patch(

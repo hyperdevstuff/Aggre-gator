@@ -1,20 +1,14 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import { ConflictError, NotFoundError, UnauthorizedError } from "../error";
-import { auth } from "../utils/auth";
-import { bookmarks, bookmarkTags, tags } from "../db/schema";
+import { ConflictError, NotFoundError } from "../error";
+import { requireAuth } from "../utils/auth";
+import { bookmarks, bookmarkTags, collections, tags } from "../db/schema";
 import { eq, and, desc, asc, sql, inArray } from "drizzle-orm";
 import scrapeMetadata from "../utils/metadata";
 import { normalizePagination, createPaginationMeta } from "../utils/pagination";
 
 export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
-  .derive(async ({ request }) => {
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session?.user?.id) {
-      throw new UnauthorizedError();
-    }
-    return { userId: session.user.id };
-  })
+  .use(requireAuth)
   .post(
     "/",
     async ({ body, userId }) => {

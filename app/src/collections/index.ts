@@ -6,12 +6,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { NotFoundError, UnauthorizedError } from "../error";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
-  .derive(async ({ request }) => {
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session) throw new UnauthorizedError();
-    if (!session?.user?.id) throw new UnauthorizedError();
-    return { userId: session.user.id };
-  })
+  .use(requireAuth)
   .post(
     "/",
     async ({ body, userId }) => {
