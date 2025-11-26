@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 // import { Toaster } from "sonner"; moving to protected layout no login page
 import type { QueryClient } from "@tanstack/react-query";
+import notFound from "@/components/not-found";
 
 type RouterContext = {
   queryClient: QueryClient;
@@ -10,6 +11,7 @@ type RouterContext = {
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
+  notFoundComponent: notFound,
 });
 
 function RootLayout() {

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { LogOut, Search } from "lucide-react";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { Input } from "@/components/ui/input";
+import { SonnerTypes } from "@/components/sonner-types";
 
 export const Route = createFileRoute("/_protected/dashboard")({
   component: Dashboard,
@@ -55,6 +56,7 @@ function Dashboard() {
             )}
           </CardContent>
         </Card>
+        <SonnerTypes />
       </main>
     </div>
   );

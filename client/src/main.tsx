@@ -10,9 +10,8 @@ import { AuthProvider } from "@/lib/auth-context";
 
 const router = createRouter({
   routeTree,
-  context: {
-    queryClient,
-  },
+  context: { queryClient },
+  scrollRestoration: true,
   defaultPreload: "intent",
   defaultPreloadStaleTime: 0,
 });

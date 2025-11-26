@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth-client";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/_protected")({
   beforeLoad: async ({ location }) => {
@@ -18,5 +19,10 @@ export const Route = createFileRoute("/_protected")({
 });
 
 function ProtectedLayout() {
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <Toaster />
+    </>
+  );
 }
