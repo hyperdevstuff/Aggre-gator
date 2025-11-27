@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode, type JSX } from "react";
-import { authClient } from "./auth-client";
+import { authClient } from "../lib/auth-client";
 
-type Session = (typeof authClient.$Infer.Session) | null;
+export type Session = typeof authClient.$Infer.Session | null;
 type SessionHook = ReturnType<typeof authClient.useSession>;
 
 type AuthContextType = {
@@ -19,7 +19,8 @@ type AuthProviderProps = {
 };
 
 export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
-  const { data, isPending, isRefetching, error, refetch } = authClient.useSession();
+  const { data, isPending, isRefetching, error, refetch } =
+    authClient.useSession();
 
   return (
     <AuthContext.Provider
