@@ -8,7 +8,7 @@ import { LoginForm } from "@/components/login-form";
 import { authClient } from "@/lib/auth-client";
 import { z } from "zod";
 import { GalleryVerticalEnd } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 
 const searchSchema = z.object({
   redirect: z.string().optional(),

@@ -6,7 +6,7 @@ import { ThemeProvider } from "./components/theme-provider.tsx";
 import { queryClient } from "@/lib/query-client";
 import "./index.css";
 import { routeTree } from "./routeTree.gen.ts";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthProvider } from "@/hooks/use-auth.tsx";
 
 const router = createRouter({
   routeTree,

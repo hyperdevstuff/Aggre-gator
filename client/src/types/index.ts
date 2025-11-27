@@ -28,6 +28,7 @@ export type Collection = {
   icon?: string;
   color?: string;
   count: number;
+  isSystem: boolean;
   createdAt: string;
   updatedAt: string;
   parentId?: string;
@@ -55,6 +56,7 @@ export type User = {
   email: string;
   name: string;
   avatar?: string;
+  image?: string;
   createdAt: string;
 };
 

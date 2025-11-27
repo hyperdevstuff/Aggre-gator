@@ -12,6 +12,7 @@ type RouterContext = {
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
   notFoundComponent: notFound,
+  errorComponent: notFound,
 });
 
 function RootLayout() {
