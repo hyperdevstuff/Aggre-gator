@@ -2,8 +2,9 @@ import Elysia, { t } from "elysia";
 import { requireAuth } from "../utils/auth";
 import { db } from "../db";
 import { collections, bookmarks } from "../db/schema";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { ConflictError, NotFoundError } from "../error";
+import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
   .use(requireAuth)
@@ -119,6 +120,46 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     },
     {
       params: t.Object({ id: t.String() }),
+    },
+  )
+  .get(
+    "/:id/bookmarks",
+    async ({ params: { id }, userId, query }) => {
+      const { page, limit, offset } = normalizePagination({
+        page: query.page,
+        limit: query.limit,
+      });
+
+      const conditions = [
+        eq(bookmarks.userId, userId),
+        eq(bookmarks.collectionId, id),
+      ];
+
+      const [data, [{ count }]] = await Promise.all([
+        db
+          .select()
+          .from(bookmarks)
+          .where(and(...conditions))
+          .orderBy(desc(bookmarks.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(bookmarks)
+          .where(and(...conditions)),
+      ]);
+
+      return {
+        data,
+        pagination: createPaginationMeta(page, limit, Number(count)),
+      };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      query: t.Object({
+        page: t.Optional(t.Numeric({ minimum: 1 })),
+        limit: t.Optional(t.Numeric({ minimum: 1 })),
+      }),
     },
   )
   .get("/:id/children", async ({ params: { id }, userId }) => {
