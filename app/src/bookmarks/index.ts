@@ -378,6 +378,70 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
       }),
     },
   )
+  .post(
+    "/:id/archive",
+    async ({ params: { id }, userId }) => {
+      const archivedId = (
+        await db
+          .select({ id: collections.id })
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, userId),
+              eq(collections.slug, "archived"),
+            ),
+          )
+          .limit(1)
+      )[0]?.id;
+
+      if (!archivedId) throw new NotFoundError("archived collection not found");
+
+      const [bookmark] = await db
+        .update(bookmarks)
+        .set({ collectionId: archivedId })
+        .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
+        .returning();
+
+      if (!bookmark) throw new NotFoundError();
+
+      return { success: true };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+    },
+  )
+  .post(
+    "/:id/unarchive",
+    async ({ params: { id }, userId }) => {
+      const unsortedId = (
+        await db
+          .select({ id: collections.id })
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, userId),
+              eq(collections.slug, "unsorted"),
+            ),
+          )
+          .limit(1)
+      )[0]?.id;
+
+      if (!unsortedId) throw new NotFoundError("unsorted collection not found");
+
+      const [bookmark] = await db
+        .update(bookmarks)
+        .set({ collectionId: unsortedId })
+        .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
+        .returning();
+
+      if (!bookmark) throw new NotFoundError();
+
+      return { success: true };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+    },
+  )
   .delete(
     "/:id",
     async ({ params: { id }, userId }) => {
@@ -394,38 +458,8 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
           .limit(1)
       )[0]?.id;
 
-      const [bookmark] = await db
-        .update(bookmarks)
-        .set({ collectionId: archivedId })
-        .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
-        .returning();
-
-      if (!bookmark) throw new NotFoundError();
-
-      return { success: true, archived: archivedId };
-    },
-    {
-      params: t.Object({ id: t.String() }),
-    },
-  )
-  .delete(
-    "/:id/sudo",
-    async ({ params: { id }, userId }) => {
-      const archivedId = (
-        await db
-          .select({ id: collections.id })
-          .from(collections)
-          .where(
-            and(
-              eq(collections.userId, userId),
-              eq(collections.slug, "archived"),
-            ),
-          )
-          .limit(1)
-      )[0]?.id;
-
       if (!archivedId) {
-        throw new ConflictError("bookmark must be archived first");
+        throw new NotFoundError("Archieved Collection not Found");
       }
 
       const [bookmark] = await db
@@ -435,9 +469,12 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         .limit(1);
 
       if (!bookmark) throw new NotFoundError();
+      if (bookmark.collectionId != archivedId) {
+        throw new ConflictError("Bookmark should be archived first");
+      }
       await db.delete(bookmarks).where(eq(bookmarks.id, id));
 
-      return { success: true, archived: archivedId };
+      return { success: true };
     },
     {
       params: t.Object({ id: t.String() }),
