@@ -141,6 +141,7 @@ export const collections = pgTable(
     systemSlugUnique: uniqueIndex("collections_system_slug_unique")
       .on(table.userId, table.slug)
       .where(sql`${table.isSystem} = true`),
+    collectionsSlugIdx: index("collections_slug_idx").on(table.slug),
   }),
 );
 

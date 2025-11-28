@@ -141,4 +141,30 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
       .where(and(eq(collections.userId, userId), eq(collections.parentId, id)))
       .groupBy(collections.id);
+  })
+  .get("/by-slug/:slug", async ({ params: { slug }, userId }) => {
+    const [col] = await db
+      .select({
+        id: collections.id,
+        userId: collections.userId,
+        name: collections.name,
+        description: collections.description,
+        icon: collections.icon,
+        color: collections.color,
+        parentId: collections.parentId,
+        createdAt: collections.createdAt,
+        updatedAt: collections.updatedAt,
+        isSystem: collections.isSystem,
+        slug: collections.slug,
+        bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
+          "bookmark_count",
+        ),
+      })
+      .from(collections)
+      .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
+      .where(and(eq(collections.userId, userId), eq(collections.slug, slug)))
+      .groupBy(collections.id)
+      .limit(1);
+    if (!col) throw new NotFoundError();
+    return col;
   });
