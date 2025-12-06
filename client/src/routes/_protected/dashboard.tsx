@@ -4,9 +4,15 @@ import { useBookmarks } from "@/hooks/queries";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { SearchBar } from "@/components/search-bar";
-import { FilterBadges } from "@/components/filter-badges";
 import { BookmarksGrid } from "@/components/bookmark-grid";
 import { Pagination } from "@/components/pagination";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 const searchSchema = z.object({
   collectionId: z.string().optional(),
@@ -89,14 +95,26 @@ function Dashboard() {
             {data?.pagination.total || 0} total
           </p>
         </div>
-        <Button>
+        <Button className="cursor-pointer">
           <Plus className="h-4 w-4 mr-2" />
           New Bookmark
         </Button>
       </div>
 
       <SearchBar defaultValue={search.search} onSearch={handleSearch} />
-      <FilterBadges filters={activeFilters} />
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/dashboard">All</BreadcrumbLink>
+          </BreadcrumbItem>
+          {search.collectionId && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>collection name</BreadcrumbItem>
+            </>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
       <BookmarksGrid
         bookmarks={data?.data || []}
         isLoading={isLoading}

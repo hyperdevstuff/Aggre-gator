@@ -132,7 +132,7 @@ export function BookmarkCard({ bookmark, onEdit }: BookmarkCardProps) {
         </CardDescription>
       </CardHeader>
 
-      <CardContent>
+      {/*<CardContent>
         {bookmark.tags.length > 0 && (
           <div className="flex gap-1 flex-wrap">
             {bookmark.tags.slice(0, 3).map((tag) => (
@@ -147,7 +147,7 @@ export function BookmarkCard({ bookmark, onEdit }: BookmarkCardProps) {
             )}
           </div>
         )}
-      </CardContent>
+      </CardContent>*/}
     </Card>
   );
 }

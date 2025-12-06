@@ -2,96 +2,55 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import {
-  Bookmark,
-  ChevronDown,
-  Container,
-  FolderOpenDot,
-  Trash,
-} from "lucide-react";
-import { Collapsible, CollapsibleTrigger } from "./ui/collapsible";
+import { SidebarFooter as Footer } from "@/components/sidebar/footer";
+import { useCollections, useTags } from "@/hooks/queries";
+import { Link } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/use-auth";
+import { SystemItems } from "./sidebar/system-items";
+import { CollectionsSection } from "./sidebar/collections-section";
+import { TagsSection } from "./sidebar/tags-section";
 
-const items = [
-  {
-    title: "Not sorted",
-    url: "/collections/not-sorted",
-    icon: FolderOpenDot,
-  },
-  {
-    title: "Trash",
-    url: "/collections/trash",
-    icon: Trash,
-  },
-  {
-    title: "Collections",
-    icon: Container,
-    items: [
-      {
-        title: "Bootmark 1",
-        url: "/bookmarks?sort=dateCreated",
-        icon: Bookmark,
-      },
-      {
-        title: "Bootmark 2",
-        url: "/bookmarks?sort=dateCreated",
-        icon: Bookmark,
-      },
-      {
-        title: "Bootmark 3",
-        url: "/bookmarks?sort=dateCreated",
-        icon: Bookmark,
-      },
-    ],
-  },
-];
 export function AppSidebar() {
+  const { data: collections, isLoading: collectionsLoading } = useCollections();
+  const { data: tags, isLoading: tagsLoading } = useTags();
+  const { session } = useAuth();
+
+  const systemCollections = collections?.filter((c) => c.isSystem) || [];
+  const userCollections = collections?.filter((c) => c.isSystem) || [];
   return (
     <Sidebar>
-      <SidebarHeader>Aggregator</SidebarHeader>
+      <SidebarHeader className="border-b px-4 py-3">
+        <Link
+          to="/dashboard"
+          className="flex items-center gap-2 font-semibold text-lg"
+        >
+          aggregator
+        </Link>
+      </SidebarHeader>
+
       <SidebarContent>
-        <SidebarGroup />
-        <SidebarGroupLabel>Something</SidebarGroupLabel>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {items.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild>
-                  <a href={item.url}>
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-        <SidebarGroup />
+        <SystemItems collections={systemCollections} />
+        <CollectionsSection
+          collections={userCollections}
+          isLoading={collectionsLoading}
+        />
+        <TagsSection tags={tags || []} isLoading={tagsLoading} />
       </SidebarContent>
-      <SidebarRail></SidebarRail>
-      {/*-------*/}
-      <Collapsible defaultOpen className="group/collapsible">
-        <SidebarGroup>
-          <SidebarGroupLabel asChild>
-            <CollapsibleTrigger>
-              Help
-              <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
-            </CollapsibleTrigger>
-          </SidebarGroupLabel>
-          {/*<CollapsibleContent>
-            <SidebarGroupContent />
-          </CollapsibleContent>*/}
-        </SidebarGroup>
-      </Collapsible>
       <SidebarFooter />
+
+      <SidebarFooter className="border-t">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <Footer session={session} />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }

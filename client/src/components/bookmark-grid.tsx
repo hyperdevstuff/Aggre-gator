@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-//import { BookmarkCard } from "@/components/bookmark-card";
+import { BookmarkCard } from "@/components/bookmark-card";
 import type { Bookmark } from "@/types";
 
 type BookmarksGridProps = {
@@ -18,7 +18,7 @@ export function BookmarksGrid({
   error,
   onRetry,
   onCreateFirst,
-  //onEditBookmark,
+  onEditBookmark,
 }: BookmarksGridProps) {
   if (isLoading) {
     return (
@@ -57,13 +57,13 @@ export function BookmarksGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {/*{bookmarks.map((bookmark) => (
+      {bookmarks.map((bookmark) => (
         <BookmarkCard
           key={bookmark.id}
           bookmark={bookmark}
           onEdit={onEditBookmark}
         />
-      ))}*/}
+      ))}
     </div>
   );
 }

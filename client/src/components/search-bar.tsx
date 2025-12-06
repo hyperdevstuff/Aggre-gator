@@ -32,7 +32,9 @@ export function SearchBar({
           className="pl-9"
         />
       </div>
-      <Button type="submit">search</Button>
+      <Button type="submit" className="cursor-pointer">
+        Search
+      </Button>
     </form>
   );
 }
