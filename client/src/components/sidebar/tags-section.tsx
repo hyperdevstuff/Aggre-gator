@@ -29,7 +29,6 @@ import {
   Loader2,
   Edit,
   Trash2,
-  ChevronDown,
 } from "lucide-react";
 import { useDeleteTag } from "@/hooks/use-mutations";
 import type { Tag } from "@/types";
@@ -44,10 +43,9 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup>
         <SidebarGroupLabel asChild>
-          <div className="flex items-center justify-between">
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1">
-              <span className="font-semibold text-sm">tags</span>
-              <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+          <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent ">
+            <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
+              <span className="font-light text-sm">Tags</span>
             </CollapsibleTrigger>
 
             <DropdownMenu>
@@ -55,7 +53,7 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6"
+                  className="h-6 w-6 mr-1 group-hover/label:opacity-100 transition-opacity"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -63,12 +61,12 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>
-                  <Plus className="h-4 w-4 mr-2" />
-                  new tag
+                  <Plus className="h-4 w-4" />
+                  New Tag
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Settings className="h-4 w-4 mr-2" />
-                  manage
+                  <Settings className="h-4 w-4" />
+                  Manage
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -82,9 +80,7 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             ) : tags.length === 0 ? (
-              <p className="text-sm text-muted-foreground px-2 py-2">
-                no tags yet
-              </p>
+              <p className="text-sm text-muted-foreground px-2 py-2"></p>
             ) : (
               <SidebarMenu>
                 {tags.slice(0, 10).map((tag) => (
@@ -126,7 +122,6 @@ function TagItem({ tag }: { tag: Tag }) {
           </Link>
         </SidebarMenuButton>
 
-        {/* ACTIONS DROPDOWN */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

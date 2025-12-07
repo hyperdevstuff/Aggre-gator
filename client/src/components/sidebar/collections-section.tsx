@@ -46,9 +46,9 @@ export function CollectionsSection({
     <Collapsible defaultOpen>
       <SidebarGroup>
         <SidebarGroupLabel asChild>
-          <div className="flex items-center justify-between">
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1">
-              <span className="font-semibold text-sm">collections</span>
+          <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
+            <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
+              <span className="text-sm font-light">Collections</span>
             </CollapsibleTrigger>
 
             <DropdownMenu>
@@ -56,7 +56,7 @@ export function CollectionsSection({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6"
+                  className="h-6 w-6 group-hover/label:opacity-100 transition-opacity"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -64,11 +64,11 @@ export function CollectionsSection({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="h-4 w-4" />
                   new collection
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Settings className="h-4 w-4 mr-2" />
+                  <Settings className="h-4 w-4" />
                   manage
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -84,12 +84,18 @@ export function CollectionsSection({
               </div>
             ) : collections.length === 0 ? (
               <p className="text-sm text-muted-foreground px-2 py-2">
-                no collections yet
+                {" "}
+                no collections
               </p>
             ) : (
-              <SidebarMenu>
-                {collections.map((col) => (
-                  <CollectionItem key={col.id} collection={col} />
+              <SidebarMenu className="relative">
+                <div className="absolute left-3 top-0 bottom-3 w-px bg-border"></div>
+                {collections.map((col, idx) => (
+                  <CollectionItem
+                    key={col.id}
+                    collection={col}
+                    isLast={idx === collections.length - 1}
+                  />
                 ))}
               </SidebarMenu>
             )}
@@ -100,8 +106,13 @@ export function CollectionsSection({
   );
 }
 
-// COLLECTION ITEM w/ hover actions
-function CollectionItem({ collection }: { collection: Collection }) {
+function CollectionItem({
+  collection,
+  isLast,
+}: {
+  collection: Collection;
+  isLast: boolean;
+}) {
   const deleteCollection = useDeleteCollection();
 
   const handleDelete = () => {
@@ -111,8 +122,12 @@ function CollectionItem({ collection }: { collection: Collection }) {
   };
 
   return (
-    <SidebarMenuItem>
-      <div className="flex items-center group/item">
+    <SidebarMenuItem className="relative">
+      <div className="flex items-center group/item" />
+      {!isLast && (
+        <div className="absolute left-3 top-3 bottom-0 w-px bg-border" />
+      )}
+      <div className="flex items-center group/item ml-6">
         <SidebarMenuButton asChild className="flex-1">
           <Link
             to="/dashboard"
@@ -132,7 +147,6 @@ function CollectionItem({ collection }: { collection: Collection }) {
           </Link>
         </SidebarMenuButton>
 
-        {/* ACTIONS DROPDOWN */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

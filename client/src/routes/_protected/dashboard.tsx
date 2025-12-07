@@ -89,19 +89,13 @@ function Dashboard() {
   return (
     <div className="flex-1 p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">bookmarks</h1>
-          <p className="text-muted-foreground">
-            {data?.pagination.total || 0} total
-          </p>
-        </div>
+        <SearchBar defaultValue={search.search} onSearch={handleSearch} />
         <Button className="cursor-pointer">
           <Plus className="h-4 w-4 mr-2" />
-          New Bookmark
+          New
         </Button>
       </div>
 
-      <SearchBar defaultValue={search.search} onSearch={handleSearch} />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>

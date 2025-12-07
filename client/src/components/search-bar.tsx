@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 
 type SearchBarProps = {
@@ -22,8 +21,8 @@ export function SearchBar({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <div className="relative flex-1">
+    <form onSubmit={handleSubmit} className="flex gap-2 w-2xl">
+      <div className="relative flex-1 w-full">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder={placeholder}
@@ -32,9 +31,6 @@ export function SearchBar({
           className="pl-9"
         />
       </div>
-      <Button type="submit" className="cursor-pointer">
-        Search
-      </Button>
     </form>
   );
 }

@@ -1,15 +1,13 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarRail,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { SidebarFooter as Footer } from "@/components/sidebar/footer";
 import { useCollections, useTags } from "@/hooks/queries";
-import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { SystemItems } from "./sidebar/system-items";
 import { CollectionsSection } from "./sidebar/collections-section";
@@ -24,15 +22,14 @@ export function AppSidebar() {
   const userCollections = collections?.filter((c) => c.isSystem) || [];
   return (
     <Sidebar>
-      <SidebarHeader className="border-b px-4 py-3">
-        <Link
-          to="/dashboard"
-          className="flex items-center gap-2 font-semibold text-lg"
-        >
-          aggregator
-        </Link>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <Footer session={session} />
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
-
+      <SidebarSeparator />
       <SidebarContent>
         <SystemItems collections={systemCollections} />
         <CollectionsSection
@@ -41,16 +38,6 @@ export function AppSidebar() {
         />
         <TagsSection tags={tags || []} isLoading={tagsLoading} />
       </SidebarContent>
-      <SidebarFooter />
-
-      <SidebarFooter className="border-t">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <Footer session={session} />
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   );
 }
