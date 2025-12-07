@@ -5,7 +5,7 @@ import { bookmarks, tags, bookmarkTags, collections } from "../db/schema";
 import { ConflictError } from "../error";
 import { requireAuth } from "../utils/auth";
 
-export const bookmarksIdRouter = new Elysia({ prefix: "/bookmarks" })
+export const bookmarksIdRouter = new Elysia()
   .use(requireAuth)
   .get(
     "/:id",

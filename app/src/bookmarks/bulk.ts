@@ -6,7 +6,7 @@ import { requireAuth } from "../utils/auth";
 
 // TODO: add bulk operations as now client is quite ready
 // PERF: improve bulk ops
-export const bookmarksBulkRouter = new Elysia({ prefix: "/bookmarks" })
+export const bookmarksBulkRouter = new Elysia()
   .use(requireAuth) // TEMP: create better middleware with beforeHandle
   .post(
     "/bulk",
