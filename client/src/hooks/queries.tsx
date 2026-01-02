@@ -63,11 +63,11 @@ export const tagsQueryOptions = () =>
 export const useTags = () => useQuery(tagsQueryOptions());
 
 export const userQueryOptions = () =>
-  queryOptions({
-    queryKey: ["user"],
-    queryFn: api.tags.list,
-    staleTime: 1000 * 60 * 10,
-    retry: false,
-  });
+    queryOptions({
+        queryKey: ["user"],
+        queryFn: () => api.user.me(),
+        staleTime: 1000 * 60 * 10,
+        retry: false,
+    });
 
 export const useUser = () => useQuery(userQueryOptions());

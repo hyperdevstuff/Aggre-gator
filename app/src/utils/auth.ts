@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { openAPI } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index";
 import * as schema from "../db/schema";
@@ -7,21 +8,23 @@ import { UnauthorizedError } from "../error";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  baseURL: process.env.BETTER_AUTH_URL as string, // this might look unnecessary but it's required
+  baseURL: process.env.BETTER_AUTH_URL as string,
   emailAndPassword: { enabled: true },
   trustedOrigins: [process.env.CLIENT_URL as string],
-  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+  plugins: [openAPI()],
+  ...(process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET
     ? {
-        socialProviders: {
-          google: {
-            prompt: "select_account",
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          },
+      socialProviders: {
+        google: {
+          prompt: "select_account",
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         },
-      }
+      },
+    }
     : {}),
-  session: { expiresIn: 60 * 60 * 24 * 7 }, // 7 days
+  session: { expiresIn: 60 * 60 * 24 * 7 },
   databaseHooks: {
     user: {
       create: {
@@ -50,13 +53,19 @@ export const auth = betterAuth({
   },
 });
 
-export const requireAuth = new Elysia({ name: "requireAuth" })
-  .derive<{ userId: string }>(async ({ request }) => {
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session?.user?.id) {
-      throw new UnauthorizedError();
-    }
-    return { userId: session.user.id };
-  })
-  //@ts-ignore duck tapping a middleware
-  .as("requireAuth");
+export const betterAuthPlugin = new Elysia({ name: "better-auth" })
+  .mount(auth.handler)
+  .macro({
+    auth: {
+      async resolve({ status, request: { headers } }) {
+        const session = await auth.api.getSession({ headers });
+
+        if (!session) return status(401);
+
+        return {
+          user: session.user,
+          session: session.session,
+        };
+      },
+    },
+  });
