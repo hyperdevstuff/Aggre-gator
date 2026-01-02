@@ -48,7 +48,7 @@ export function CollectionsSection({
         <SidebarGroupLabel asChild>
           <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
-              <span className="text-sm font-light">Collections</span>
+              <span className="text-sm font-light">collections</span>
             </CollapsibleTrigger>
 
             <DropdownMenu>
@@ -56,7 +56,7 @@ export function CollectionsSection({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 group-hover/label:opacity-100 transition-opacity"
+                  className="h-6 w-6 opacity-0 group-hover/label:opacity-100 transition-opacity"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -64,11 +64,11 @@ export function CollectionsSection({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-4 w-4 mr-2" />
                   new collection
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Settings className="h-4 w-4" />
+                  <Settings className="h-4 w-4 mr-2" />
                   manage
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -84,18 +84,12 @@ export function CollectionsSection({
               </div>
             ) : collections.length === 0 ? (
               <p className="text-sm text-muted-foreground px-2 py-2">
-                {" "}
                 no collections
               </p>
             ) : (
-              <SidebarMenu className="relative">
-                <div className="absolute left-3 top-0 bottom-3 w-px bg-border"></div>
-                {collections.map((col, idx) => (
-                  <CollectionItem
-                    key={col.id}
-                    collection={col}
-                    isLast={idx === collections.length - 1}
-                  />
+              <SidebarMenu>
+                {collections.map((col) => (
+                  <CollectionItem key={col.id} collection={col} />
                 ))}
               </SidebarMenu>
             )}
@@ -106,13 +100,7 @@ export function CollectionsSection({
   );
 }
 
-function CollectionItem({
-  collection,
-  isLast,
-}: {
-  collection: Collection;
-  isLast: boolean;
-}) {
+function CollectionItem({ collection }: { collection: Collection }) {
   const deleteCollection = useDeleteCollection();
 
   const handleDelete = () => {
@@ -122,13 +110,9 @@ function CollectionItem({
   };
 
   return (
-    <SidebarMenuItem className="relative">
-      <div className="flex items-center group/item" />
-      {!isLast && (
-        <div className="absolute left-3 top-3 bottom-0 w-px bg-border" />
-      )}
-      <div className="flex items-center group/item ml-6">
-        <SidebarMenuButton asChild className="flex-1">
+    <SidebarMenuItem>
+      <div className="flex items-center gap-2 group/item rounded-md hover:bg-sidebar-accent transition-colors">
+        <SidebarMenuButton asChild className="flex-1 hover:bg-transparent">
           <Link
             to="/dashboard"
             search={{ collectionId: collection.id }}
@@ -143,16 +127,19 @@ function CollectionItem({
               />
             )}
             <span className="flex-1 truncate">{collection.name}</span>
-            <SidebarMenuBadge>{collection.count}</SidebarMenuBadge>
           </Link>
         </SidebarMenuButton>
+
+        <SidebarMenuBadge className="bg-transparent">
+          {collection.count}
+        </SidebarMenuBadge>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity"
+              className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-transparent"
             >
               <MoreVertical className="h-4 w-4" />
             </Button>

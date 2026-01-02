@@ -43,9 +43,9 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup>
         <SidebarGroupLabel asChild>
-          <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent ">
+          <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
-              <span className="font-light text-sm">Tags</span>
+              <span className="font-light text-sm">tags</span>
             </CollapsibleTrigger>
 
             <DropdownMenu>
@@ -53,7 +53,7 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 mr-1 group-hover/label:opacity-100 transition-opacity"
+                  className="h-6 w-6 opacity-0 group-hover/label:opacity-100 transition-opacity"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -61,12 +61,12 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>
-                  <Plus className="h-4 w-4" />
-                  New Tag
+                  <Plus className="h-4 w-4 mr-2" />
+                  new tag
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Settings className="h-4 w-4" />
-                  Manage
+                  <Settings className="h-4 w-4 mr-2" />
+                  manage
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -80,7 +80,7 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             ) : tags.length === 0 ? (
-              <p className="text-sm text-muted-foreground px-2 py-2"></p>
+              <p className="text-sm text-muted-foreground px-2 py-2">no tags</p>
             ) : (
               <SidebarMenu>
                 {tags.slice(0, 10).map((tag) => (
@@ -106,8 +106,8 @@ function TagItem({ tag }: { tag: Tag }) {
 
   return (
     <SidebarMenuItem>
-      <div className="flex items-center group/item">
-        <SidebarMenuButton asChild className="flex-1">
+      <div className="flex items-center gap-2 group/item rounded-md hover:bg-sidebar-accent transition-colors">
+        <SidebarMenuButton asChild className="flex-1 hover:bg-transparent">
           <Link
             to="/dashboard"
             search={{ tags: [tag.id] }}
@@ -118,16 +118,19 @@ function TagItem({ tag }: { tag: Tag }) {
               style={{ color: tag.color || undefined }}
             />
             <span className="flex-1 truncate">{tag.name}</span>
-            <SidebarMenuBadge>{tag.count}</SidebarMenuBadge>
           </Link>
         </SidebarMenuButton>
+
+        <SidebarMenuBadge className="bg-transparent">
+          {tag.count}
+        </SidebarMenuBadge>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity"
+              className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-transparent"
             >
               <MoreVertical className="h-4 w-4" />
             </Button>

@@ -19,10 +19,11 @@ export function AppSidebar() {
   const { session } = useAuth();
 
   const systemCollections = collections?.filter((c) => c.isSystem) || [];
-  const userCollections = collections?.filter((c) => c.isSystem) || [];
+  const userCollections = collections?.filter((c) => !c.isSystem) || [];
+
   return (
     <Sidebar>
-      <SidebarHeader>
+      <SidebarHeader className="pt-4">
         <SidebarMenu>
           <SidebarMenuItem>
             <Footer session={session} />

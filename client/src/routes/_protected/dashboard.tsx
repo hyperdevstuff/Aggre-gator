@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { useBookmarks } from "@/hooks/queries";
+import { useBookmarks, useCollections } from "@/hooks/queries";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { SearchBar } from "@/components/search-bar";
@@ -40,6 +40,11 @@ function Dashboard() {
     limit: 20,
   });
 
+  const { data: collections } = useCollections();
+  const currentCollection = collections?.find(
+    (c) => c.id === search.collectionId,
+  );
+
   const handleSearch = (query: string) => {
     navigate({
       to: "/dashboard",
@@ -64,6 +69,7 @@ function Dashboard() {
       search: { ...search, [key]: undefined, page: 1 },
     });
   };
+
   const activeFilters = [
     search.isFavorite && {
       key: "isFavorite",
@@ -72,7 +78,7 @@ function Dashboard() {
     },
     search.collectionId && {
       key: "collectionId",
-      label: `collection: ${search.collectionId}`,
+      label: `collection: ${currentCollection?.name || search.collectionId}`,
       onRemove: () => removeFilter("collectionId"),
     },
     search.search && {
@@ -88,27 +94,32 @@ function Dashboard() {
 
   return (
     <div className="flex-1 p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <SearchBar defaultValue={search.search} onSearch={handleSearch} />
-        <Button className="cursor-pointer">
+      <div className="flex items-center justify-between gap-4">
+        <SearchBar
+          defaultValue={search.search}
+          onSearch={handleSearch}
+          className="flex-1 max-w-2xl"
+        />
+        <Button className="cursor-pointer shrink-0">
           <Plus className="h-4 w-4 mr-2" />
-          New
+          new
         </Button>
       </div>
 
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/dashboard">All</BreadcrumbLink>
+            <BreadcrumbLink href="/dashboard">all</BreadcrumbLink>
           </BreadcrumbItem>
-          {search.collectionId && (
+          {currentCollection && (
             <>
               <BreadcrumbSeparator />
-              <BreadcrumbItem>collection name</BreadcrumbItem>
+              <BreadcrumbItem>{currentCollection.name}</BreadcrumbItem>
             </>
           )}
         </BreadcrumbList>
       </Breadcrumb>
+
       <BookmarksGrid
         bookmarks={data?.data || []}
         isLoading={isLoading}
