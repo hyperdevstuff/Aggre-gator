@@ -58,34 +58,6 @@ function Dashboard() {
     });
   };
 
-  const removeFilter = (key: keyof typeof search) => {
-    navigate({
-      to: "/dashboard",
-      search: { ...search, [key]: undefined, page: 1 },
-    });
-  };
-  const activeFilters = [
-    search.isFavorite && {
-      key: "isFavorite",
-      label: "favorites",
-      onRemove: () => removeFilter("isFavorite"),
-    },
-    search.collectionId && {
-      key: "collectionId",
-      label: `collection: ${search.collectionId}`,
-      onRemove: () => removeFilter("collectionId"),
-    },
-    search.search && {
-      key: "search",
-      label: `search: "${search.search}"`,
-      onRemove: () => removeFilter("search"),
-    },
-  ].filter(Boolean) as Array<{
-    key: string;
-    label: string;
-    onRemove: () => void;
-  }>;
-
   return (
     <div className="flex-1 p-6 space-y-6">
       <div className="flex items-center justify-between">
