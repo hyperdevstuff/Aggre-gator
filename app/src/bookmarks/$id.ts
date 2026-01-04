@@ -3,13 +3,14 @@ import Elysia, { NotFoundError, t } from "elysia";
 import { db } from "../db";
 import { bookmarks, tags, bookmarkTags, collections } from "../db/schema";
 import { ConflictError } from "../error";
-import { requireAuth } from "../utils/auth";
+import { betterAuthPlugin } from "../utils/auth";
 
 export const bookmarksIdRouter = new Elysia()
-  .use(requireAuth)
+  .use(betterAuthPlugin)
   .get(
     "/:id",
-    async ({ params: { id }, userId }) => {
+    async ({ params: { id }, user }) => {
+      const userId = user.id;
       const [bookmark] = await db
         .select()
         .from(bookmarks)
@@ -36,7 +37,8 @@ export const bookmarksIdRouter = new Elysia()
   )
   .patch(
     "/:id",
-    async ({ params: { id }, body, userId }) => {
+    async ({ params: { id }, body, user }) => {
+      const userId = user.id;
       const { tags: tagNames, ...updateData } = body;
 
       if (updateData.url) {
@@ -109,7 +111,8 @@ export const bookmarksIdRouter = new Elysia()
   )
   .post(
     "/:id/archive",
-    async ({ params: { id }, userId }) => {
+    async ({ params: { id }, user }) => {
+      const userId = user.id;
       const archivedId = (
         await db
           .select({ id: collections.id })
@@ -141,7 +144,8 @@ export const bookmarksIdRouter = new Elysia()
   )
   .post(
     "/:id/unarchive",
-    async ({ params: { id }, userId }) => {
+    async ({ params: { id }, user }) => {
+      const userId = user.id;
       const unsortedId = (
         await db
           .select({ id: collections.id })
@@ -173,7 +177,8 @@ export const bookmarksIdRouter = new Elysia()
   )
   .delete(
     "/:id",
-    async ({ params: { id }, userId }) => {
+    async ({ params: { id }, user }) => {
+      const userId = user.id;
       const archivedId = (
         await db
           .select({ id: collections.id })

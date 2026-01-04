@@ -31,7 +31,7 @@ export const app = new Elysia()
     }),
   )
   .use(errorPlugin)
-  .mount(auth.handler, { prefix: "/api/auth" })
+  .mount(auth.handler)
   .use(openapi({
     documentation: {
       info: {

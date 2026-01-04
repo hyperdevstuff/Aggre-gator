@@ -54,18 +54,18 @@ export const auth = betterAuth({
 });
 
 export const betterAuthPlugin = new Elysia({ name: "better-auth" })
-  .mount(auth.handler)
-  .macro({
-    auth: {
-      async resolve({ status, request: { headers } }) {
-        const session = await auth.api.getSession({ headers });
+  .derive<{ user: typeof auth.$Infer.Session.user; session: typeof auth.$Infer.Session.session }>(
+    async ({ request }) => {
+      const session = await auth.api.getSession({ headers: request.headers });
 
-        if (!session) return status(401);
+      if (!session) {
+        throw new UnauthorizedError();
+      }
 
-        return {
-          user: session.user,
-          session: session.session,
-        };
-      },
-    },
-  });
+      return {
+        user: session.user,
+        session: session.session,
+      };
+    }
+  )
+  .as("plugin");

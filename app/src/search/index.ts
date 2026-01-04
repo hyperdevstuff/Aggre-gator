@@ -1,14 +1,15 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { bookmarks, collections, tags } from "../db/schema";
-import { requireAuth } from "../utils/auth";
+import { betterAuthPlugin } from "../utils/auth";
 import { and, eq, sql } from "drizzle-orm";
 
 export const searchRouter = new Elysia({ prefix: "/search" })
-    .use(requireAuth)
+    .use(betterAuthPlugin)
     .get(
         "/",
-        async ({ query: { q }, userId }) => {
+        async ({ query: { q }, user }) => {
+            const userId = user.id;
             const searchPattern = `%${q}%`;
 
             const [bookmarksResults, collectionsResults, tagsResults] =
