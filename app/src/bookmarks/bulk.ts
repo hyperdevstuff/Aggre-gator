@@ -2,15 +2,16 @@ import { and, eq, inArray } from "drizzle-orm";
 import Elysia, { NotFoundError, t } from "elysia";
 import { db } from "../db";
 import { bookmarks, collections } from "../db/schema";
-import { requireAuth } from "../utils/auth";
+import { betterAuthPlugin } from "../utils/auth";
 
 // TODO: add bulk operations as now client is quite ready
 // PERF: improve bulk ops
 export const bookmarksBulkRouter = new Elysia()
-  .use(requireAuth) // TEMP: create better middleware with beforeHandle
+  .use(betterAuthPlugin)
   .post(
     "/bulk",
-    async ({ body, userId }) => {
+    async ({ body, user }) => {
+      const userId = user.id;
       const results = await Promise.allSettled(
         body.bookmarks.map(async (bmk) => {
           const existing = await db
@@ -91,7 +92,8 @@ export const bookmarksBulkRouter = new Elysia()
   )
   .patch(
     "/bulk",
-    async ({ body, userId }) => {
+    async ({ body, user }) => {
+      const userId = user.id;
       const results = await Promise.allSettled(
         body.updates.map(async (update) => {
           const [bookmark] = await db
@@ -146,7 +148,8 @@ export const bookmarksBulkRouter = new Elysia()
   )
   .post(
     "/bulk/archive",
-    async ({ body, userId }) => {
+    async ({ body, user }) => {
+      const userId = user.id;
       const archivedId = (
         await db
           .select({ id: collections.id })

@@ -1,15 +1,16 @@
 import Elysia, { t } from "elysia";
-import { requireAuth } from "../utils/auth";
+import { betterAuthPlugin } from "../utils/auth";
 import { db } from "../db";
 import { eq, and, sql } from "drizzle-orm";
 import { bookmarkTags, tags } from "../db/schema";
 import { NotFoundError, ConflictError } from "../error";
 
 export const tagsRouter = new Elysia({ prefix: "/tags" })
-  .use(requireAuth)
+  .use(betterAuthPlugin)
   .post(
     "/",
-    async ({ userId, body }) => {
+    async ({ user, body }) => {
+      const userId = user.id;
       const [existing] = await db
         .select()
         .from(tags)
@@ -32,7 +33,8 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
       }),
     },
   )
-  .get("/", async ({ userId }) => {
+  .get("/", async ({ user }) => {
+    const userId = user.id;
     return await db
       .select({
         id: tags.id,
@@ -52,7 +54,8 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
   })
   .get(
     "/search",
-    async ({ userId, query: { q } }) => {
+    async ({ user, query: { q } }) => {
+      const userId = user.id;
       return await db
         .select()
         .from(tags)
@@ -70,7 +73,8 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
   )
   .patch(
     "/:id",
-    async ({ userId, params: { id }, body }) => {
+    async ({ user, params: { id }, body }) => {
+      const userId = user.id;
       const [updated] = await db
         .update(tags)
         .set(body)
@@ -90,7 +94,8 @@ export const tagsRouter = new Elysia({ prefix: "/tags" })
   )
   .delete(
     "/:id",
-    async ({ userId, params: { id } }) => {
+    async ({ user, params: { id } }) => {
+      const userId = user.id;
       const [deleted] = await db
         .delete(tags)
         .where(and(eq(tags.id, id), eq(tags.userId, userId)))

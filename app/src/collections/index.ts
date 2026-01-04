@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { requireAuth } from "../utils/auth";
+import { betterAuthPlugin } from "../utils/auth";
 import { db } from "../db";
 import { collections, bookmarks } from "../db/schema";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
@@ -7,10 +7,11 @@ import { ConflictError, NotFoundError } from "../error";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
-  .use(requireAuth)
+  .use(betterAuthPlugin)
   .post(
     "/",
-    async ({ body, userId }) => {
+    async ({ body, user }) => {
+      const userId = user.id;
       const [collection] = await db
         .insert(collections)
         .values({ ...body, userId })
@@ -26,7 +27,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       }),
     },
   )
-  .get("/", async ({ userId }) => {
+  .get("/", async ({ user }) => {
+    const userId = user.id;
     return db
       .select({
         id: collections.id,
@@ -49,7 +51,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       .where(and(eq(collections.userId, userId), isNull(collections.parentId)))
       .groupBy(collections.id);
   })
-  .get("/:id", async ({ params: { id }, userId }) => {
+  .get("/:id", async ({ params: { id }, user }) => {
+    const userId = user.id;
     const [col] = await db
       .select({
         id: collections.id,
@@ -75,7 +78,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
   })
   .patch(
     "/:id",
-    async ({ params: { id }, userId, body }) => {
+    async ({ params: { id }, user, body }) => {
+      const userId = user.id;
       const [existing] = await db
         .select({
           isSystem: collections.isSystem,
@@ -108,7 +112,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
   )
   .delete(
     "/:id",
-    async ({ params: { id }, userId }) => {
+    async ({ params: { id }, user }) => {
+      const userId = user.id;
       const [col] = await db
         .delete(collections)
         .where(and(eq(collections.id, id), eq(collections.userId, userId)))
@@ -124,7 +129,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
   )
   .get(
     "/:id/bookmarks",
-    async ({ params: { id }, userId, query }) => {
+    async ({ params: { id }, user, query }) => {
+      const userId = user.id;
       const { page, limit, offset } = normalizePagination({
         page: query.page,
         limit: query.limit,
@@ -162,7 +168,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       }),
     },
   )
-  .get("/:id/children", async ({ params: { id }, userId }) => {
+  .get("/:id/children", async ({ params: { id }, user }) => {
+    const userId = user.id;
     return db
       .select({
         id: collections.id,
@@ -183,7 +190,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       .where(and(eq(collections.userId, userId), eq(collections.parentId, id)))
       .groupBy(collections.id);
   })
-  .get("/by-slug/:slug", async ({ params: { slug }, userId }) => {
+  .get("/by-slug/:slug", async ({ params: { slug }, user }) => {
+    const userId = user.id;
     const [col] = await db
       .select({
         id: collections.id,

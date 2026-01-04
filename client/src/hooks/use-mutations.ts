@@ -1,13 +1,29 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import { authClient } from "@/lib/auth-client";
 import type {
-  CreateBookmarkInput,
-  UpdateBookmarkInput,
-  CreateCollectionInput,
-  UpdateCollectionInput,
-  CreateTagInput,
+    CreateBookmarkInput,
+    UpdateBookmarkInput,
+    CreateCollectionInput,
+    UpdateCollectionInput,
+    CreateTagInput,
 } from "@/types";
 import { toast } from "sonner";
+
+export function useSignOut() {
+    const qc = useQueryClient();
+
+    return useMutation({
+        mutationFn: () => authClient.signOut(),
+        onSuccess: () => {
+            qc.clear();
+            toast.success("Signed out successfully");
+        },
+        onError: (err) => {
+            toast.error(err instanceof Error ? err.message : "Failed to sign out");
+        },
+    });
+}
 
 export function useCreateBookmark() {
   const qc = useQueryClient();

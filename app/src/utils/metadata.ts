@@ -1,4 +1,3 @@
-// shit too in pieces(makes sense)
 import metascraper from "metascraper";
 import metascraperDescription from "metascraper-description";
 import metascraperImage from "metascraper-image";

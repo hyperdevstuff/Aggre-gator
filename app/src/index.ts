@@ -1,30 +1,16 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
+import { openapi } from "@elysiajs/openapi";
 import { auth } from "./utils/auth";
+import { authOpenAPI } from "./utils/auth-openapi";
 import { bookmarksRouter } from "./bookmarks";
 import { collectionRouter } from "./collections";
 import { searchRouter } from "./search";
 import { tagsRouter } from "./tags";
+import { userRouter } from "./user";
 import { errorPlugin } from "./error";
 
 export const app = new Elysia()
-  .use(
-    cors({
-      origin:
-        process.env.NODE_ENV === "production" ? process.env.CLIENT_URL : true,
-      credentials: true,
-    }),
-  )
-  .use(errorPlugin)
-  .all("/api/auth/*", ({ request }) => auth.handler(request))
-  .use(bookmarksRouter)
-  .use(collectionRouter)
-  .use(tagsRouter)
-  .use(searchRouter)
-  .get("/api/auth/session", async ({ request }) => {
-    const session = await auth.api.getSession({ headers: request.headers });
-    return session || { user: null, session: null };
-  })
   .get("/health", () => ({
     status: "ok",
     timestamp: Date.now(),
@@ -35,4 +21,32 @@ export const app = new Elysia()
     env: process.env.NODE_ENV || "development",
   }))
   .get("/", () => "Do the frontend")
+  .use(
+    cors({
+      origin:
+        process.env.NODE_ENV === "production"
+          ? process.env.CLIENT_URL
+          : true,
+      credentials: true,
+    }),
+  )
+  .use(errorPlugin)
+  .mount(auth.handler)
+  .use(openapi({
+    documentation: {
+      info: {
+        title: "Aggre-gator API",
+        version: "1.0.0",
+        description: "Bookmark management API with Better-Auth",
+      },
+      components: await authOpenAPI.components,
+      paths: await authOpenAPI.getPaths(),
+    },
+    exclude: { paths: ["/api/auth/*", "/openapi/*", "/health", "/api/version"] },
+  }))
+  .use(bookmarksRouter)
+  .use(collectionRouter)
+  .use(tagsRouter)
+  .use(searchRouter)
+  .use(userRouter)
   .listen(process.env.PORT || 3000);

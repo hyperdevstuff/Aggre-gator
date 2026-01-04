@@ -3,17 +3,18 @@ import { db } from "../db";
 import { bookmarks, bookmarkTags, collections, tags } from "../db/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { ConflictError } from "../error";
-import { requireAuth } from "../utils/auth";
+import { betterAuthPlugin } from "../utils/auth";
 import scrapeMetadata from "../utils/metadata";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { bookmarksIdRouter } from "./$id";
 import { bookmarksBulkRouter } from "./bulk";
 
 export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
-  .use(requireAuth)
+  .use(betterAuthPlugin)
   .post(
     "/",
-    async ({ body, userId }) => {
+    async ({ body, user }) => {
+      const userId = user.id;
       const { tags: tagNames } = body;
       const existing = await db
         .select()
@@ -27,10 +28,10 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
 
       const metadata = body.title
         ? {
-            title: body.title,
-            description: body.description || null,
-            image: body.cover || null,
-          }
+          title: body.title,
+          description: body.description || null,
+          image: body.cover || null,
+        }
         : await scrapeMetadata(body.url);
 
       const collectionId =
@@ -129,7 +130,8 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
   )
   .get(
     "/",
-    async ({ query, userId }) => {
+    async ({ query, user }) => {
+      const userId = user.id;
       const {
         collectionId,
         isFavorite,
@@ -223,15 +225,15 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
       const tagsData =
         bookmarkIds.length > 0
           ? await db
-              .select({
-                bookmarkId: bookmarkTags.bookmarkId,
-                tagId: tags.id,
-                tagName: tags.name,
-                tagColor: tags.color,
-              })
-              .from(bookmarkTags)
-              .innerJoin(tags, eq(bookmarkTags.tagId, tags.id))
-              .where(inArray(bookmarkTags.bookmarkId, bookmarkIds))
+            .select({
+              bookmarkId: bookmarkTags.bookmarkId,
+              tagId: tags.id,
+              tagName: tags.name,
+              tagColor: tags.color,
+            })
+            .from(bookmarkTags)
+            .innerJoin(tags, eq(bookmarkTags.tagId, tags.id))
+            .where(inArray(bookmarkTags.bookmarkId, bookmarkIds))
           : [];
 
       const tagsByBookmark = tagsData.reduce(
