@@ -71,3 +71,30 @@ export const userQueryOptions = () =>
     });
 
 export const useUser = () => useQuery(userQueryOptions());
+
+// === SHARE ===
+
+export const shareStatusQueryOptions = (collectionId: string) =>
+  queryOptions({
+    queryKey: ["share", collectionId],
+    queryFn: () => api.share.get(collectionId),
+    enabled: !!collectionId,
+  });
+
+export const useShareStatus = (collectionId: string) =>
+  useQuery(shareStatusQueryOptions(collectionId));
+
+export const publicShareQueryOptions = (
+  code: string,
+  params?: { page?: number; limit?: number },
+) =>
+  queryOptions({
+    queryKey: ["public-share", code, params],
+    queryFn: () => api.share.getPublic(code, params),
+    enabled: !!code,
+  });
+
+export const usePublicShare = (
+  code: string,
+  params?: { page?: number; limit?: number },
+) => useQuery(publicShareQueryOptions(code, params));

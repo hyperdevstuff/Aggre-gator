@@ -34,11 +34,25 @@ export class ConflictError extends ApiError {
   }
 }
 
+export class ForbiddenError extends ApiError {
+  constructor(message = "Forbidden") {
+    super(403, message);
+  }
+}
+
+export class GoneError extends ApiError {
+  constructor(message = "This resource is no longer available") {
+    super(410, message);
+  }
+}
+
 export const errorPlugin = new Elysia({ name: "error-handler" })
   .error({
     UnauthorizedError,
     NotFoundError,
     ConflictError,
+    ForbiddenError,
+    GoneError,
   })
   .onError(({ code, error, set }) => {
     if (code === "VALIDATION") {

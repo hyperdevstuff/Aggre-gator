@@ -182,6 +182,37 @@ export const bookmarkTags = pgTable(
   }),
 );
 
+export const sharedCollections = pgTable(
+  "shared_collections",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    collectionId: text("collection_id")
+      .notNull()
+      .references(() => collections.id, { onDelete: "cascade" }),
+    shareCode: text("share_code").notNull().unique(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    shareCodeIdx: uniqueIndex("shared_collections_share_code_idx").on(
+      table.shareCode,
+    ),
+    collectionUserIdx: uniqueIndex(
+      "shared_collections_collection_user_idx",
+    ).on(table.collectionId, table.userId),
+    userIdx: index("shared_collections_user_idx").on(table.userId),
+  }),
+);
+
 // RELATIONS
 export const userRelations = relations(user, ({ many }) => ({
   bookmarks: many(bookmarks),
@@ -235,3 +266,17 @@ export const bookmarkTagsRelations = relations(bookmarkTags, ({ one }) => ({
     references: [tags.id],
   }),
 }));
+
+export const sharedCollectionsRelations = relations(
+  sharedCollections,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [sharedCollections.userId],
+      references: [user.id],
+    }),
+    collection: one(collections, {
+      fields: [sharedCollections.collectionId],
+      references: [collections.id],
+    }),
+  }),
+);

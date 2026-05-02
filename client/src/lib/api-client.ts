@@ -11,6 +11,8 @@ import type {
   BookmarkFilter,
   SortOption,
   PaginatedResponse,
+  ShareInfo,
+  PublicShareResponse,
 } from "@/types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -144,11 +146,32 @@ export const userApi = {
     }),
 };
 
-// === EXPORT ===
+export const shareApi = {
+  // Auth
+  create: (collectionId: string) =>
+    fetcher<ShareInfo>(`/collections/${collectionId}/share`, {
+      method: "POST",
+    }),
+
+  get: (collectionId: string) =>
+    fetcher<ShareInfo | null>(`/collections/${collectionId}/share`),
+
+  revoke: (collectionId: string) =>
+    fetcher<void>(`/collections/${collectionId}/share`, { method: "DELETE" }),
+
+  // Public — no auth
+  getPublic: (code: string, params?: { page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    return fetcher<PublicShareResponse>(`/share/${code}?${query}`);
+  },
+};
 
 export const api = {
   bookmarks: bookmarksApi,
   collections: collectionsApi,
   tags: tagsApi,
   user: userApi,
+  share: shareApi,
 };

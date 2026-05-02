@@ -1,9 +1,10 @@
 import Elysia, { t } from "elysia";
 import { betterAuthPlugin } from "../utils/auth";
 import { db } from "../db";
-import { collections, bookmarks } from "../db/schema";
+import { collections, bookmarks, sharedCollections } from "../db/schema";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { ConflictError, NotFoundError } from "../error";
+import { ConflictError, ForbiddenError, NotFoundError } from "../error";
+import { generateShareCode } from "../utils/nanoid";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
@@ -216,4 +217,126 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       .limit(1);
     if (!col) throw new NotFoundError();
     return col;
-  });
+  })
+  // === SHARE MANAGEMENT ===
+  .post(
+    "/:id/share",
+    async ({ params: { id }, user }) => {
+      const userId = user.id;
+
+      // verify collection exists and belongs to user
+      const [col] = await db
+        .select({
+          id: collections.id,
+          isSystem: collections.isSystem,
+        })
+        .from(collections)
+        .where(and(eq(collections.id, id), eq(collections.userId, userId)))
+        .limit(1);
+
+      if (!col) throw new NotFoundError();
+      if (col.isSystem) throw new ForbiddenError("cannot share system collections");
+
+      // check if already shared — return existing
+      const [existing] = await db
+        .select()
+        .from(sharedCollections)
+        .where(
+          and(
+            eq(sharedCollections.collectionId, id),
+            eq(sharedCollections.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        // re-activate if it was deactivated
+        if (!existing.isActive) {
+          await db
+            .update(sharedCollections)
+            .set({ isActive: true })
+            .where(eq(sharedCollections.id, existing.id));
+        }
+        return {
+          id: existing.id,
+          shareCode: existing.shareCode,
+          isActive: true,
+          createdAt: existing.createdAt,
+        };
+      }
+
+      // create new share
+      const shareCode = generateShareCode();
+      const [share] = await db
+        .insert(sharedCollections)
+        .values({
+          userId,
+          collectionId: id,
+          shareCode,
+        })
+        .returning();
+
+      return {
+        id: share.id,
+        shareCode: share.shareCode,
+        isActive: share.isActive,
+        createdAt: share.createdAt,
+      };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+    },
+  )
+  .get(
+    "/:id/share",
+    async ({ params: { id }, user }) => {
+      const userId = user.id;
+
+      const [share] = await db
+        .select()
+        .from(sharedCollections)
+        .where(
+          and(
+            eq(sharedCollections.collectionId, id),
+            eq(sharedCollections.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!share || !share.isActive) return null;
+
+      return {
+        id: share.id,
+        shareCode: share.shareCode,
+        isActive: share.isActive,
+        createdAt: share.createdAt,
+      };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+    },
+  )
+  .delete(
+    "/:id/share",
+    async ({ params: { id }, user }) => {
+      const userId = user.id;
+
+      const [share] = await db
+        .update(sharedCollections)
+        .set({ isActive: false })
+        .where(
+          and(
+            eq(sharedCollections.collectionId, id),
+            eq(sharedCollections.userId, userId),
+          ),
+        )
+        .returning();
+
+      if (!share) throw new NotFoundError("no share found for this collection");
+
+      return { success: true };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+    },
+  );

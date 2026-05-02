@@ -19,7 +19,7 @@ export function AppSidebar() {
   const { session } = useAuth();
 
   const systemCollections = collections?.filter((c) => c.isSystem) || [];
-  const userCollections = collections?.filter((c) => c.isSystem) || [];
+  const userCollections = collections?.filter((c) => !c.isSystem) || [];
   return (
     <Sidebar>
       <SidebarHeader>

@@ -8,6 +8,7 @@ import { collectionRouter } from "./collections";
 import { searchRouter } from "./search";
 import { tagsRouter } from "./tags";
 import { userRouter } from "./user";
+import { shareRouter } from "./share";
 import { errorPlugin } from "./error";
 
 export const app = new Elysia()
@@ -39,14 +40,15 @@ export const app = new Elysia()
         version: "1.0.0",
         description: "Bookmark management API with Better-Auth",
       },
-      components: await authOpenAPI.components,
-      paths: await authOpenAPI.getPaths(),
+      paths: await authOpenAPI.getPaths() as any,
+      components: await authOpenAPI.components as any,
     },
-    exclude: { paths: ["/api/auth/*", "/openapi/*", "/health", "/api/version"] },
+    exclude: { paths: ["/openapi/*", "/health", "/api/version"] },
   }))
   .use(bookmarksRouter)
   .use(collectionRouter)
   .use(tagsRouter)
   .use(searchRouter)
   .use(userRouter)
+  .use(shareRouter)
   .listen(process.env.PORT || 3000);

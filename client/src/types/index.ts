@@ -94,3 +94,30 @@ export type ApiError = {
   message: string;
   errors?: Record<string, string[]>;
 };
+
+export type ShareInfo = {
+  id: string;
+  shareCode: string;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type PublicShareResponse = {
+  collection: {
+    id: string;
+    name: string;
+    description: string | null;
+    icon: string | null;
+    color: string | null;
+  };
+  sharedBy: string;
+  sharedAt: string;
+  bookmarks: PaginatedResponse<Bookmark>;
+  nestedCollections: Array<{
+    id: string;
+    name: string;
+    icon: string | null;
+    color: string | null;
+    bookmarkCount: number;
+  }>;
+};

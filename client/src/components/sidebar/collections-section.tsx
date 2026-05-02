@@ -29,8 +29,11 @@ import {
   Edit,
   Loader2,
   Trash2,
+  Share2,
 } from "lucide-react";
 import { useDeleteCollection } from "@/hooks/use-mutations";
+import { ShareDialog } from "@/components/share-dialog";
+import { useState } from "react";
 import type { Collection } from "@/types";
 
 type CollectionsSectionProps = {
@@ -45,14 +48,14 @@ export function CollectionsSection({
   return (
     <Collapsible defaultOpen>
       <SidebarGroup>
-        <SidebarGroupLabel asChild>
+        <SidebarGroupLabel>
           <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
               <span className="text-sm font-light">Collections</span>
             </CollapsibleTrigger>
 
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger >
                 <Button
                   size="icon"
                   variant="ghost"
@@ -114,6 +117,7 @@ function CollectionItem({
   isLast: boolean;
 }) {
   const deleteCollection = useDeleteCollection();
+  const [shareOpen, setShareOpen] = useState(false);
 
   const handleDelete = () => {
     if (confirm(`delete "${collection.name}"?`)) {
@@ -128,7 +132,7 @@ function CollectionItem({
         <div className="absolute left-3 top-3 bottom-0 w-px bg-border" />
       )}
       <div className="flex items-center group/item ml-6">
-        <SidebarMenuButton asChild className="flex-1">
+        <SidebarMenuButton className="flex-1">
           <Link
             to="/dashboard"
             search={{ collectionId: collection.id }}
@@ -148,7 +152,7 @@ function CollectionItem({
         </SidebarMenuButton>
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger>
             <Button
               variant="ghost"
               size="icon"
@@ -161,6 +165,10 @@ function CollectionItem({
             <DropdownMenuItem>
               <Edit className="h-4 w-4 mr-2" />
               edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShareOpen(true)}>
+              <Share2 className="h-4 w-4 mr-2" />
+              share
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -183,6 +191,12 @@ function CollectionItem({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <ShareDialog
+        collection={collection}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
     </SidebarMenuItem>
   );
 }

@@ -185,3 +185,35 @@ export function useUpdateUser() {
     },
   });
 }
+
+// === SHARE ===
+
+export function useShareCollection() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (collectionId: string) => api.share.create(collectionId),
+    onSuccess: (_, collectionId) => {
+      qc.invalidateQueries({ queryKey: ["share", collectionId] });
+      toast.success("collection is now public");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "failed to share");
+    },
+  });
+}
+
+export function useUnshareCollection() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (collectionId: string) => api.share.revoke(collectionId),
+    onSuccess: (_, collectionId) => {
+      qc.invalidateQueries({ queryKey: ["share", collectionId] });
+      toast.success("collection is now private");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "failed to unshare");
+    },
+  });
+}
