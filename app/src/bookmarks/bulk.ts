@@ -6,8 +6,6 @@ import { db } from "../db";
 import { bookmarks, collections } from "../db/schema";
 import { betterAuthPlugin } from "../utils/auth";
 
-// TODO: add bulk operations as now client is quite ready
-// PERF: improve bulk ops
 export const bookmarksBulkRouter = new Elysia()
   .use(betterAuthPlugin)
   .post(
