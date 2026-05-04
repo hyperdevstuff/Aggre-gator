@@ -180,4 +180,140 @@ export const bookmarksBulkRouter = new Elysia()
         ids: t.Array(t.String(), { minItems: 1 }),
       }),
     },
+  )
+  .post(
+    "/bulk/unarchive",
+    async ({ body, user }) => {
+      const userId = user.id;
+      const unsortedId = (
+        await db
+          .select({ id: collections.id })
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, userId),
+              eq(collections.slug, "unsorted"),
+            ),
+          )
+          .limit(1)
+      )[0]?.id;
+
+      if (!unsortedId) throw new NotFoundError("unsorted collection not found");
+
+      const results = await db
+        .update(bookmarks)
+        .set({ collectionId: unsortedId })
+        .where(
+          and(eq(bookmarks.userId, userId), inArray(bookmarks.id, body.ids)),
+        )
+        .returning({ id: bookmarks.id });
+
+      return { unarchived: results.length, ids: results.map((r) => r.id) };
+    },
+    {
+      body: t.Object({
+        ids: t.Array(t.String(), { minItems: 1 }),
+      }),
+    },
+  )
+  .post(
+    "/bulk-delete",
+    async ({ body, user }) => {
+      const userId = user.id;
+
+      // Find the archived collection for this user
+      const archivedId = (
+        await db
+          .select({ id: collections.id })
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, userId),
+              eq(collections.slug, "archived"),
+            ),
+          )
+          .limit(1)
+      )[0]?.id;
+
+      if (!archivedId) throw new NotFoundError("archived collection not found");
+
+      // Only delete bookmarks that belong to the user AND are in the archived collection
+      const deleted = await db
+        .delete(bookmarks)
+        .where(
+          and(
+            eq(bookmarks.userId, userId),
+            eq(bookmarks.collectionId, archivedId),
+            inArray(bookmarks.id, body.ids),
+          ),
+        )
+        .returning({ id: bookmarks.id });
+
+      const skippedCount = body.ids.length - deleted.length;
+
+      return {
+        deleted: deleted.length,
+        skipped: skippedCount,
+        ids: deleted.map((r) => r.id),
+      };
+    },
+    {
+      body: t.Object({
+        ids: t.Array(t.String(), { minItems: 1 }),
+      }),
+    },
+  )
+  .post(
+    "/move",
+    async ({ body, user }) => {
+      const userId = user.id;
+
+      // If collectionId is provided, verify it belongs to the user
+      if (body.collectionId) {
+        const [collection] = await db
+          .select({ id: collections.id })
+          .from(collections)
+          .where(
+            and(
+              eq(collections.id, body.collectionId),
+              eq(collections.userId, userId),
+            ),
+          )
+          .limit(1);
+
+        if (!collection) throw new NotFoundError("collection not found");
+      }
+
+      // Move bookmarks — if collectionId is null, move to unsorted
+      const targetCollectionId =
+        body.collectionId ??
+        (
+          await db
+            .select({ id: collections.id })
+            .from(collections)
+            .where(
+              and(
+                eq(collections.userId, userId),
+                eq(collections.slug, "unsorted"),
+              ),
+            )
+            .limit(1)
+        )[0]?.id;
+
+      const moved = await db
+        .update(bookmarks)
+        .set({ collectionId: targetCollectionId })
+        .where(
+          and(eq(bookmarks.userId, userId), inArray(bookmarks.id, body.ids)),
+        )
+        .returning({ id: bookmarks.id });
+
+      return { moved: moved.length, ids: moved.map((r) => r.id) };
+    },
+    {
+      body: t.Object({
+        ids: t.Array(t.String(), { minItems: 1 }),
+        collectionId: t.Union([t.String(), t.Null()]),
+      }),
+    },
   );
