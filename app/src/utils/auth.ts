@@ -9,7 +9,15 @@ import { UnauthorizedError } from "../error";
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
   baseURL: process.env.BETTER_AUTH_URL as string,
-  emailAndPassword: { enabled: true },
+  emailAndPassword: {
+    enabled: true,
+    sendResetPassword: async ({ user, url, token }) => {
+      // TODO: replace with real email provider (Resend, unosend) for production
+      console.log(`\n🔑 Password reset requested for ${user.email}`);
+      console.log(`   Reset URL: ${url}`);
+      console.log(`   Token: ${token}\n`);
+    },
+  },
   trustedOrigins: [process.env.CLIENT_URL as string],
   plugins: [openAPI()],
   ...(process.env.GOOGLE_CLIENT_ID &&
@@ -68,4 +76,4 @@ export const betterAuthPlugin = new Elysia({ name: "better-auth" })
       };
     }
   )
-  .as("plugin");
+  .as("global");

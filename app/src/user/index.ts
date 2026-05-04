@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { betterAuthPlugin } from "../utils/auth";
+import { auth, betterAuthPlugin } from "../utils/auth";
 import { db } from "../db";
 import { bookmarks, collections, tags } from "../db/schema";
 import { eq, sql } from "drizzle-orm";

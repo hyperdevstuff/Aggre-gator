@@ -1,7 +1,7 @@
 import { useState, type ComponentProps, type FormEvent } from "react";
-import { Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,45 +14,52 @@ import {
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 
-type LoginFormValues = {
+type SignupFormValues = {
+  name: string;
   email: string;
   password: string;
 };
 
-type LoginFormProps = ComponentProps<"form"> & {
+type SignupFormProps = ComponentProps<"form"> & {
   onSuccess?: () => void;
   redirectUrl?: string;
 };
 
-export function LoginForm({
+export function SignupForm({
   className,
   onSuccess,
   redirectUrl,
   ...props
-}: LoginFormProps) {
+}: SignupFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
 
-  const loginMutation = useMutation({
-    mutationFn: async (values: LoginFormValues) => {
-      const response = await authClient.signIn.email(values);
+  const signupMutation = useMutation({
+    mutationFn: async (values: SignupFormValues) => {
+      const response = await authClient.signUp.email({
+        name: values.name,
+        email: values.email,
+        password: values.password,
+        callbackURL: redirectUrl || "/dashboard",
+      });
       if (response.error) {
-        throw new Error(response.error.message || "Invalid credentials");
+        throw new Error(response.error.message || "Unable to create account");
       }
       return response.data;
     },
     onSuccess: () => {
-      toast.success("Welcome back");
+      toast.success("Account created! Welcome aboard 🎉");
       onSuccess?.();
     },
     onError: (error: unknown) => {
       const message =
         error instanceof Error
           ? error.message
-          : "Unable to sign in right now. Please try again.";
+          : "Unable to create account right now. Please try again.";
       setFormError(message);
       toast.error(message);
     },
   });
+
   const socialSignIn = useMutation({
     mutationFn: async (provider: "google") => {
       const response = await authClient.signIn.social({
@@ -61,7 +68,7 @@ export function LoginForm({
       });
       if (response.error) {
         throw new Error(
-          response.error.message || "Unable to sign in with Google",
+          response.error.message || "Unable to sign up with Google",
         );
       }
       return response.data;
@@ -70,27 +77,39 @@ export function LoginForm({
       const message =
         error instanceof Error
           ? error.message
-          : "Unable to start Google sign in. Please try again.";
+          : "Unable to start Google sign up. Please try again.";
       setFormError(message);
       toast.error(message);
     },
   });
 
-  const isSubmitting = loginMutation.isPending || socialSignIn.isPending;
+  const isSubmitting = signupMutation.isPending || socialSignIn.isPending;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const name = (formData.get("name") || "").toString().trim();
     const email = (formData.get("email") || "").toString().trim();
     const password = (formData.get("password") || "").toString();
+    const confirmPassword = (formData.get("confirmPassword") || "").toString();
 
-    if (!email || !password) {
-      setFormError("Email and password are required");
+    if (!name || !email || !password) {
+      setFormError("All fields are required");
+      return;
+    }
+
+    if (password.length < 8) {
+      setFormError("Password must be at least 8 characters");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setFormError("Passwords don't match");
       return;
     }
 
     setFormError(null);
-    loginMutation.mutate({ email, password });
+    signupMutation.mutate({ name, email, password });
   };
 
   const handleGoogleSignIn = () => {
@@ -106,11 +125,23 @@ export function LoginForm({
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">Login to your account</h1>
+          <h1 className="text-2xl font-bold">Create your account</h1>
           <p className="text-muted-foreground text-sm text-balance">
-            Enter your email below to login to your account
+            Enter your details below to get started
           </p>
         </div>
+        <Field>
+          <FieldLabel htmlFor="name">Name</FieldLabel>
+          <Input
+            id="name"
+            name="name"
+            type="text"
+            placeholder="John Doe"
+            autoComplete="name"
+            disabled={isSubmitting}
+            required
+          />
+        </Field>
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
@@ -124,22 +155,29 @@ export function LoginForm({
           />
         </Field>
         <Field>
-          <div className="flex items-center">
-            <FieldLabel htmlFor="password">Password</FieldLabel>
-            <Link
-              to="/forgot-password"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
-            >
-              Forgot your password?
-            </Link>
-          </div>
+          <FieldLabel htmlFor="password">Password</FieldLabel>
           <Input
             id="password"
             name="password"
             type="password"
-            autoComplete="current-password"
+            placeholder="At least 8 characters"
+            autoComplete="new-password"
             disabled={isSubmitting}
             required
+            minLength={8}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            placeholder="Re-enter your password"
+            autoComplete="new-password"
+            disabled={isSubmitting}
+            required
+            minLength={8}
           />
         </Field>
         {formError ? (
@@ -150,8 +188,8 @@ export function LoginForm({
         <Field>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && !socialSignIn.isPending
-              ? "Signing in..."
-              : "Login"}
+              ? "Creating account..."
+              : "Sign up"}
           </Button>
         </Field>
         <FieldSeparator>Or continue with</FieldSeparator>
@@ -172,12 +210,12 @@ export function LoginForm({
                 fill="currentColor"
               />
             </svg>
-            {socialSignIn.isPending ? "Redirecting..." : "Login with Google"}
+            {socialSignIn.isPending ? "Redirecting..." : "Sign up with Google"}
           </Button>
           <FieldDescription className="text-center">
-            Don&apos;t have an account?{" "}
-            <Link to="/signup" className="underline underline-offset-4">
-              Sign up
+            Already have an account?{" "}
+            <Link to="/login" className="underline underline-offset-4">
+              Log in
             </Link>
           </FieldDescription>
         </Field>
