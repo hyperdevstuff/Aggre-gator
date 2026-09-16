@@ -44,24 +44,19 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-          <Avatar className="h-6 w-6">
-            <AvatarImage
-              src={session.user.image || ""}
-              alt={session.user.name}
-            />
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-          </Avatar>
-          <span className="flex-1 truncate">{session.user.name}</span>
-          <ChevronUp className="ml-auto h-4 w-4" />
-        </SidebarMenuButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        side="top"
-        align="end"
-        className="w-[--radix-popper-anchor-width]"
+      <DropdownMenuTrigger
+        render={
+          <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" />
+        }
       >
+        <Avatar className="h-6 w-6">
+          <AvatarImage src={session.user.image || ""} alt={session.user.name} />
+          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+        </Avatar>
+        <span className="flex-1 truncate">{session.user.name}</span>
+        <ChevronUp className="ml-auto h-4 w-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="end">
         <DropdownMenuItem>
           <Settings className="h-4 w-4 mr-2" />
           settings

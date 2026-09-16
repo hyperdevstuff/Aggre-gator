@@ -1,0 +1,14 @@
+# agent / tool scratch dirs (local-only, never commit)
+.claude/
+.commandcode/
+.client-commandcode/
+client/.agents/
+client/.commandcode/
+.agents/skills/find-skills/
+
+# agent lockfiles (local-only)
+client/skills-lock.json
+
+# local logs
+*.log
+logs/

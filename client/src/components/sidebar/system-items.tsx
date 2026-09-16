@@ -21,24 +21,30 @@ export function SystemItems({ collections }: SystemItemsProps) {
         <SidebarMenu>
           {collections.map((col) => (
             <SidebarMenuItem key={col.id}>
-              <SidebarMenuButton asChild>
-                <Link to="/dashboard" search={{ collectionId: col.id }}>
-                  {col.name === "unsorted" ? <FolderOpen /> : <FolderArchive />}
-                  <span className="capitalize">{col.name}</span>
-                  <SidebarMenuBadge className="ml-auto">
-                    {col.count}
-                  </SidebarMenuBadge>
-                </Link>
+              <SidebarMenuButton
+                render={
+                  <Link to="/dashboard" search={{ collectionId: col.id }} />
+                }
+              >
+                {col.name.toLowerCase() === "unsorted" ? (
+                  <FolderOpen />
+                ) : (
+                  <FolderArchive />
+                )}
+                <span className="capitalize">{col.name}</span>
+                <SidebarMenuBadge className="ml-auto">
+                  {col.count}
+                </SidebarMenuBadge>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
 
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link to="/dashboard" search={{ isFavorite: true }}>
-                <FolderHeart className="text-pink-600" />
-                <span>favorites</span>
-              </Link>
+            <SidebarMenuButton
+              render={<Link to="/dashboard" search={{ isFavorite: true }} />}
+            >
+              <FolderHeart className="text-pink-600" />
+              <span>favorites</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

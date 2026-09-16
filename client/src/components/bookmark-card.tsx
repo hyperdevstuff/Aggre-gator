@@ -88,22 +88,26 @@ export function BookmarkCard({ bookmark, onEdit }: BookmarkCardProps) {
             </Button>
 
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
+              <DropdownMenuTrigger
+                render={
+                  <Button size="icon" variant="ghost" className="h-8 w-8" />
+                }
+              >
+                <MoreVertical className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <a
-                    href={bookmark.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    open
-                  </a>
+                <DropdownMenuItem
+                  className="flex items-center"
+                  render={
+                    <a
+                      href={bookmark.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    />
+                  }
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  open
                 </DropdownMenuItem>
                 {onEdit && (
                   <DropdownMenuItem onClick={() => onEdit(bookmark)}>

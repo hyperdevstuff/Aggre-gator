@@ -1,13 +1,13 @@
 import { describe, test, expect, beforeAll } from "bun:test";
 import { app } from "../../index";
-import { createTestUser, getAuthToken } from "./setup";
+import { createTestUser, getSessionCookie } from "./setup";
 
 describe("edge cases", () => {
-  let token: string;
+  let cookie: string;
 
   beforeAll(async () => {
     const user = await createTestUser();
-    token = await getAuthToken(user.email, user.password);
+    cookie = await getSessionCookie(user.email, user.password);
   });
 
   // test("handles very long urls", async () => {
@@ -20,7 +20,7 @@ describe("edge cases", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Cookie: cookie,
         },
         body: JSON.stringify({
           url: "https://example.com",

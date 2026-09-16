@@ -139,8 +139,8 @@ export const tagsApi = {
 export const userApi = {
   me: () => fetcher<User>("/user/me"),
 
-  update: (data: Partial<User>) =>
-    fetcher<User>("/user/me", {
+  update: (data: Partial<{ name: string; image: string }>) =>
+    fetcher<User>("/user/profile", {
       method: "PATCH",
       body: JSON.stringify(data),
     }),

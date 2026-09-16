@@ -1,0 +1,8 @@
+# Dependency lifecycle scripts are disabled project-wide: metascraper pulls in the
+# native `re2` package, whose install script needs MSVC + Python and fails on
+# Windows without them. re2 is never used at runtime (it is only loaded when
+# METASCRAPER_RE2=true), so skipping its build is safe.
+# If a dependency ever needs a real postinstall step (e.g. sharp, esbuild), either
+# remove this or run `bun install` without it for that one setup.
+[install]
+ignoreScripts = true

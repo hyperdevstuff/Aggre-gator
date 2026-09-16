@@ -1,20 +1,20 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { app } from "../../index";
-import { createTestUser, getAuthToken, cleanupTestUser } from "./setup";
+import { createTestUser, getSessionCookie, cleanupTestUser } from "./setup";
 
 describe("bookmarks api", () => {
   let userId: string;
-  let token: string;
+  let cookie: string;
   let unsortedId: string;
 
   beforeAll(async () => {
     const testUser = await createTestUser();
     userId = testUser.user.id;
-    token = await getAuthToken(testUser.email, testUser.password);
+    cookie = await getSessionCookie(testUser.email, testUser.password);
 
     const res = await app.handle(
       new Request("http://localhost/collections", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Cookie: cookie },
       }),
     );
     const colls = await res.json();
@@ -31,7 +31,7 @@ describe("bookmarks api", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Cookie: cookie,
         },
         body: JSON.stringify({
           url: "https://example.com/test",
@@ -55,7 +55,7 @@ describe("bookmarks api", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Cookie: cookie,
         },
         body: JSON.stringify({
           url: "https://example.com/dup",
@@ -70,7 +70,7 @@ describe("bookmarks api", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Cookie: cookie,
         },
         body: JSON.stringify({
           url: "https://example.com/dup",
@@ -92,7 +92,7 @@ describe("bookmarks api", () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Cookie: cookie,
           },
           body: JSON.stringify({
             url: `https://example.com/page-${i}`,
@@ -105,7 +105,7 @@ describe("bookmarks api", () => {
     // get page 1
     const res = await app.handle(
       new Request("http://localhost/bookmarks?page=1&limit=20", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Cookie: cookie },
       }),
     );
 
@@ -119,7 +119,7 @@ describe("bookmarks api", () => {
   test("GET /bookmarks filters by collection", async () => {
     const res = await app.handle(
       new Request(`http://localhost/bookmarks?collectionId=${unsortedId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Cookie: cookie },
       }),
     );
 
@@ -134,7 +134,7 @@ describe("bookmarks api", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Cookie: cookie,
         },
         body: JSON.stringify({
           url: "https://example.com/update",
@@ -150,7 +150,7 @@ describe("bookmarks api", () => {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Cookie: cookie,
         },
         body: JSON.stringify({
           title: "Updated",
@@ -171,7 +171,7 @@ describe("bookmarks api", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Cookie: cookie,
         },
         body: JSON.stringify({
           url: "https://example.com/delete",
@@ -185,7 +185,7 @@ describe("bookmarks api", () => {
     const res = await app.handle(
       new Request(`http://localhost/bookmarks/${bookmark.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Cookie: cookie },
       }),
     );
 

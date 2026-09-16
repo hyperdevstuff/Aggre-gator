@@ -132,23 +132,26 @@ function CollectionItem({
         <div className="absolute left-3 top-3 bottom-0 w-px bg-border" />
       )}
       <div className="flex items-center group/item ml-6">
-        <SidebarMenuButton className="flex-1">
-          <Link
-            to="/dashboard"
-            search={{ collectionId: collection.id }}
-            className="flex items-center gap-2"
-          >
-            {collection.icon ? (
-              <span className="text-sm">{collection.icon}</span>
-            ) : (
-              <FolderIcon
-                className="h-4 w-4"
-                style={{ color: collection.color || undefined }}
-              />
-            )}
-            <span className="flex-1 truncate">{collection.name}</span>
-            <SidebarMenuBadge>{collection.count}</SidebarMenuBadge>
-          </Link>
+        <SidebarMenuButton
+          className="flex-1"
+          render={
+            <Link
+              to="/dashboard"
+              search={{ collectionId: collection.id }}
+              className="flex items-center gap-2"
+            />
+          }
+        >
+          {collection.icon ? (
+            <span className="text-sm">{collection.icon}</span>
+          ) : (
+            <FolderIcon
+              className="h-4 w-4"
+              style={{ color: collection.color || undefined }}
+            />
+          )}
+          <span className="flex-1 truncate">{collection.name}</span>
+          <SidebarMenuBadge>{collection.count}</SidebarMenuBadge>
         </SidebarMenuButton>
 
         <DropdownMenu>

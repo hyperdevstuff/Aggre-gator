@@ -1,0 +1,27 @@
+name: aggregator
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: aggregator-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pastpost
+      POSTGRES_DB: aggregator
+    ports:
+      - "5432:5432"
+    volumes:
+      # postgres:18+ expects a single mount at /var/lib/postgresql (data goes in a
+      # major-version subdirectory). Mounting /var/lib/postgresql/data is rejected.
+      - aggregator-pgdata:/var/lib/postgresql
+      # Creates the extra `aggregator_test` database on first boot
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d aggregator"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  aggregator-pgdata:

@@ -50,5 +50,11 @@ export const app = new Elysia()
   .use(tagsRouter)
   .use(searchRouter)
   .use(userRouter)
-  .use(shareRouter)
-  .listen(process.env.PORT || 3000);
+  .use(shareRouter);
+
+// Tests import `app` and drive it through `app.handle()`; Bun evaluates each test
+// file's module graph separately, so binding a port here would make the second
+// file fail with EADDRINUSE.
+if (process.env.NODE_ENV !== "test") {
+  app.listen(process.env.PORT || 3000);
+}

@@ -1,7 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-drizzle/*.sql
-drizzle/meta/
+# drizzle migrations must be committed so a fresh clone can `db:migrate`
 # dependencies
 /node_modules
 /.pnp

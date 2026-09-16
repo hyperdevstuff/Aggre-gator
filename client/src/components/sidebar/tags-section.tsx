@@ -42,22 +42,24 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
   return (
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup>
-        <SidebarGroupLabel asChild>
+        <SidebarGroupLabel>
           <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent ">
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
               <span className="font-light text-sm">Tags</span>
             </CollapsibleTrigger>
 
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 mr-1 group-hover/label:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 mr-1 group-hover/label:opacity-100 transition-opacity"
+                  />
+                }
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>
@@ -107,30 +109,35 @@ function TagItem({ tag }: { tag: Tag }) {
   return (
     <SidebarMenuItem>
       <div className="flex items-center group/item">
-        <SidebarMenuButton asChild className="flex-1">
-          <Link
-            to="/dashboard"
-            search={{ tags: [tag.id] }}
-            className="flex items-center gap-2"
-          >
-            <TagIcon
-              className="h-3 w-3"
-              style={{ color: tag.color || undefined }}
+        <SidebarMenuButton
+          className="flex-1"
+          render={
+            <Link
+              to="/dashboard"
+              search={{ tags: [tag.id] }}
+              className="flex items-center gap-2"
             />
-            <span className="flex-1 truncate">{tag.name}</span>
-            <SidebarMenuBadge>{tag.count}</SidebarMenuBadge>
-          </Link>
+          }
+        >
+          <TagIcon
+            className="h-3 w-3"
+            style={{ color: tag.color || undefined }}
+          />
+          <span className="flex-1 truncate">{tag.name}</span>
+          <SidebarMenuBadge>{tag.count}</SidebarMenuBadge>
         </SidebarMenuButton>
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity"
+              />
+            }
+          >
+            <MoreVertical className="h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem>

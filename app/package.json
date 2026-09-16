@@ -4,34 +4,37 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "test": "bun test --env-file=.env.test.local",
+    "typecheck": "tsc --noEmit",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:test": "drizzle-kit migrate --config=drizzle.test.config.ts"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.2",
-    "@elysiajs/openapi": "^1.4.15",
-    "better-auth": "^1.6.9",
+    "@elysiajs/openapi": "^1.4.16",
+    "better-auth": "^1.7.5",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "drizzle-typebox": "^0.3.3",
-    "elysia": "^1.4.28",
-    "metascraper": "^5.50.1",
-    "metascraper-description": "^5.50.1",
-    "metascraper-image": "^5.50.1",
-    "metascraper-title": "^5.50.1",
-    "metascraper-url": "^5.50.1",
-    "metascraper-x": "^5.50.1",
-    "metascraper-youtube": "^5.50.1",
-    "nanoid": "^5.1.11",
-    "pg": "^8.20.0"
+    "elysia": "^1.4.30",
+    "metascraper": "^5.56.2",
+    "metascraper-description": "^5.56.2",
+    "metascraper-image": "^5.56.2",
+    "metascraper-title": "^5.56.2",
+    "metascraper-url": "^5.56.2",
+    "metascraper-x": "^5.56.2",
+    "metascraper-youtube": "^5.56.2",
+    "nanoid": "^6.0.1",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10",
-    "@sinclair/typebox": "0.34.49",
-    "@types/pg": "^8.15.6",
-    "tsx": "^4.20.6",
-    "@types/bun": "^1.3.1"
+    "@sinclair/typebox": "^0.34.52",
+    "@types/pg": "^8.23.1",
+    "@types/bun": "^1.4.2",
+    "tsx": "^4.23.13",
+    "typescript": "~6.0.3"
   },
   "module": "src/index.js"
 }

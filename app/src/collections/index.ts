@@ -115,13 +115,18 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     "/:id",
     async ({ params: { id }, user }) => {
       const userId = user.id;
+      // Check before deleting — deleting first would remove a system
+      // collection before the ConflictError below could stop it.
       const [col] = await db
-        .delete(collections)
+        .select({ id: collections.id, isSystem: collections.isSystem })
+        .from(collections)
         .where(and(eq(collections.id, id), eq(collections.userId, userId)))
-        .returning();
+        .limit(1);
       if (!col) throw new NotFoundError();
       if (col.isSystem)
         throw new ConflictError("cannot delete system collection");
+
+      await db.delete(collections).where(eq(collections.id, col.id));
       return { success: true };
     },
     {
