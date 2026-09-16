@@ -27,4 +27,3 @@ src/routeTree.gen.ts
 *.sln
 *.sw?
 .glimpse
-TASKS.md
