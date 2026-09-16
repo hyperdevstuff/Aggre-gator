@@ -12,8 +12,8 @@ dist
 dist-ssr
 *.local
 
-# TanStack Router
-src/routeTree.gen.ts
+# TanStack Router — the generated route tree is committed on purpose: `bun run
+# build` typechecks before Vite regenerates it, so a clean clone fails without it.
 .tanstack
 
 # Editor directories and files
