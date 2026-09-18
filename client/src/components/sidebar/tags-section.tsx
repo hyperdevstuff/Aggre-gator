@@ -57,12 +57,12 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
                     size="icon"
                     aria-label="Tag options"
                     variant="ghost"
-                    className="h-6 w-6 mr-1 group-hover/label:opacity-100 transition-opacity"
+                    className="size-7 shrink-0 transition-opacity duration-150 after:absolute after:-inset-2 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/label:opacity-100 [@media(hover:hover)]:group-focus-within/label:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                   />
                 }
                 onClick={(e) => e.stopPropagation()}
               >
-                <MoreVertical className="h-4 w-4" />
+                <MoreVertical className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setCreateOpen(true)}>

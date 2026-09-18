@@ -62,8 +62,17 @@ export function CollectionsSection({
             </CollapsibleTrigger>
 
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button size="icon" variant="ghost" aria-label="Collection options" />}>
-                <MoreVertical className="h-4 w-4" />
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Collection options"
+                    className="size-7 shrink-0 transition-opacity duration-150 after:absolute after:-inset-2 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/label:opacity-100 [@media(hover:hover)]:group-focus-within/label:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+                  />
+                }
+              >
+                <MoreVertical className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setCreateOpen(true)}>
@@ -89,14 +98,12 @@ export function CollectionsSection({
                 no collections
               </p>
             ) : (
-              <SidebarMenu className="relative">
-                <div className="absolute left-3 top-0 bottom-3 w-px bg-border"></div>
-                {collections.map((col, idx) => (
+              <SidebarMenu>
+                {collections.map((col) => (
                   <CollectionItem
                     key={col.id}
                     collection={col}
                     nodes={nodes}
-                    isLast={idx === collections.length - 1}
                   />
                 ))}
               </SidebarMenu>
@@ -111,11 +118,9 @@ export function CollectionsSection({
 function CollectionItem({
   collection,
   nodes,
-  isLast,
 }: {
   collection: Collection;
   nodes: { id: string; parentId?: string; isSystem?: boolean }[];
-  isLast: boolean;
 }) {
   const search = useSearch({ from: "/_protected/dashboard" });
   const active = search.collectionId === collection.id;
@@ -132,12 +137,8 @@ function CollectionItem({
   };
 
   return (
-    <SidebarMenuItem className="relative">
-      <div className="flex items-center group/item" />
-      {!isLast && (
-        <div className="absolute left-3 top-3 bottom-0 w-px bg-border" />
-      )}
-      <div className="flex items-center group/item ml-6">
+    <SidebarMenuItem>
+      <div className="flex items-center group/item">
         <SidebarMenuButton
           className="flex-1"
           isActive={active}
