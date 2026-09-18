@@ -57,7 +57,7 @@ export function CollectionsSection({
     <Collapsible defaultOpen>
       <SidebarGroup>
         <SidebarGroupLabel>
-          <div className="-mr-2 flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
+          <div className="-mr-2 flex w-full items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
               <span className="text-sm font-light">Collections</span>
             </CollapsibleTrigger>
@@ -75,7 +75,7 @@ export function CollectionsSection({
               >
                 <MoreVertical className="size-4" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuItem onClick={() => setCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
                   New collection

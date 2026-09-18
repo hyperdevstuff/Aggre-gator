@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -172,7 +172,11 @@ function BookmarkForm({
           <Select value={collectionId || NO_VALUE} onValueChange={(value) => setCollectionId(!value || value === NO_VALUE ? "" : value)}
             disabled={collections.isPending}>
             <SelectTrigger id={`${id}-collection`} className="w-full">
-              <SelectValue />
+              <span className="flex-1 truncate text-left">
+                {collectionId
+                  ? (collections.data?.find((collection) => collection.id === collectionId)?.name ?? "Current collection")
+                  : bookmark ? "No collection" : "Unsorted (default)"}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_VALUE}>{bookmark ? "No collection" : "Unsorted (default)"}</SelectItem>
@@ -221,7 +225,7 @@ function BookmarkForm({
           {availableTags.length > 0 && (
             <Select value={NO_VALUE} onValueChange={(value) => { if (value && value !== NO_VALUE) addTag(value); }}>
               <SelectTrigger className="w-full" aria-label="Choose an existing tag">
-                <SelectValue placeholder="Choose an existing tag…" />
+                <span className="flex-1 truncate text-left text-muted-foreground">Choose an existing tag…</span>
               </SelectTrigger>
               <SelectContent>
                 {availableTags.map((tag) => <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>)}

@@ -1,6 +1,6 @@
 import { Archive, ArchiveRestore, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import type { Collection } from "@/types";
 
 type BulkActionBarProps = {
@@ -60,7 +60,7 @@ export function BulkActionBar({
           onValueChange={(value) => onMove(value === "unsorted" ? null : value)}
         >
           <SelectTrigger size="sm" aria-label="Move selection to collection">
-            <SelectValue placeholder="Move to…" />
+            <span className="flex-1 truncate text-left text-muted-foreground">Move to…</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="unsorted">Unsorted</SelectItem>

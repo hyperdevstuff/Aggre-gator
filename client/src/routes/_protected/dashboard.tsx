@@ -13,7 +13,7 @@ import { BookmarksGrid } from "@/components/bookmark-grid";
 import { BulkActionBar } from "@/components/bulk-action-bar";
 import { Pagination } from "@/components/pagination";
 import { FilterBadges } from "@/components/filter-badges";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -30,6 +30,14 @@ const searchSchema = z.object({
   page: z.number().int().positive().optional().default(1),
   sort: z.enum(["created_desc", "created_asc", "title_asc", "title_desc", "url_asc"]).optional(),
 });
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "created_desc", label: "Newest first" },
+  { value: "created_asc", label: "Oldest first" },
+  { value: "title_asc", label: "Title A–Z" },
+  { value: "title_desc", label: "Title Z–A" },
+  { value: "url_asc", label: "URL A–Z" },
+];
 
 export const Route = createFileRoute("/_protected/dashboard")({
   validateSearch: searchSchema,
@@ -134,14 +142,14 @@ function Dashboard() {
         <Select value={search.sort ?? "created_desc"}
           onValueChange={(value) => updateFilters({ sort: value as SortOption })}>
           <SelectTrigger aria-label="Sort bookmarks">
-            <SelectValue />
+            <span className="flex-1 truncate text-left">
+              {SORT_OPTIONS.find((option) => option.value === (search.sort ?? "created_desc"))?.label}
+            </span>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="created_desc">Newest first</SelectItem>
-            <SelectItem value="created_asc">Oldest first</SelectItem>
-            <SelectItem value="title_asc">Title A–Z</SelectItem>
-            <SelectItem value="title_desc">Title Z–A</SelectItem>
-            <SelectItem value="url_asc">URL A–Z</SelectItem>
+            {SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Button className="cursor-pointer" onClick={openCreate}>
