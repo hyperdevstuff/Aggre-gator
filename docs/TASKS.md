@@ -58,7 +58,7 @@
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |
 | ❌ | Rate limiting |
 | ❌ | Request logging / monitoring |
-| ❌ | Production deployment (Dockerfile, env validation, CI) |
+| ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20 |
 
 ---
 
