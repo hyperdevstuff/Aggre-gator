@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookmarkCard } from "@/components/bookmark-card";
+import { motion } from "motion/react";
 import type { Bookmark } from "@/types";
 
 type BookmarksGridProps = {
@@ -30,11 +31,23 @@ export function BookmarksGrid({
 }: BookmarksGridProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <motion.div
+        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-64" />
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05, duration: 0.3 }}
+          >
+            <Skeleton className="h-64 rounded-xl" />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     );
   }
 
@@ -64,18 +77,51 @@ export function BookmarksGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <motion.div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+      variants={{
+        hidden: { opacity: 0 },
+        show: {
+          opacity: 1,
+          transition: {
+            staggerChildren: 0.05,
+          },
+        },
+      }}
+      initial="hidden"
+      animate="show"
+    >
       {bookmarks.map((bookmark) => (
-        <BookmarkCard
+        <motion.div
           key={bookmark.id}
-          bookmark={bookmark}
-          onEdit={onEditBookmark}
-          onEditTag={onEditTag}
-          isArchived={archivedCollectionId !== undefined && bookmark.collectionId === archivedCollectionId}
-          selected={selectedIds?.includes(bookmark.id) ?? false}
-          onToggleSelect={onToggleSelect}
-        />
+          variants={{
+            hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
+            show: {
+              opacity: 1,
+              y: 0,
+              filter: "blur(0px)",
+              transition: {
+                type: "spring",
+                stiffness: 300,
+                damping: 25,
+              },
+            },
+          }}
+        >
+          <BookmarkCard
+            key={bookmark.id}
+            bookmark={bookmark}
+            onEdit={onEditBookmark}
+            onEditTag={onEditTag}
+            isArchived={
+              archivedCollectionId !== undefined &&
+              bookmark.collectionId === archivedCollectionId
+            }
+            selected={selectedIds?.includes(bookmark.id) ?? false}
+            onToggleSelect={onToggleSelect}
+          />
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }

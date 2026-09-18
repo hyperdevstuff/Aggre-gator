@@ -8,7 +8,12 @@ import { generateShareCode } from "../utils/nanoid";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 import { collectionParentError } from "../../../shared/collection-tree";
-import { getSystemCollectionId } from "../utils/collections";
+import { getSystemCollectionId, requireUserCollection } from "../utils/collections";
+
+/** Kebab-case slug, e.g. "design-inspiration". */
+const SLUG_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
+/** Six-digit hex color, matching the tag color validation. */
+const COLOR_PATTERN = "^#[0-9A-Fa-f]{6}$";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
   .use(betterAuthPlugin)
@@ -23,6 +28,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         const nodes = await tx.select().from(collections).where(eq(collections.userId, userId));
         const error = collectionParentError(nodes, body.parentId ?? null);
         if (error) throw new ConflictError(error);
+        if (body.slug !== undefined && nodes.some((node) => node.slug === body.slug))
+          throw new ConflictError("Slug already in use");
         const [collection] = await tx.insert(collections).values({ ...body, userId }).returning();
         return collection;
       });
@@ -30,9 +37,10 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     {
       body: t.Object({
         name: t.String({ minLength: 1, maxLength: 100 }),
+        slug: t.Optional(t.String({ minLength: 1, maxLength: 100, pattern: SLUG_PATTERN })),
         description: t.Optional(t.String()),
         icon: t.Optional(t.String()),
-        color: t.Optional(t.String()),
+        color: t.Optional(t.String({ pattern: COLOR_PATTERN })),
         parentId: t.Optional(t.String({ minLength: 1 })),
       }),
     },
@@ -73,6 +81,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         icon: collections.icon,
         color: collections.color,
         parentId: collections.parentId,
+        isSystem: collections.isSystem,
+        slug: collections.slug,
         createdAt: collections.createdAt,
         updatedAt: collections.updatedAt,
         bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
@@ -91,13 +101,17 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     "/:id",
     async ({ params: { id }, user, body }) => {
       const userId = user.id;
+      const provided = Object.values(body).filter((value) => value !== undefined);
       return db.transaction(async (tx) => {
         await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
         const nodes = await tx.select().from(collections).where(eq(collections.userId, userId));
         const existing = nodes.find((node) => node.id === id);
         if (!existing) throw new NotFoundError();
-        if (existing.isSystem && (body.name || body.slug || body.parentId !== undefined))
+        // System collections are managed by the app — no field is user-editable.
+        if (existing.isSystem && provided.length > 0)
           throw new ConflictError("cannot update system collection");
+        if (body.slug !== undefined && nodes.some((node) => node.id !== id && node.slug === body.slug))
+          throw new ConflictError("Slug already in use");
         if (body.parentId !== undefined) {
           const error = collectionParentError(nodes, body.parentId, id);
           if (error) throw new ConflictError(error);
@@ -111,10 +125,10 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       params: t.Object({ id: t.String() }),
       body: t.Object({
         name: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
-        slug: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
+        slug: t.Optional(t.String({ minLength: 1, maxLength: 100, pattern: SLUG_PATTERN })),
         description: t.Optional(t.String()),
         icon: t.Optional(t.String()),
-        color: t.Optional(t.String()),
+        color: t.Optional(t.String({ pattern: COLOR_PATTERN })),
         parentId: t.Optional(t.Union([t.String({ minLength: 1 }), t.Null()])),
       }),
     },
@@ -209,6 +223,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     "/:id/bookmarks",
     async ({ params: { id }, user, query }) => {
       const userId = user.id;
+      // 404 for foreign or nonexistent collections before listing anything.
+      await requireUserCollection(db, userId, id);
       const { page, limit, offset } = normalizePagination({
         page: query.page,
         limit: query.limit,
@@ -257,6 +273,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         icon: collections.icon,
         color: collections.color,
         parentId: collections.parentId,
+        isSystem: collections.isSystem,
+        slug: collections.slug,
         createdAt: collections.createdAt,
         updatedAt: collections.updatedAt,
         bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(

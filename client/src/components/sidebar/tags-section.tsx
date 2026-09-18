@@ -19,13 +19,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { RowActions } from "./row-actions";
-import {
-  Tag as TagIcon,
-  Plus,
-  Loader2,
-  Edit,
-  Trash2,
-} from "lucide-react";
+import { Tag as TagIcon, Plus, Loader2, Edit, Trash2 } from "lucide-react";
 import { useDeleteTag } from "@/hooks/use-mutations";
 import { TagDialog } from "@/components/tag-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -43,23 +37,21 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
   return (
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup>
-        <SidebarGroupLabel>
-          <div className="-mr-2 flex h-8 w-full items-center justify-between group/label rounded-md">
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1">
-              <span className="font-light text-sm">Tags</span>
-            </CollapsibleTrigger>
+        <SidebarGroupLabel className="group/label flex items-center justify-between">
+          <CollapsibleTrigger className="flex items-center gap-2 flex-1">
+            <span className="font-light text-sm">Tags</span>
+          </CollapsibleTrigger>
 
-            <RowActions group="label" label="Tag options">
-              <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-4 w-4" />
-                    New tag
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </RowActions>
-          </div>
+          <RowActions group="label" label="Tag options">
+            <DropdownMenuContent align="end" className="min-w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  New tag
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </RowActions>
         </SidebarGroupLabel>
 
         <TagDialog open={createOpen} onOpenChange={setCreateOpen} />
@@ -71,7 +63,9 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             ) : tags.length === 0 ? (
-              <p className="text-sm text-muted-foreground px-2 py-2"></p>
+              <p className="text-sm text-muted-foreground px-2 py-2">
+                No tags
+              </p>
             ) : (
               <SidebarMenu>
                 {tags.map((tag) => (
@@ -98,58 +92,61 @@ function TagItem({ tag }: { tag: Tag }) {
   };
 
   return (
-    <SidebarMenuItem>
-      <div className="flex items-center group/item">
-        <SidebarMenuButton
-          className="flex-1"
-          isActive={active}
-          render={
-            <Link
-              to="/dashboard"
-              search={{ tags: [tag.id] }}
-              aria-current={active ? "page" : undefined}
-              className="flex items-center gap-2"
-            />
-          }
-        >
-          <TagIcon
-            className="size-4 shrink-0"
-            style={{ color: tag.color || undefined }}
+    <SidebarMenuItem className="group/item flex items-center">
+      <SidebarMenuButton
+        className="flex-1"
+        isActive={active}
+        render={
+          <Link
+            to="/dashboard"
+            search={{ tags: [tag.id] }}
+            aria-current={active ? "page" : undefined}
+            className="flex items-center gap-2"
           />
-          <span className="flex-1 truncate">{tag.name}</span>
-        </SidebarMenuButton>
+        }
+      >
+        <TagIcon
+          className="size-4 shrink-0"
+          style={{ color: tag.color || undefined }}
+        />
+        <span className="flex-1 truncate">{tag.name}</span>
+      </SidebarMenuButton>
 
-        <RowActions group="item" label={`Options for tag ${tag.name}`} badge={tag.count}>
-          <DropdownMenuContent align="end">
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => setDeleteOpen(true)}
-                disabled={deleteTag.isPending}
-              >
-                {deleteTag.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Deleting…
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </>
-                )}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </RowActions>
-      </div>
+      <RowActions
+        group="item"
+        label={`Options for tag ${tag.name}`}
+        badge={tag.count}
+      >
+        <DropdownMenuContent align="end">
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => setDeleteOpen(true)}
+              disabled={deleteTag.isPending}
+            >
+              {deleteTag.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </RowActions>
+
       <TagDialog tag={tag} open={editOpen} onOpenChange={setEditOpen} />
       <ConfirmDialog
         open={deleteOpen}

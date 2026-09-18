@@ -1,6 +1,6 @@
 {
-  "id": "f3b1c8a0-2d47-4e59-9c81-7a6d4b0e2f13",
-  "prevId": "d7c09cd6-d52b-4136-98ce-6fc2ae017581",
+  "id": "879e2dde-7695-4c42-9d63-e64fddf2d720",
+  "prevId": "f3b1c8a0-2d47-4e59-9c81-7a6d4b0e2f13",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -525,6 +525,28 @@
           ],
           "isUnique": true,
           "where": "\"collections\".\"is_system\" = true",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "collections_user_slug_unique": {
+          "name": "collections_user_slug_unique",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"collections\".\"is_system\" = false and \"collections\".\"slug\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}

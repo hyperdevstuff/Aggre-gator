@@ -191,6 +191,9 @@ export function useDeleteCollection() {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       toast.success("Collection deleted");
     },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to delete collection");
+    },
   });
 }
 

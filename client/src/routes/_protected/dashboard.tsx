@@ -137,40 +137,84 @@ function Dashboard() {
 
   return (
     <div className="min-w-0 flex-1 p-4 sm:p-6 space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchBar key={search.search ?? ""} defaultValue={search.search} onSearch={handleSearch} />
-        <Select value={search.sort ?? "created_desc"}
-          onValueChange={(value) => updateFilters({ sort: value as SortOption })}>
-          <SelectTrigger aria-label="Sort bookmarks">
-            <span className="flex-1 truncate text-left">
-              {SORT_OPTIONS.find((option) => option.value === (search.sort ?? "created_desc"))?.label}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            {SORT_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button className="cursor-pointer" onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          New
-        </Button>
+      {/* Header with better visual hierarchy */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  render={<Link to="/dashboard" search={{ page: 1 }} />}
+                  className="text-lg font-semibold"
+                >
+                  All Bookmarks
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              {search.collectionId && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem
+                    aria-current="page"
+                    className="text-lg"
+                  >
+                    {collectionName ??
+                      (collectionsLoading
+                        ? "Loading collection…"
+                        : "Collection unavailable")}
+                  </BreadcrumbItem>
+                </>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
+          {data?.pagination.total !== undefined && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {data.pagination.total} bookmarks
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Select
+            value={search.sort ?? "created_desc"}
+            onValueChange={(value) =>
+              updateFilters({ sort: value as SortOption })
+            }
+          >
+            <SelectTrigger
+              aria-label="Sort bookmarks"
+              className="w-[160px]"
+            >
+              <span className="flex-1 truncate text-left">
+                {
+                  SORT_OPTIONS.find(
+                    (option) =>
+                      option.value === (search.sort ?? "created_desc"),
+                  )?.label
+                }
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button className="cursor-pointer" onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            New
+          </Button>
+        </div>
       </div>
 
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink render={<Link to="/dashboard" search={{ page: 1 }} />}>All Bookmarks</BreadcrumbLink>
-          </BreadcrumbItem>
-          {search.collectionId && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem aria-current="page">{collectionName ?? (collectionsLoading ? "Loading collection…" : "Collection unavailable")}</BreadcrumbItem>
-            </>
-          )}
-        </BreadcrumbList>
-      </Breadcrumb>
+      {/* Search Bar - Full width */}
+      <SearchBar
+        key={search.search ?? ""}
+        defaultValue={search.search}
+        onSearch={handleSearch}
+      />
+
       <FilterBadges filters={filters} />
       <BookmarksGrid
         bookmarks={data?.data || []}

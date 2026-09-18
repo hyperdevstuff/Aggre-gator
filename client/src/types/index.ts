@@ -36,6 +36,7 @@ export type Collection = {
   color?: string;
   count: number;
   isSystem: boolean;
+  slug?: string | null;
   createdAt: string;
   updatedAt: string;
   parentId?: string;
@@ -43,6 +44,7 @@ export type Collection = {
 
 export type CreateCollectionInput = {
   name: string;
+  slug?: string;
   description?: string;
   icon?: string;
   color?: string;

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "collections_user_slug_unique" ON "collections" USING btree ("user_id","slug") WHERE "collections"."is_system" = false and "collections"."slug" is not null;

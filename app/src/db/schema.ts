@@ -141,6 +141,10 @@ export const collections = pgTable(
     systemSlugUnique: uniqueIndex("collections_system_slug_unique")
       .on(table.userId, table.slug)
       .where(sql`${table.isSystem} = true`),
+    // User-assigned slugs must be unique per owner (system slugs are covered above).
+    userSlugUnique: uniqueIndex("collections_user_slug_unique")
+      .on(table.userId, table.slug)
+      .where(sql`${table.isSystem} = false and ${table.slug} is not null`),
     collectionsSlugIdx: index("collections_slug_idx").on(table.slug),
   }),
 );

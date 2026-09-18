@@ -136,3 +136,117 @@ describe("collections api — 3-level nesting cap", () => {
     expect(body.error).toContain("System collections");
   });
 });
+
+describe("collections api — hardening", () => {
+  let userA: { id: string };
+  let cookieA: string;
+  let userB: { id: string };
+  let cookieB: string;
+
+  const req = (path: string, cookie: string, init?: RequestInit) =>
+    app.handle(
+      new Request(`http://localhost${path}`, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: cookie,
+          ...(init?.headers ?? {}),
+        },
+      }),
+    );
+
+  const createAs = (cookie: string, body: Record<string, unknown>) =>
+    req("/collections", cookie, { method: "POST", body: JSON.stringify(body) });
+
+  const createOkAs = async (cookie: string, body: Record<string, unknown>) => {
+    const res = await createAs(cookie, body);
+    expect(res.status).toBe(200);
+    return res.json() as Promise<{ id: string }>;
+  };
+
+  const patchAs = (cookie: string, id: string, body: Record<string, unknown>) =>
+    req(`/collections/${id}`, cookie, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+
+  beforeAll(async () => {
+    const a = await createTestUser();
+    userA = a.user;
+    cookieA = await getSessionCookie(a.email, a.password);
+    const b = await createTestUser();
+    userB = b.user;
+    cookieB = await getSessionCookie(b.email, b.password);
+  });
+
+  afterAll(async () => {
+    await cleanupTestUser(userA.id);
+    await cleanupTestUser(userB.id);
+  });
+
+  test("GET /:id/bookmarks is 404 for another user's collection", async () => {
+    const foreign = await createOkAs(cookieB, { name: "B private" });
+    const res = await req(`/collections/${foreign.id}/bookmarks`, cookieA);
+    expect(res.status).toBe(404);
+  });
+
+  test("GET /:id/bookmarks is 404 for a nonexistent collection", async () => {
+    const res = await req(
+      `/collections/${crypto.randomUUID()}/bookmarks`,
+      cookieA,
+    );
+    expect(res.status).toBe(404);
+  });
+
+  test("GET /:id returns isSystem and slug", async () => {
+    const created = await createOkAs(cookieA, {
+      name: "Shape check",
+      slug: "shape-check",
+    });
+    const res = await req(`/collections/${created.id}`, cookieA);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.isSystem).toBe(false);
+    expect(body.slug).toBe("shape-check");
+  });
+
+  test("blocks editing a system collection through a non-core field", async () => {
+    const list = await req("/collections", cookieA);
+    const all = await list.json();
+    const unsorted = all.find(
+      (c: { slug: string | null }) => c.slug === "unsorted",
+    );
+    expect(unsorted).toBeDefined();
+
+    const res = await patchAs(cookieA, unsorted.id, { color: "#ffffff" });
+    expect(res.status).toBe(409);
+  });
+
+  test("rejects a duplicate slug on PATCH", async () => {
+    await createOkAs(cookieA, { name: "Slug one", slug: "slug-one" });
+    const second = await createOkAs(cookieA, { name: "Slug two" });
+    const res = await patchAs(cookieA, second.id, { slug: "slug-one" });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("Slug");
+  });
+
+  test("rejects a duplicate slug on create", async () => {
+    await createOkAs(cookieA, { name: "Slug three", slug: "slug-three" });
+    const res = await createAs(cookieA, {
+      name: "Slug four",
+      slug: "slug-three",
+    });
+    expect(res.status).toBe(409);
+  });
+
+  test("rejects a malformed slug", async () => {
+    const res = await createAs(cookieA, { name: "Bad slug", slug: "Bad Slug" });
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects a malformed color", async () => {
+    const res = await createAs(cookieA, { name: "Bad color", color: "red" });
+    expect(res.status).toBe(400);
+  });
+});

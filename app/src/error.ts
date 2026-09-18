@@ -87,4 +87,7 @@ export const errorPlugin = new Elysia({ name: "error-handler" })
 
     set.status = 500;
     return { error: "Internal Server Error" };
-  });
+  })
+  // Without a global scope this plugin's onError only applies to its own
+  // (empty) instance, so validation failures leak Elysia's raw 422 shape.
+  .as("global");
