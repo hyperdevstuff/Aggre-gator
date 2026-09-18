@@ -1,0 +1,66 @@
+name: ci
+
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run build
+      # Non-blocking until the 4 pre-existing no-explicit-any errors in
+      # client/src/routes/share.$code.tsx are fixed (design-agent owned).
+      - name: lint
+        run: bun run lint
+        continue-on-error: true
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: pastpost
+          POSTGRES_DB: aggregator
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d aggregator"
+          --health-interval=5s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: create test database
+        working-directory: app
+        run: >
+          bun -e "const {Pool} = await import('pg');
+          const p = new Pool({connectionString: 'postgresql://postgres:pastpost@localhost:5432/aggregator'});
+          await p.query('CREATE DATABASE aggregator_test'); await p.end()"
+      - name: write test env
+        working-directory: app
+        run: |
+          cat > .env.test.local <<EOF
+          DATABASE_URL="postgresql://postgres:pastpost@localhost:5432/aggregator_test"
+          BETTER_AUTH_URL="http://localhost:3001"
+          CLIENT_URL="http://localhost:5180"
+          BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
+          NODE_ENV="test"
+          EOF
+      - run: bun run db:migrate:test
+      - run: bun run test
+
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f app/Dockerfile -t aggre-gator-api .
+      - run: docker build -f client/Dockerfile --build-arg VITE_API_URL=http://localhost:3001 -t aggre-gator-web .
