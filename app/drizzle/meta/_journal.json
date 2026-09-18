@@ -29,6 +29,13 @@
       "when": 1777733191819,
       "tag": "0003_nappy_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777733191820,
+      "tag": "0004_early_dragonlord",
+      "breakpoints": true
     }
   ]
 }

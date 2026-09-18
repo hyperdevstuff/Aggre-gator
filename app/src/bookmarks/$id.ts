@@ -4,6 +4,7 @@ import { db } from "../db";
 import { bookmarks, tags, bookmarkTags, collections } from "../db/schema";
 import { ConflictError } from "../error";
 import { betterAuthPlugin } from "../utils/auth";
+import { requireUserCollection } from "../utils/collections";
 
 export const bookmarksIdRouter = new Elysia()
   .use(betterAuthPlugin)
@@ -55,6 +56,11 @@ export const bookmarksIdRouter = new Elysia()
           .limit(1);
 
         if (existing) throw new ConflictError();
+      }
+      // A bookmark must never be filed into another user's collection.
+      // null (unfiled) is allowed — the listing is NULL-safe.
+      if (updateData.collectionId !== undefined && updateData.collectionId !== null) {
+        await requireUserCollection(db, userId, updateData.collectionId);
       }
       const [bookmark] = await db
         .update(bookmarks)

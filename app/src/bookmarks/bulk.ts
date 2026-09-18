@@ -5,6 +5,7 @@ import Elysia, { NotFoundError, t } from "elysia";
 import { db } from "../db";
 import { bookmarks, collections } from "../db/schema";
 import { betterAuthPlugin } from "../utils/auth";
+import { requireUserCollection } from "../utils/collections";
 
 export const bookmarksBulkRouter = new Elysia()
   .use(betterAuthPlugin)
@@ -24,6 +25,22 @@ export const bookmarksBulkRouter = new Elysia()
 
           if (existing.length > 0) {
             return { status: "skipped", url: bmk.url, reason: "duplicated" };
+          }
+
+          if (bmk.collectionId) {
+            const [collection] = await db
+              .select({ id: collections.id })
+              .from(collections)
+              .where(
+                and(
+                  eq(collections.id, bmk.collectionId),
+                  eq(collections.userId, userId),
+                ),
+              )
+              .limit(1);
+            if (!collection) {
+              return { status: "failed", url: bmk.url, reason: "collection not found" };
+            }
           }
 
           const collectionId =
@@ -96,6 +113,13 @@ export const bookmarksBulkRouter = new Elysia()
       const userId = user.id;
       const results = await Promise.allSettled(
         body.updates.map(async (update) => {
+          if (update.data.collectionId) {
+            try {
+              await requireUserCollection(db, userId, update.data.collectionId);
+            } catch {
+              return { status: "failed", id: update.id, reason: "collection not found" };
+            }
+          }
           const [bookmark] = await db
             .update(bookmarks)
             .set(update.data)

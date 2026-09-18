@@ -8,6 +8,7 @@ import { generateShareCode } from "../utils/nanoid";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 import { collectionParentError } from "../../../shared/collection-tree";
+import { getSystemCollectionId } from "../utils/collections";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
   .use(betterAuthPlugin)
@@ -120,24 +121,88 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
   )
   .delete(
     "/:id",
-    async ({ params: { id }, user }) => {
+    async ({ params: { id }, user, query }) => {
       const userId = user.id;
-      // Check before deleting — deleting first would remove a system
-      // collection before the ConflictError below could stop it.
-      const [col] = await db
-        .select({ id: collections.id, isSystem: collections.isSystem })
-        .from(collections)
-        .where(and(eq(collections.id, id), eq(collections.userId, userId)))
-        .limit(1);
-      if (!col) throw new NotFoundError();
-      if (col.isSystem)
-        throw new ConflictError("cannot delete system collection");
+      // Explicit opt-in to destroy the bookmarks as well. Accepts boolean
+      // true or the string "true" (query-string form).
+      const deleteBookmarks =
+        query?.deleteBookmarks === true || query?.deleteBookmarks === "true";
+      return db.transaction(async (tx) => {
+        // Serialize hierarchy writes per owner so a concurrent move cannot
+        // slip a child under a collection mid-delete.
+        await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+        // Check before deleting — deleting first would remove a system
+        // collection before the ConflictError below could stop it.
+        const [col] = await tx
+          .select({ id: collections.id, isSystem: collections.isSystem })
+          .from(collections)
+          .where(and(eq(collections.id, id), eq(collections.userId, userId)))
+          .limit(1);
+        if (!col) throw new NotFoundError();
+        if (col.isSystem)
+          throw new ConflictError("cannot delete system collection");
 
-      await db.delete(collections).where(eq(collections.id, col.id));
-      return { success: true };
+        // Deleting a parent must not silently dump children to top level
+        // (parentId FK is onDelete: set null) — block and let the client
+        // move or delete the subtree first.
+        const children = await tx
+          .select({ id: collections.id })
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, userId),
+              eq(collections.parentId, col.id),
+            ),
+          );
+        if (children.length > 0)
+          throw new ConflictError(
+            "Collection has sub-collections. Move or delete them first.",
+            {
+              childCount: children.length,
+              childIds: children.map((c) => c.id),
+            },
+          );
+
+        if (deleteBookmarks) {
+          const deleted = await tx
+            .delete(bookmarks)
+            .where(
+              and(
+                eq(bookmarks.userId, userId),
+                eq(bookmarks.collectionId, col.id),
+              ),
+            )
+            .returning({ id: bookmarks.id });
+          await tx.delete(collections).where(eq(collections.id, col.id));
+          return { success: true, movedBookmarks: 0, deletedBookmarks: deleted.length };
+        }
+
+        // Default: keep the bookmarks, re-homed to Unsorted. A plain
+        // collection delete must never produce collectionId = NULL orphans
+        // (they fall out of every listing — NULL != archivedId is not true).
+        const unsortedId = await getSystemCollectionId(tx, userId, "unsorted");
+        if (!unsortedId)
+          throw new NotFoundError("unsorted collection not found");
+        const moved = await tx
+          .update(bookmarks)
+          .set({ collectionId: unsortedId })
+          .where(
+            and(
+              eq(bookmarks.userId, userId),
+              eq(bookmarks.collectionId, col.id),
+            ),
+          )
+          .returning({ id: bookmarks.id });
+        await tx.delete(collections).where(eq(collections.id, col.id));
+        // Shared links cascade off the collection FK — no code needed.
+        return { success: true, movedBookmarks: moved.length, deletedBookmarks: 0 };
+      });
     },
     {
       params: t.Object({ id: t.String() }),
+      query: t.Object({
+        deleteBookmarks: t.Optional(t.Union([t.Boolean(), t.String()])),
+      }),
     },
   )
   .get(

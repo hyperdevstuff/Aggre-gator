@@ -4,6 +4,7 @@ import { bookmarks, bookmarkTags, collections, tags } from "../db/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { ConflictError } from "../error";
 import { betterAuthPlugin } from "../utils/auth";
+import { requireUserCollection } from "../utils/collections";
 import scrapeMetadata from "../utils/metadata";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { bookmarksIdRouter } from "./$id";
@@ -26,6 +27,12 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         throw new ConflictError("This URL is already saved.", {
           existingId: existing[0].id,
         });
+      }
+
+      // Fail fast on a foreign collection id instead of filing the
+      // bookmark somewhere the owner check would later hide.
+      if (body.collectionId) {
+        await requireUserCollection(db, userId, body.collectionId);
       }
 
       const metadata = body.title
@@ -165,7 +172,9 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         )[0]?.id;
 
         if (archivedId) {
-          conditions.push(sql`${bookmarks.collectionId} != ${archivedId}`);
+          // NULL-safe: `!=` would hide legacy collectionId = NULL orphans
+          // (NULL != X is never true). IS DISTINCT FROM keeps them listed.
+          conditions.push(sql`${bookmarks.collectionId} IS DISTINCT FROM ${archivedId}`);
         }
       }
 

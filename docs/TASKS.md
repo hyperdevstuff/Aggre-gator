@@ -150,7 +150,7 @@
 | Severity | Bug |
 |----------|-----|
 | 🟡 | Password reset emails only `console.log` the link |
-| 🟡 | `DELETE /collections/:id` cascades bookmarks to `collectionId = null` (they keep existing unfiled — by design, but the UI has no "uncategorised" view) |
+| ✅ | ~~`DELETE /collections/:id` orphaned bookmarks to `collectionId = null` (invisible + un-re-addable)~~ fixed in #22: default delete re-homes to Unsorted, `?deleteBookmarks=true` destroys, parents with children blocked (409), legacy NULLs backfilled + listing is NULL-safe |
 | 🟡 | `bunfig.toml` disables **all** dependency lifecycle scripts — a future dependency that genuinely needs a postinstall (sharp, esbuild) will need this revisited |
 
 ---
