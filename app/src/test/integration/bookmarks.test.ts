@@ -81,7 +81,8 @@ describe("bookmarks api", () => {
 
     expect(res.status).toBe(409);
     const err = await res.json();
-    expect(err.error).toContain("already exists");
+    expect(err.error).toContain("already saved");
+    expect(typeof err.details.existingId).toBe("string");
   });
 
   test("GET /bookmarks returns paginated results", async () => {

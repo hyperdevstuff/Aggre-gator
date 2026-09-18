@@ -2,6 +2,7 @@ import { useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { Plus, X } from "lucide-react";
 import { useCollections, useTags } from "@/hooks/queries";
 import { useCreateBookmark, useUpdateBookmark } from "@/hooks/use-mutations";
+import { api, ApiError } from "@/lib/api-client";
 import type { Bookmark } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,9 @@ export function BookmarkDialog({ open, onOpenChange, returnFocus, ...defaults }:
   // Content is mounted afresh by the dialog on each open; cancelled drafts never
   // leak into another bookmark, and query refreshes don't reset an active draft.
   const [pending, setPending] = useState(false);
+  // Set when create hits a duplicate: the dialog pivots to editing the saved copy.
+  const [existing, setExisting] = useState<Bookmark | null>(null);
+  const effectiveBookmark = existing ?? defaults.bookmark;
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!pending) onOpenChange(next); }}>
       <DialogContent
@@ -38,14 +42,23 @@ export function BookmarkDialog({ open, onOpenChange, returnFocus, ...defaults }:
         finalFocus={() => returnFocus?.current?.isConnected ? returnFocus.current : false}
       >
         <DialogHeader>
-          <DialogTitle>{defaults.bookmark ? "Edit bookmark" : "New bookmark"}</DialogTitle>
+          <DialogTitle>{effectiveBookmark ? "Edit bookmark" : "New bookmark"}</DialogTitle>
           <DialogDescription>
-            {defaults.bookmark
-              ? "Update the details and choose where this bookmark belongs."
-              : "Save a link. Leave the title blank to fetch details from the page."}
+            {existing
+              ? "This URL is already saved. Editing the existing bookmark instead."
+              : effectiveBookmark
+                ? "Update the details and choose where this bookmark belongs."
+                : "Save a link. Leave the title blank to fetch details from the page."}
           </DialogDescription>
         </DialogHeader>
-        <BookmarkForm {...defaults} onPendingChange={setPending} onClose={() => onOpenChange(false)} />
+        <BookmarkForm
+          key={effectiveBookmark?.id ?? "new"}
+          {...defaults}
+          bookmark={effectiveBookmark}
+          onPendingChange={setPending}
+          onClose={() => onOpenChange(false)}
+          onDuplicate={setExisting}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -53,10 +66,11 @@ export function BookmarkDialog({ open, onOpenChange, returnFocus, ...defaults }:
 
 function BookmarkForm({
   bookmark, collectionId: defaultCollectionId, isFavorite: defaultFavorite,
-  onPendingChange, onClose,
+  onPendingChange, onClose, onDuplicate,
 }: Omit<BookmarkDialogProps, "open" | "onOpenChange" | "returnFocus"> & {
   onPendingChange: (pending: boolean) => void;
   onClose: () => void;
+  onDuplicate: (bookmark: Bookmark) => void;
 }) {
   const id = useId();
   const create = useCreateBookmark();
@@ -112,6 +126,14 @@ function BookmarkForm({
       }
       onClose();
     } catch (err) {
+      if (!bookmark && err instanceof ApiError && err.existingId) {
+        try {
+          onDuplicate(await api.bookmarks.get(err.existingId));
+          return;
+        } catch {
+          // Fall through to the generic error below.
+        }
+      }
       setError(err instanceof Error ? err.message : "Could not save this bookmark. Please try again.");
     } finally {
       submitting.current = false;

@@ -4,15 +4,22 @@ class ApiError extends Error {
   constructor(
     public status: number,
     public message: string,
+    public details?: unknown,
   ) {
     super(message);
   }
 
   toResponse() {
-    return new Response(JSON.stringify({ error: this.message }), {
-      status: this.status,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: this.message,
+        ...(this.details !== undefined ? { details: this.details } : {}),
+      }),
+      {
+        status: this.status,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
 
@@ -29,8 +36,8 @@ export class NotFoundError extends ApiError {
 }
 
 export class ConflictError extends ApiError {
-  constructor(message = "Resource already exists") {
-    super(409, message);
+  constructor(message = "Resource already exists", details?: unknown) {
+    super(409, message, details);
   }
 }
 

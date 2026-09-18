@@ -23,7 +23,9 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         .limit(1);
 
       if (existing.length > 0) {
-        throw new ConflictError();
+        throw new ConflictError("This URL is already saved.", {
+          existingId: existing[0].id,
+        });
       }
 
       const metadata = body.title

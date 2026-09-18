@@ -17,11 +17,12 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
     public errors?: Record<string, string[]>,
+    public existingId?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -44,6 +45,7 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
       res.status,
       error.message || error.error || res.statusText || "Request failed",
       error.errors,
+      error.details?.existingId ?? error.existingId,
     );
   }
 
