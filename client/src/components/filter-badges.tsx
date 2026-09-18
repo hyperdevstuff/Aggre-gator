@@ -24,10 +24,12 @@ export function FilterBadges({ filters }: FilterBadgesProps) {
         >
           {filter.label}
           <button
+            type="button"
+            aria-label={`Remove ${filter.label} filter`}
             onClick={filter.onRemove}
-            className="hover:bg-muted rounded p-0.5"
+            className="hover:bg-muted rounded p-1 focus-visible:outline-2 focus-visible:outline-ring"
           >
-            <X className="h-3 w-3" />
+            <X className="h-3 w-3" aria-hidden="true" />
           </button>
         </Badge>
       ))}

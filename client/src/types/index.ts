@@ -2,24 +2,31 @@ export type Bookmark = {
   id: string;
   title: string;
   url: string;
-  description?: string;
-  note?: string;
-  cover?: string;
-  collectionId?: string;
-  tags: string[];
+  description?: string | null;
+  note?: string | null;
+  cover?: string | null;
+  collectionId?: string | null;
+  tags: { id: string; name: string; color: string | null }[];
   createdAt: string;
   updatedAt: string;
   isFavorite: boolean;
   domain?: string;
 };
 
-export type CreateBookmarkInput = Omit<
-  Bookmark,
-  "id" | "createdAt" | "updatedAt" | "domain"
->;
-export type UpdateBookmarkInput = Partial<
-  Omit<Bookmark, "id" | "createdAt" | "updatedAt">
->;
+// Write endpoints accept tag names, while read endpoints return tag objects.
+export type CreateBookmarkInput = {
+  url: string;
+  title?: string;
+  description?: string;
+  note?: string;
+  cover?: string;
+  collectionId?: string;
+  tags?: string[];
+  isFavorite?: boolean;
+};
+export type UpdateBookmarkInput = Omit<Partial<CreateBookmarkInput>, "collectionId"> & {
+  collectionId?: string | null;
+};
 
 export type Collection = {
   id: string;
@@ -34,13 +41,17 @@ export type Collection = {
   parentId?: string;
 };
 
-export type CreateCollectionInput = Omit<
-  Collection,
-  "id" | "count" | "createdAt" | "updatedAt"
->;
-export type UpdateCollectionInput = Partial<
-  Omit<Collection, "id" | "count" | "createdAt" | "updatedAt">
->;
+export type CreateCollectionInput = {
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  parentId?: string;
+};
+export type UpdateCollectionInput = Omit<Partial<CreateCollectionInput>, "parentId"> & {
+  /** null clears the parent and moves the collection to the top level. */
+  parentId?: string | null;
+};
 
 export type Tag = {
   id: string;

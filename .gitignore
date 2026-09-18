@@ -12,3 +12,6 @@ client/skills-lock.json
 # local logs
 *.log
 logs/
+
+# dependencies (never commit)
+node_modules/

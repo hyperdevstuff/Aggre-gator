@@ -40,7 +40,11 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new ApiError(res.status, error.message, error.errors);
+    throw new ApiError(
+      res.status,
+      error.message || error.error || res.statusText || "Request failed",
+      error.errors,
+    );
   }
 
   return res.json();
@@ -100,7 +104,13 @@ export const bookmarksApi = {
 // === COLLECTIONS ===
 
 export const collectionsApi = {
-  list: () => fetcher<Collection[]>("/collections"),
+  list: async () => {
+    const collections = await fetcher<(Omit<Collection, "count"> & { bookmarkCount: number })[]>("/collections");
+    return collections.map(({ bookmarkCount, ...collection }) => ({
+      ...collection,
+      count: bookmarkCount,
+    }));
+  },
 
   get: (id: string) => fetcher<Collection>(`/collections/${id}`),
 
@@ -128,6 +138,12 @@ export const tagsApi = {
   create: (data: CreateTagInput) =>
     fetcher<Tag>("/tags", {
       method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<CreateTagInput>) =>
+    fetcher<Tag>(`/tags/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     }),
 

@@ -1,6 +1,6 @@
 # Aggre-gator — Status Tracker
 
-> Last audited: **2026-09-15** (full code audit)
+> Last audited: **2026-09-18** (working-tree verification + sidebar account move)
 > Setup/commands: see the top-level `README.md`. Product direction: `docs/SPEC.md`.
 > Open work items are also tracked as GitHub issues.
 
@@ -78,14 +78,14 @@
 | Status | Task |
 |--------|------|
 | ✅ | Bookmark grid (1/2/3 cols) with skeletons, cards, search bar, pagination, URL-driven filters |
-| ❌ | **Add Bookmark dialog — the #1 blocker.** Dashboard "New" button has no `onClick` |
-| ❌ | Edit bookmark dialog (`onEdit` prop exists, never wired) |
-| ❌ | Sort control UI (backend supports 5 sort options) |
-| ❌ | `FilterBadges` component exists but is never rendered |
-| ❌ | Breadcrumb shows the literal string "collection name" instead of the resolved name |
+| ✅ | #10: Add Bookmark dialog (`bookmark-dialog.tsx` create mode). Dashboard "New" button + empty-state `onCreateFirst` wired; invalidates bookmarks/collections/tags; duplicate URL surfaces the API error |
+| ✅ | #11: Edit bookmark dialog — pre-filled, opened from card menu via `onEditBookmark`, persisted with `useUpdateBookmark` |
+| ✅ | #14: URL-persisted sort control with all 5 options; added missing API `url_asc` support and regression test |
+| ✅ | #14: Removable collection/tag/favorite/search filter badges; filter/sort changes reset pagination |
+| ✅ | #15: Breadcrumb resolves collection name with loading/unavailable fallbacks |
 | ❌ | Archive/unarchive from the UI |
 | ❌ | Bulk selection + bulk actions (archive/delete/move) |
-| ❌ | Empty-state "create your first bookmark" (handler not wired) |
+| ✅ | Empty-state "create your first bookmark" wired (`onCreateFirst` → create dialog) |
 
 ### Sidebar
 
@@ -93,9 +93,9 @@
 |--------|------|
 | ✅ | System items (Unsorted/Archived/Favorites) with counts, collections tree, tags, delete menus, share dialog |
 | ✅ | Sidebar links render as real `<a>` elements again (were invalid `<button><a>` nesting) |
-| 🟡 | "New collection" / "New tag" / "edit" / "manage" menu items — no dialogs attached |
-| ❌ | Active/selected highlight for the current collection/tag |
-| ❌ | "All Bookmarks" link (unfiltered dashboard) |
+| ✅ | #12/#13: "New collection" / "New tag" / edit menus wired to `CollectionDialog` (name, icon, color, parent picker with 3-level cap) and `TagDialog` (name, color); tag editing also reachable from bookmark tag chips |
+| ✅ | #15: Active styling and `aria-current` for collection/tag/system navigation |
+| ✅ | #15: All Bookmarks sidebar and breadcrumb links reset dashboard filters |
 
 ### Share / Public
 
@@ -107,7 +107,7 @@
 
 | Status | Task |
 |--------|------|
-| ✅ | Shadcn (Base UI port) components, dark mode provider, toasts, responsive sidebar |
+| ✅ | Shadcn (Base UI port) components, dark mode provider, toasts, responsive sidebar; inset variant enabled, single main landmark and valid mobile trigger; account menu lives in `SidebarFooter` (bottom), dropdown opens upward |
 | 🟡 | `ThemeToggle` exists but is not rendered anywhere |
 | ❌ | Landing page for logged-out users |
 | ❌ | Favicon + meta/OG tags |
@@ -119,7 +119,7 @@
 |--------|------|
 | ✅ | Typed API client, React Query hooks, mutations with invalidation |
 | ✅ | `userApi.update` → `PATCH /user/profile` (route mismatch fixed) |
-| ❌ | `tagsApi.update` (backend `PATCH /tags/:id` exists, client has no function) |
+| ✅ | #13: `tagsApi.update` → `PATCH /tags/:id` with `useUpdateTag` mutation |
 
 ---
 
@@ -156,13 +156,13 @@
 
 ## 5. Priority order to ship the frontend
 
-1. **Add Bookmark dialog** (unblocks everything) → wire `useCreateBookmark`
-2. **Edit Bookmark dialog** → wire `onEdit` → `useUpdateBookmark`
-3. **Create/edit collection & tag dialogs** → sidebar menu items
-4. **Sort dropdown + FilterBadges** (backend already supports both)
-5. **Breadcrumb collection name + active sidebar state + All Bookmarks link**
+1. ~~**Add Bookmark dialog** (unblocks everything) → wire `useCreateBookmark`~~ ✅ #10 done
+2. ~~**Edit Bookmark dialog** → wire `onEdit` → `useUpdateBookmark`~~ ✅ #11 done
+3. ~~**Create/edit collection & tag dialogs** → sidebar menu items~~ ✅ #12/#13 done (parent picker respects 3-level cap)
+4. ~~**Sort dropdown + FilterBadges** (backend already supports both)~~ ✅ #14 done
+5. ~~**Breadcrumb collection name + active sidebar state + All Bookmarks link**~~ ✅ #15 done
 6. **Archive/unarchive + bulk actions in the UI**
-7. ~~Fix `userApi.update` route mismatch~~ ✅ done — add `tagsApi.update`
+7. ~~Fix `userApi.update` route mismatch~~ ✅ done — ~~add `tagsApi.update`~~ ✅ #13 done
 8. **Theme toggle placement, favicon/meta, landing page, settings page**
 
 

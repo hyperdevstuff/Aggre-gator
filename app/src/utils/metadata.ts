@@ -30,7 +30,9 @@ export default async function scrapeMetadata(targeturl: string) {
       url: metadata.url,
     };
   } catch (e) {
-    console.error(e);
+    // Expected for unreachable/dead URLs — the hostname fallback below is the
+    // designed behavior, so keep the log one-line instead of a full stack.
+    console.warn(`scrapeMetadata: failed to fetch ${targeturl}: ${e instanceof Error ? e.message : e}`);
     return {
       title: new URL(targeturl).hostname,
       domain: new URL(targeturl).hostname,

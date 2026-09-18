@@ -1,0 +1,9 @@
+# Workspace-wide mirror of app/bunfig.toml: dependency lifecycle scripts are
+# disabled because metascraper pulls in the native `re2` package, whose install
+# script needs MSVC + Python and fails without them. re2 is never used at runtime
+# (it only loads when METASCRAPER_RE2=true), so skipping its build is safe.
+# A root-level bunfig is required because `bun install` from the repo root does
+# not read app/bunfig.toml. If a dependency ever needs a real postinstall step
+# (e.g. sharp, esbuild), revisit both files together.
+[install]
+ignoreScripts = true

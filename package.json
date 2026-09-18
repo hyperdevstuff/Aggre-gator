@@ -1,0 +1,21 @@
+{
+  "name": "aggre-gator",
+  "private": true,
+  "workspaces": [
+    "app",
+    "client"
+  ],
+  "scripts": {
+    "dev": "bun run --filter='*' dev",
+    "dev:app": "bun run --cwd app dev",
+    "dev:client": "bun run --cwd client dev",
+    "build": "bun run --cwd client build",
+    "lint": "bun run --filter='*' lint",
+    "test": "bun run --cwd app test",
+    "typecheck": "bun run --filter='*' typecheck",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "bun run --cwd app db:migrate",
+    "db:migrate:test": "bun run --cwd app db:migrate:test",
+    "check:db": "bun run --cwd app check:db"
+  }
+}

@@ -21,10 +21,11 @@ export function SearchBar({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 w-2xl">
+    <form onSubmit={handleSubmit} className="flex min-w-0 basis-full gap-2 sm:flex-1">
       <div className="relative flex-1 w-full">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          aria-label="Search bookmarks"
           placeholder={placeholder}
           value={value}
           onChange={(e) => setValue(e.target.value)}

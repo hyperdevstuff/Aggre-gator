@@ -3,6 +3,7 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import { plugin as shadcn } from "@shadcn/lint";
 
 export default [
   { ignores: ["dist"] },
@@ -17,6 +18,7 @@ export default [
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      shadcn,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,

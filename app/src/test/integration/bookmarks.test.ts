@@ -116,6 +116,23 @@ describe("bookmarks api", () => {
     expect(pagination.hasNext).toBe(true);
   });
 
+  test("GET /bookmarks supports all dashboard sort options", async () => {
+    for (const sort of ["created_desc", "created_asc", "title_asc", "title_desc", "url_asc"]) {
+      const res = await app.handle(
+        new Request(`http://localhost/bookmarks?sort=${sort}&limit=100`, {
+          headers: { Cookie: cookie },
+        }),
+      );
+      expect(res.status).toBe(200);
+      const { data } = await res.json();
+      expect(data.length).toBeGreaterThan(1);
+      if (sort === "url_asc") {
+        const urls = data.map((bookmark: { url: string }) => bookmark.url);
+        expect(urls).toEqual([...urls].sort());
+      }
+    }
+  });
+
   test("GET /bookmarks filters by collection", async () => {
     const res = await app.handle(
       new Request(`http://localhost/bookmarks?collectionId=${unsortedId}`, {

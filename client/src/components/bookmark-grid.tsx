@@ -10,6 +10,7 @@ type BookmarksGridProps = {
   onRetry?: () => void;
   onCreateFirst?: () => void;
   onEditBookmark?: (bookmark: Bookmark) => void;
+  onEditTag?: (tag: Bookmark["tags"][number]) => void;
 };
 
 export function BookmarksGrid({
@@ -19,6 +20,7 @@ export function BookmarksGrid({
   onRetry,
   onCreateFirst,
   onEditBookmark,
+  onEditTag,
 }: BookmarksGridProps) {
   if (isLoading) {
     return (
@@ -62,6 +64,7 @@ export function BookmarksGrid({
           key={bookmark.id}
           bookmark={bookmark}
           onEdit={onEditBookmark}
+          onEditTag={onEditTag}
         />
       ))}
     </div>

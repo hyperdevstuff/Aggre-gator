@@ -4,6 +4,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,9 +28,11 @@ import type { Bookmark } from "@/types";
 type BookmarkCardProps = {
   bookmark: Bookmark;
   onEdit?: (bookmark: Bookmark) => void;
+  /** When set, tag chips render as buttons that open the tag editor. */
+  onEditTag?: (tag: Bookmark["tags"][number]) => void;
 };
 
-export function BookmarkCard({ bookmark, onEdit }: BookmarkCardProps) {
+export function BookmarkCard({ bookmark, onEdit, onEditTag }: BookmarkCardProps) {
   const updateBookmark = useUpdateBookmark();
   const deleteBookmark = useDeleteBookmark();
 
@@ -76,6 +80,8 @@ export function BookmarkCard({ bookmark, onEdit }: BookmarkCardProps) {
               variant="ghost"
               className="h-8 w-8"
               onClick={toggleFavorite}
+              aria-label={bookmark.isFavorite ? "Remove from favorites" : "Add to favorites"}
+              aria-pressed={bookmark.isFavorite}
               disabled={updateBookmark.isPending}
             >
               {updateBookmark.isPending ? (
@@ -90,7 +96,9 @@ export function BookmarkCard({ bookmark, onEdit }: BookmarkCardProps) {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button size="icon" variant="ghost" className="h-8 w-8" />
+                  <Button size="icon" variant="ghost" className="h-8 w-8"
+                    aria-label={`Actions for ${bookmark.title}`}
+                    data-bookmark-menu={bookmark.id} />
                 }
               >
                 <MoreVertical className="h-4 w-4" />
@@ -134,22 +142,35 @@ export function BookmarkCard({ bookmark, onEdit }: BookmarkCardProps) {
         </CardDescription>
       </CardHeader>
 
-      {/*<CardContent>
-        {bookmark.tags.length > 0 && (
-          <div className="flex gap-1 flex-wrap">
-            {bookmark.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
-                {tag}
+      {bookmark.tags.length > 0 && (
+        <div className="px-6 pb-4 flex gap-1 flex-wrap">
+          {bookmark.tags.slice(0, 3).map((tag) =>
+            onEditTag ? (
+              <button
+                key={tag.id}
+                type="button"
+                className="min-h-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                onClick={() => onEditTag(tag)}
+                aria-label={`Edit tag ${tag.name}`}
+                title={`Edit tag ${tag.name}`}
+              >
+                <Badge variant="secondary" className="text-xs hover:bg-muted">
+                  {tag.name}
+                </Badge>
+              </button>
+            ) : (
+              <Badge key={tag.id} variant="secondary" className="text-xs">
+                {tag.name}
               </Badge>
-            ))}
-            {bookmark.tags.length > 3 && (
-              <Badge variant="secondary" className="text-xs">
-                +{bookmark.tags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )}
-      </CardContent>*/}
+            ),
+          )}
+          {bookmark.tags.length > 3 && (
+            <Badge variant="secondary" className="text-xs">
+              +{bookmark.tags.length - 3}
+            </Badge>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

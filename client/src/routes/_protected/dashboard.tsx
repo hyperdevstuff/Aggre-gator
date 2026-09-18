@@ -1,11 +1,17 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useRef, useState } from "react";
+import { BookmarkDialog } from "@/components/bookmark-dialog";
+import { TagDialog } from "@/components/tag-dialog";
+import type { Bookmark, SortOption } from "@/types";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { useBookmarks } from "@/hooks/queries";
+import { useBookmarks, useCollections, useTags } from "@/hooks/queries";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { SearchBar } from "@/components/search-bar";
 import { BookmarksGrid } from "@/components/bookmark-grid";
 import { Pagination } from "@/components/pagination";
+import { FilterBadges } from "@/components/filter-badges";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -19,7 +25,8 @@ const searchSchema = z.object({
   tags: z.array(z.string()).optional(),
   isFavorite: z.boolean().optional(),
   search: z.string().optional(),
-  page: z.number().optional().default(1),
+  page: z.number().int().positive().optional().default(1),
+  sort: z.enum(["created_desc", "created_asc", "title_asc", "title_desc", "url_asc"]).optional(),
 });
 
 export const Route = createFileRoute("/_protected/dashboard")({
@@ -30,6 +37,43 @@ export const Route = createFileRoute("/_protected/dashboard")({
 function Dashboard() {
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const { data: collections, isLoading: collectionsLoading } = useCollections();
+  const { data: tags } = useTags();
+  const collectionName = collections?.find((collection) => collection.id === search.collectionId)?.name;
+  const updateFilters = (patch: Partial<typeof search>) => {
+    navigate({ to: "/dashboard", search: { ...search, ...patch, page: 1 } });
+  };
+  const filters = [
+    ...(search.collectionId ? [{ key: "collection", label: collectionName ?? "Collection", onRemove: () => updateFilters({ collectionId: undefined }) }] : []),
+    ...(search.tags ?? []).map((id) => ({ key: `tag-${id}`, label: tags?.find((tag) => tag.id === id)?.name ?? "Tag", onRemove: () => updateFilters({ tags: search.tags?.filter((tagId) => tagId !== id) }) })),
+    ...(search.isFavorite !== undefined ? [{ key: "favorite", label: search.isFavorite ? "Favorites" : "Not favorites", onRemove: () => updateFilters({ isFavorite: undefined }) }] : []),
+    ...(search.search ? [{ key: "search", label: `Search: ${search.search}`, onRemove: () => updateFilters({ search: undefined }) }] : []),
+  ];
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingBookmark, setEditingBookmark] = useState<Bookmark>();
+  const [editingTag, setEditingTag] = useState<{ id: string; name: string; color?: string | null }>();
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const tagReturnFocus = useRef<HTMLElement | null>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+
+  const openCreate = () => {
+    returnFocus.current = document.activeElement as HTMLElement;
+    setEditingBookmark(undefined);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (bookmark: Bookmark) => {
+    // The menu item unmounts on selection; return to its persistent trigger.
+    returnFocus.current = document.querySelector<HTMLElement>(`[data-bookmark-menu="${CSS.escape(bookmark.id)}"]`);
+    setEditingBookmark(bookmark);
+    setDialogOpen(true);
+  };
+
+  const openEditTag = (tag: { id: string; name: string; color?: string | null }) => {
+    tagReturnFocus.current = document.activeElement as HTMLElement;
+    setEditingTag(tag);
+    setTagDialogOpen(true);
+  };
 
   const { data, isLoading, error, refetch } = useBookmarks({
     collectionId: search.collectionId,
@@ -37,6 +81,7 @@ function Dashboard() {
     isFavorite: search.isFavorite,
     search: search.search,
     page: search.page,
+    sort: search.sort,
     limit: 20,
   });
 
@@ -59,10 +104,18 @@ function Dashboard() {
   };
 
   return (
-    <div className="flex-1 p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <SearchBar defaultValue={search.search} onSearch={handleSearch} />
-        <Button className="cursor-pointer">
+    <div className="min-w-0 flex-1 p-4 sm:p-6 space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchBar key={search.search ?? ""} defaultValue={search.search} onSearch={handleSearch} />
+        <NativeSelect aria-label="Sort bookmarks" value={search.sort ?? "created_desc"}
+          onChange={(event) => updateFilters({ sort: event.target.value as SortOption })}>
+          <NativeSelectOption value="created_desc">Newest first</NativeSelectOption>
+          <NativeSelectOption value="created_asc">Oldest first</NativeSelectOption>
+          <NativeSelectOption value="title_asc">Title A–Z</NativeSelectOption>
+          <NativeSelectOption value="title_desc">Title Z–A</NativeSelectOption>
+          <NativeSelectOption value="url_asc">URL A–Z</NativeSelectOption>
+        </NativeSelect>
+        <Button className="cursor-pointer" onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />
           New
         </Button>
@@ -71,22 +124,42 @@ function Dashboard() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/dashboard">All</BreadcrumbLink>
+            <BreadcrumbLink render={<Link to="/dashboard" search={{ page: 1 }} />}>All Bookmarks</BreadcrumbLink>
           </BreadcrumbItem>
           {search.collectionId && (
             <>
               <BreadcrumbSeparator />
-              <BreadcrumbItem>collection name</BreadcrumbItem>
+              <BreadcrumbItem aria-current="page">{collectionName ?? (collectionsLoading ? "Loading collection…" : "Collection unavailable")}</BreadcrumbItem>
             </>
           )}
         </BreadcrumbList>
       </Breadcrumb>
+      <FilterBadges filters={filters} />
       <BookmarksGrid
         bookmarks={data?.data || []}
         isLoading={isLoading}
         error={error}
         onRetry={() => refetch()}
+        onCreateFirst={openCreate}
+        onEditBookmark={openEdit}
+        onEditTag={openEditTag}
       />
+      <BookmarkDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        bookmark={editingBookmark}
+        collectionId={search.collectionId}
+        isFavorite={search.isFavorite}
+        returnFocus={returnFocus}
+      />
+      {editingTag && (
+        <TagDialog
+          open={tagDialogOpen}
+          onOpenChange={setTagDialogOpen}
+          tag={{ id: editingTag.id, name: editingTag.name, color: editingTag.color ?? undefined }}
+          returnFocus={tagReturnFocus}
+        />
+      )}
       {data && (
         <Pagination
           currentPage={data.pagination.page}

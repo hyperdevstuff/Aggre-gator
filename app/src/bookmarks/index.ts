@@ -59,7 +59,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
           domain: new URL(body.url).hostname,
           isFavorite: body.isFavorite ?? false,
           title: body.title || new URL(body.url).hostname,
-          description: metadata.description || null,
+          description: body.description ?? (metadata.description || null),
           cover: body.cover || null,
         })
         .returning();
@@ -72,7 +72,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
               .update(bookmarks)
               .set({
                 title: meta.title,
-                description: meta.description,
+                description: body.description ?? meta.description,
                 cover: meta.image,
               })
               .where(eq(bookmarks.id, bookmark.id));
@@ -211,7 +211,9 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
             ? asc(bookmarks.title)
             : sort === "title_desc"
               ? desc(bookmarks.title)
-              : desc(bookmarks.createdAt);
+              : sort === "url_asc"
+                ? asc(bookmarks.url)
+                : desc(bookmarks.createdAt);
 
       const [data, [{ count }]] = await Promise.all([
         query_builder.orderBy(orderBy).limit(limit).offset(offset),
@@ -276,6 +278,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
             t.Literal("created_asc"),
             t.Literal("title_asc"),
             t.Literal("title_desc"),
+            t.Literal("url_asc"),
           ]),
         ),
         tagIds: t.Optional(t.Array(t.String())),

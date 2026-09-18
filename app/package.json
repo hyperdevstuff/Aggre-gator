@@ -5,6 +5,7 @@
     "dev": "bun run --watch src/index.ts",
     "test": "bun test --env-file=.env.test.local",
     "typecheck": "tsc --noEmit",
+    "check:db": "bun run --env-file=.env.local scripts/check-db.ts",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

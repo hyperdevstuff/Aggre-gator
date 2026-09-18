@@ -1,11 +1,13 @@
 import Elysia, { t } from "elysia";
 import { betterAuthPlugin } from "../utils/auth";
 import { db } from "../db";
-import { collections, bookmarks, sharedCollections } from "../db/schema";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { collections, bookmarks, sharedCollections, user as users } from "../db/schema";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { ConflictError, ForbiddenError, NotFoundError } from "../error";
 import { generateShareCode } from "../utils/nanoid";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
+
+import { collectionParentError } from "../../../shared/collection-tree";
 
 export const collectionRouter = new Elysia({ prefix: "/collections" })
   .use(betterAuthPlugin)
@@ -13,18 +15,24 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     "/",
     async ({ body, user }) => {
       const userId = user.id;
-      const [collection] = await db
-        .insert(collections)
-        .values({ ...body, userId })
-        .returning();
-      return collection;
+      return db.transaction(async (tx) => {
+        // Serialize hierarchy writes per owner so concurrent moves cannot
+        // each pass validation against an outdated tree.
+        await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+        const nodes = await tx.select().from(collections).where(eq(collections.userId, userId));
+        const error = collectionParentError(nodes, body.parentId ?? null);
+        if (error) throw new ConflictError(error);
+        const [collection] = await tx.insert(collections).values({ ...body, userId }).returning();
+        return collection;
+      });
     },
     {
       body: t.Object({
         name: t.String({ minLength: 1, maxLength: 100 }),
         description: t.Optional(t.String()),
         icon: t.Optional(t.String()),
-        parentId: t.Optional(t.String()),
+        color: t.Optional(t.String()),
+        parentId: t.Optional(t.String({ minLength: 1 })),
       }),
     },
   )
@@ -49,8 +57,9 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       })
       .from(collections)
       .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
-      .where(and(eq(collections.userId, userId), isNull(collections.parentId)))
-      .groupBy(collections.id);
+      .where(eq(collections.userId, userId))
+      .groupBy(collections.id)
+      .orderBy(asc(collections.createdAt));
   })
   .get("/:id", async ({ params: { id }, user }) => {
     const userId = user.id;
@@ -81,24 +90,21 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     "/:id",
     async ({ params: { id }, user, body }) => {
       const userId = user.id;
-      const [existing] = await db
-        .select({
-          isSystem: collections.isSystem,
-        })
-        .from(collections)
-        .where(and(eq(collections.id, id), eq(collections.userId, userId)))
-        .limit(1);
-      if (!existing) throw new NotFoundError();
-      if (existing.isSystem && (body.name || body.slug))
-        throw new ConflictError("cannot update system collection");
-
-      const [col] = await db
-        .update(collections)
-        .set(body)
-        .where(and(eq(collections.id, id), eq(collections.userId, userId)))
-        .returning();
-      if (!col) throw new NotFoundError();
-      return col;
+      return db.transaction(async (tx) => {
+        await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+        const nodes = await tx.select().from(collections).where(eq(collections.userId, userId));
+        const existing = nodes.find((node) => node.id === id);
+        if (!existing) throw new NotFoundError();
+        if (existing.isSystem && (body.name || body.slug || body.parentId !== undefined))
+          throw new ConflictError("cannot update system collection");
+        if (body.parentId !== undefined) {
+          const error = collectionParentError(nodes, body.parentId, id);
+          if (error) throw new ConflictError(error);
+        }
+        const [col] = await tx.update(collections).set(body)
+          .where(and(eq(collections.id, id), eq(collections.userId, userId))).returning();
+        return col;
+      });
     },
     {
       params: t.Object({ id: t.String() }),
@@ -108,6 +114,7 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         description: t.Optional(t.String()),
         icon: t.Optional(t.String()),
         color: t.Optional(t.String()),
+        parentId: t.Optional(t.Union([t.String({ minLength: 1 }), t.Null()])),
       }),
     },
   )
@@ -194,7 +201,8 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       .from(collections)
       .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
       .where(and(eq(collections.userId, userId), eq(collections.parentId, id)))
-      .groupBy(collections.id);
+      .groupBy(collections.id)
+      .orderBy(asc(collections.createdAt));
   })
   .get("/by-slug/:slug", async ({ params: { slug }, user }) => {
     const userId = user.id;

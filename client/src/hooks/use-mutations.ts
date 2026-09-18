@@ -33,6 +33,7 @@ export function useCreateBookmark() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
       toast.success("bookmark created");
     },
     onError: (err) => {
@@ -51,6 +52,7 @@ export function useUpdateBookmark() {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["bookmarks", id] });
       qc.invalidateQueries({ queryKey: ["collections"] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
       toast.success("bookmark updated");
     },
     onError: (err) => {
@@ -156,6 +158,23 @@ export function useCreateTag() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tags"] });
       toast.success("tag created");
+    },
+  });
+}
+
+export function useUpdateTag() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateTagInput> }) =>
+      api.tags.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tags"] });
+      qc.invalidateQueries({ queryKey: ["bookmarks"] });
+      toast.success("tag updated");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "failed to update tag");
     },
   });
 }

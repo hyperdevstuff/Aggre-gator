@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -25,12 +25,13 @@ import {
   Tag as TagIcon,
   MoreVertical,
   Plus,
-  Settings,
   Loader2,
   Edit,
   Trash2,
 } from "lucide-react";
 import { useDeleteTag } from "@/hooks/use-mutations";
+import { TagDialog } from "@/components/tag-dialog";
+import { useState } from "react";
 import type { Tag } from "@/types";
 
 type TagsSectionProps = {
@@ -39,6 +40,8 @@ type TagsSectionProps = {
 };
 
 export function TagsSection({ tags, isLoading }: TagsSectionProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+
   return (
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup>
@@ -53,6 +56,7 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
                 render={
                   <Button
                     size="icon"
+                    aria-label="Tag options"
                     variant="ghost"
                     className="h-6 w-6 mr-1 group-hover/label:opacity-100 transition-opacity"
                   />
@@ -62,18 +66,16 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
                 <MoreVertical className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
                   New Tag
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="h-4 w-4" />
-                  Manage
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </SidebarGroupLabel>
+
+        <TagDialog open={createOpen} onOpenChange={setCreateOpen} />
 
         <CollapsibleContent>
           <SidebarGroupContent>
@@ -85,7 +87,7 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
               <p className="text-sm text-muted-foreground px-2 py-2"></p>
             ) : (
               <SidebarMenu>
-                {tags.slice(0, 10).map((tag) => (
+                {tags.map((tag) => (
                   <TagItem key={tag.id} tag={tag} />
                 ))}
               </SidebarMenu>
@@ -98,7 +100,10 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
 }
 
 function TagItem({ tag }: { tag: Tag }) {
+  const search = useSearch({ from: "/_protected/dashboard" });
+  const active = search.tags?.includes(tag.id) ?? false;
   const deleteTag = useDeleteTag();
+  const [editOpen, setEditOpen] = useState(false);
 
   const handleDelete = () => {
     if (confirm(`delete tag "${tag.name}"?`)) {
@@ -111,10 +116,12 @@ function TagItem({ tag }: { tag: Tag }) {
       <div className="flex items-center group/item">
         <SidebarMenuButton
           className="flex-1"
+          isActive={active}
           render={
             <Link
               to="/dashboard"
               search={{ tags: [tag.id] }}
+              aria-current={active ? "page" : undefined}
               className="flex items-center gap-2"
             />
           }
@@ -133,14 +140,15 @@ function TagItem({ tag }: { tag: Tag }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                aria-label={`Options for tag ${tag.name}`}
+                className="size-8"
               />
             }
           >
             <MoreVertical className="h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
               edit
             </DropdownMenuItem>
@@ -165,6 +173,7 @@ function TagItem({ tag }: { tag: Tag }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <TagDialog tag={tag} open={editOpen} onOpenChange={setEditOpen} />
     </SidebarMenuItem>
   );
 }

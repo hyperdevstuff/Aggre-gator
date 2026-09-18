@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -25,15 +25,16 @@ import {
   FolderIcon,
   MoreVertical,
   Plus,
-  Settings,
   Edit,
   Loader2,
   Trash2,
   Share2,
 } from "lucide-react";
 import { useDeleteCollection } from "@/hooks/use-mutations";
+import { CollectionDialog } from "@/components/collection-dialog";
 import { ShareDialog } from "@/components/share-dialog";
-import { useState } from "react";
+import { MAX_COLLECTION_DEPTH, collectionDepth } from "#shared/collection-tree";
+import { useState, useMemo } from "react";
 import type { Collection } from "@/types";
 
 type CollectionsSectionProps = {
@@ -45,6 +46,13 @@ export function CollectionsSection({
   collections,
   isLoading,
 }: CollectionsSectionProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  // Full tree so depth checks in item menus see ancestors, not just one node.
+  const nodes = useMemo(
+    () => collections.map((c) => ({ id: c.id, parentId: c.parentId, isSystem: c.isSystem })),
+    [collections],
+  );
+
   return (
     <Collapsible defaultOpen>
       <SidebarGroup>
@@ -55,29 +63,20 @@ export function CollectionsSection({
             </CollapsibleTrigger>
 
             <DropdownMenu>
-              <DropdownMenuTrigger >
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 group-hover/label:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
+              <DropdownMenuTrigger render={<Button size="icon" variant="ghost" aria-label="Collection options" />}>
+                <MoreVertical className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
                   new collection
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="h-4 w-4" />
-                  manage
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </SidebarGroupLabel>
+
+        <CollectionDialog open={createOpen} onOpenChange={setCreateOpen} />
 
         <CollapsibleContent>
           <SidebarGroupContent>
@@ -97,6 +96,7 @@ export function CollectionsSection({
                   <CollectionItem
                     key={col.id}
                     collection={col}
+                    nodes={nodes}
                     isLast={idx === collections.length - 1}
                   />
                 ))}
@@ -111,13 +111,20 @@ export function CollectionsSection({
 
 function CollectionItem({
   collection,
+  nodes,
   isLast,
 }: {
   collection: Collection;
+  nodes: { id: string; parentId?: string; isSystem?: boolean }[];
   isLast: boolean;
 }) {
+  const search = useSearch({ from: "/_protected/dashboard" });
+  const active = search.collectionId === collection.id;
   const deleteCollection = useDeleteCollection();
   const [shareOpen, setShareOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
+  const atMaxDepth = collectionDepth(collection.id, nodes) >= MAX_COLLECTION_DEPTH;
 
   const handleDelete = () => {
     if (confirm(`delete "${collection.name}"?`)) {
@@ -134,10 +141,12 @@ function CollectionItem({
       <div className="flex items-center group/item ml-6">
         <SidebarMenuButton
           className="flex-1"
+          isActive={active}
           render={
             <Link
               to="/dashboard"
               search={{ collectionId: collection.id }}
+              aria-current={active ? "page" : undefined}
               className="flex items-center gap-2"
             />
           }
@@ -155,19 +164,17 @@ function CollectionItem({
         </SidebarMenuButton>
 
         <DropdownMenu>
-          <DropdownMenuTrigger>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Options for collection ${collection.name}`} />}>
+            <MoreVertical className="h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
               edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSubOpen(true)} disabled={atMaxDepth}>
+              <Plus className="h-4 w-4 mr-2" />
+              {atMaxDepth ? "sub-collection limit reached" : "new sub-collection"}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShareOpen(true)}>
               <Share2 className="h-4 w-4 mr-2" />
@@ -199,6 +206,16 @@ function CollectionItem({
         collection={collection}
         open={shareOpen}
         onOpenChange={setShareOpen}
+      />
+      <CollectionDialog
+        collection={collection}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+      <CollectionDialog
+        parentId={collection.id}
+        open={subOpen}
+        onOpenChange={setSubOpen}
       />
     </SidebarMenuItem>
   );

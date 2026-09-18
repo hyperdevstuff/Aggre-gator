@@ -1,12 +1,11 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarHeader,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { SidebarFooter as Footer } from "@/components/sidebar/footer";
+import { SidebarFooter as AccountMenu } from "@/components/sidebar/footer";
 import { useCollections, useTags } from "@/hooks/queries";
 import { useAuth } from "@/hooks/use-auth";
 import { SystemItems } from "./sidebar/system-items";
@@ -21,15 +20,7 @@ export function AppSidebar() {
   const systemCollections = collections?.filter((c) => c.isSystem) || [];
   const userCollections = collections?.filter((c) => !c.isSystem) || [];
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <Footer session={session} />
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-      <SidebarSeparator />
+    <Sidebar variant="inset">
       <SidebarContent>
         <SystemItems collections={systemCollections} />
         <CollectionsSection
@@ -38,6 +29,13 @@ export function AppSidebar() {
         />
         <TagsSection tags={tags || []} isLoading={tagsLoading} />
       </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <AccountMenu session={session} />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }
