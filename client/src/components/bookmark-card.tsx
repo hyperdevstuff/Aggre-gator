@@ -7,6 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +22,10 @@ import {
   Trash2,
   Loader2,
   Edit,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
-import { useUpdateBookmark, useDeleteBookmark } from "@/hooks/use-mutations";
+import { useUpdateBookmark, useDeleteBookmark, useBulkArchiveBookmarks, useBulkUnarchiveBookmarks } from "@/hooks/use-mutations";
 import type { Bookmark } from "@/types";
 
 type BookmarkCardProps = {
@@ -30,17 +33,33 @@ type BookmarkCardProps = {
   onEdit?: (bookmark: Bookmark) => void;
   /** When set, tag chips render as buttons that open the tag editor. */
   onEditTag?: (tag: Bookmark["tags"][number]) => void;
+  /** Whether the bookmark lives in the Archived collection. */
+  isArchived?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 };
 
-export function BookmarkCard({ bookmark, onEdit, onEditTag }: BookmarkCardProps) {
+export function BookmarkCard({ bookmark, onEdit, onEditTag, isArchived, selected, onToggleSelect }: BookmarkCardProps) {
   const updateBookmark = useUpdateBookmark();
   const deleteBookmark = useDeleteBookmark();
+  const archiveBookmarks = useBulkArchiveBookmarks();
+  const unarchiveBookmarks = useBulkUnarchiveBookmarks();
 
   const toggleFavorite = () => {
     updateBookmark.mutate({
       id: bookmark.id,
       data: { isFavorite: !bookmark.isFavorite },
     });
+  };
+
+  const archivePending = archiveBookmarks.isPending || unarchiveBookmarks.isPending;
+
+  const handleArchive = () => {
+    if (isArchived) {
+      unarchiveBookmarks.mutate([bookmark.id]);
+    } else {
+      archiveBookmarks.mutate([bookmark.id]);
+    }
   };
 
   const handleDelete = () => {
@@ -51,6 +70,15 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag }: BookmarkCardProps)
 
   return (
     <Card className="group relative overflow-hidden hover:shadow-lg transition-shadow">
+      {onToggleSelect && (
+        <div className="absolute left-2 top-2 z-10 rounded-md bg-background/90 p-1 shadow-sm">
+          <Checkbox
+            checked={selected ?? false}
+            onCheckedChange={() => onToggleSelect(bookmark.id)}
+            aria-label={`Select ${bookmark.title}`}
+          />
+        </div>
+      )}
       {bookmark.cover && (
         <div className="aspect-video w-full overflow-hidden bg-muted">
           <img
@@ -123,6 +151,23 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag }: BookmarkCardProps)
                     edit
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem
+                  onClick={handleArchive}
+                  disabled={archivePending}
+                >
+                  {isArchived ? (
+                    <ArchiveRestore className="h-4 w-4 mr-2" />
+                  ) : (
+                    <Archive className="h-4 w-4 mr-2" />
+                  )}
+                  {archivePending
+                    ? isArchived
+                      ? "restoring..."
+                      : "archiving..."
+                    : isArchived
+                      ? "restore"
+                      : "archive"}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive"

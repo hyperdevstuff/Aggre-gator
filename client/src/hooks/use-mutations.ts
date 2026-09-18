@@ -89,6 +89,47 @@ export function useBulkDeleteBookmarks() {
       qc.invalidateQueries({ queryKey: ["tags"] });
       toast.success("bookmarks deleted");
     },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "failed to delete");
+    },
+  });
+}
+
+export function useBulkArchiveBookmarks() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => api.bookmarks.bulkArchive(ids),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["bookmarks"] });
+      qc.invalidateQueries({ queryKey: ["collections"] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
+      toast.success(
+        result.archived === 1 ? "bookmark archived" : `${result.archived} bookmarks archived`,
+      );
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "failed to archive");
+    },
+  });
+}
+
+export function useBulkUnarchiveBookmarks() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => api.bookmarks.bulkUnarchive(ids),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["bookmarks"] });
+      qc.invalidateQueries({ queryKey: ["collections"] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
+      toast.success(
+        result.unarchived === 1 ? "bookmark restored" : `${result.unarchived} bookmarks restored`,
+      );
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "failed to restore");
+    },
   });
 }
 
@@ -107,6 +148,9 @@ export function useMoveBookmarks() {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       toast.success("bookmarks moved");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "failed to move");
     },
   });
 }

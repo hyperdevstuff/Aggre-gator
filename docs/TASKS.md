@@ -1,6 +1,6 @@
 # Aggre-gator — Status Tracker
 
-> Last audited: **2026-09-18** (working-tree verification + sidebar account move)
+> Last audited: **2026-09-18** (working-tree verification + sidebar account move + #16/#17)
 > Setup/commands: see the top-level `README.md`. Product direction: `docs/SPEC.md`.
 > Open work items are also tracked as GitHub issues.
 
@@ -42,6 +42,7 @@
 | Status | Task |
 |--------|------|
 | ✅ | Collections CRUD (+ system-collection protection), by-slug, children, bookmarks-by-collection |
+| ✅ | #17: 3-level nesting cap — API rejects a 4th level on create + update (subtree-aware, regression-tested); UI disables "new sub-collection" at max depth and filters the parent picker with inline reasons |
 | ✅ | Tags CRUD + `/tags/search` |
 | ✅ | `GET /search?q=` unified search |
 | ✅ | Share: create/get/revoke + public `GET /share/:code` |
@@ -83,8 +84,8 @@
 | ✅ | #14: URL-persisted sort control with all 5 options; added missing API `url_asc` support and regression test |
 | ✅ | #14: Removable collection/tag/favorite/search filter badges; filter/sort changes reset pagination |
 | ✅ | #15: Breadcrumb resolves collection name with loading/unavailable fallbacks |
-| ❌ | Archive/unarchive from the UI |
-| ❌ | Bulk selection + bulk actions (archive/delete/move) |
+| ✅ | #16: Archive/unarchive from the UI — card menu archives (bulk endpoint) / restores; delete surfaces the archive-first 409 |
+| ✅ | #16: Bulk selection + bulk actions — card checkboxes, sticky action bar (archive/restore, move-to-collection, delete), selection clears on success and filter/page change |
 | ✅ | Empty-state "create your first bookmark" wired (`onCreateFirst` → create dialog) |
 
 ### Sidebar
@@ -161,7 +162,7 @@
 3. ~~**Create/edit collection & tag dialogs** → sidebar menu items~~ ✅ #12/#13 done (parent picker respects 3-level cap)
 4. ~~**Sort dropdown + FilterBadges** (backend already supports both)~~ ✅ #14 done
 5. ~~**Breadcrumb collection name + active sidebar state + All Bookmarks link**~~ ✅ #15 done
-6. **Archive/unarchive + bulk actions in the UI**
+6. ~~**Archive/unarchive + bulk actions in the UI**~~ ✅ #16 done
 7. ~~Fix `userApi.update` route mismatch~~ ✅ done — ~~add `tagsApi.update`~~ ✅ #13 done
 8. **Theme toggle placement, favicon/meta, landing page, settings page**
 

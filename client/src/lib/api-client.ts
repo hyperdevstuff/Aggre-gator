@@ -94,6 +94,21 @@ export const bookmarksApi = {
       body: JSON.stringify({ ids }),
     }),
 
+  bulkArchive: (ids: string[]) =>
+    fetcher<{ archived: number; ids: string[] }>("/bookmarks/bulk/archive", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
+
+  bulkUnarchive: (ids: string[]) =>
+    fetcher<{ unarchived: number; ids: string[] }>(
+      "/bookmarks/bulk/unarchive",
+      {
+        method: "POST",
+        body: JSON.stringify({ ids }),
+      },
+    ),
+
   move: (ids: string[], collectionId: string | null) =>
     fetcher<void>("/bookmarks/move", {
       method: "POST",

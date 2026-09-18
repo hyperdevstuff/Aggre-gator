@@ -7,8 +7,10 @@ import { z } from "zod";
 import { useBookmarks, useCollections, useTags } from "@/hooks/queries";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { useBulkArchiveBookmarks, useBulkUnarchiveBookmarks, useBulkDeleteBookmarks, useMoveBookmarks } from "@/hooks/use-mutations";
 import { SearchBar } from "@/components/search-bar";
 import { BookmarksGrid } from "@/components/bookmark-grid";
+import { BulkActionBar } from "@/components/bulk-action-bar";
 import { Pagination } from "@/components/pagination";
 import { FilterBadges } from "@/components/filter-badges";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -40,7 +42,12 @@ function Dashboard() {
   const { data: collections, isLoading: collectionsLoading } = useCollections();
   const { data: tags } = useTags();
   const collectionName = collections?.find((collection) => collection.id === search.collectionId)?.name;
+  const archivedCollectionId = collections?.find(
+    (collection) => collection.isSystem && collection.name.toLowerCase() === "archived",
+  )?.id;
+  const viewingArchived = search.collectionId !== undefined && search.collectionId === archivedCollectionId;
   const updateFilters = (patch: Partial<typeof search>) => {
+    setSelectedIds([]);
     navigate({ to: "/dashboard", search: { ...search, ...patch, page: 1 } });
   };
   const filters = [
@@ -53,6 +60,7 @@ function Dashboard() {
   const [editingBookmark, setEditingBookmark] = useState<Bookmark>();
   const [editingTag, setEditingTag] = useState<{ id: string; name: string; color?: string | null }>();
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const tagReturnFocus = useRef<HTMLElement | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
 
@@ -86,6 +94,7 @@ function Dashboard() {
   });
 
   const handleSearch = (query: string) => {
+    setSelectedIds([]);
     navigate({
       to: "/dashboard",
       search: {
@@ -97,11 +106,26 @@ function Dashboard() {
   };
 
   const handlePageChange = (page: number) => {
+    setSelectedIds([]);
     navigate({
       to: "/dashboard",
       search: { ...search, page },
     });
   };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id],
+    );
+  };
+
+  const bulkArchive = useBulkArchiveBookmarks();
+  const bulkUnarchive = useBulkUnarchiveBookmarks();
+  const bulkDelete = useBulkDeleteBookmarks();
+  const moveBookmarks = useMoveBookmarks();
+  const bulkPending =
+    bulkArchive.isPending || bulkUnarchive.isPending || bulkDelete.isPending || moveBookmarks.isPending;
+  const clearAfterBulk = () => setSelectedIds([]);
 
   return (
     <div className="min-w-0 flex-1 p-4 sm:p-6 space-y-6">
@@ -143,6 +167,22 @@ function Dashboard() {
         onCreateFirst={openCreate}
         onEditBookmark={openEdit}
         onEditTag={openEditTag}
+        archivedCollectionId={archivedCollectionId}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+      />
+      <BulkActionBar
+        count={selectedIds.length}
+        pending={bulkPending}
+        collections={collections ?? []}
+        showUnarchive={viewingArchived}
+        onArchive={() => bulkArchive.mutate(selectedIds, { onSuccess: clearAfterBulk })}
+        onUnarchive={() => bulkUnarchive.mutate(selectedIds, { onSuccess: clearAfterBulk })}
+        onMove={(collectionId) =>
+          moveBookmarks.mutate({ ids: selectedIds, collectionId }, { onSuccess: clearAfterBulk })
+        }
+        onDelete={() => bulkDelete.mutate(selectedIds, { onSuccess: clearAfterBulk })}
+        onClear={() => setSelectedIds([])}
       />
       <BookmarkDialog
         open={dialogOpen}
