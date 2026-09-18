@@ -36,13 +36,13 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              render={<Link to="/dashboard" search={{ page: 1 }} aria-label="Aggre-gator home" />}
+              render={<Link to="/dashboard" search={{ page: 1 }} aria-label="Aggregator home" />}
             >
               <span className="flex size-8 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <Logo className="size-6" />
               </span>
               <span className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold">Aggre-gator</span>
+                <span className="font-semibold">Aggregator</span>
               </span>
             </SidebarMenuButton>
           </SidebarMenuItem>

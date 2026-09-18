@@ -13,16 +13,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import { RowActions } from "./row-actions";
 import {
   Tag as TagIcon,
-  MoreVertical,
   Plus,
   Loader2,
   Edit,
@@ -51,27 +49,16 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
               <span className="font-light text-sm">Tags</span>
             </CollapsibleTrigger>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    size="icon"
-                    aria-label="Tag options"
-                    variant="ghost"
-                    className="size-7 shrink-0 transition-opacity duration-150 after:absolute after:-inset-2 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/label:opacity-100 [@media(hover:hover)]:group-focus-within/label:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
-                  />
-                }
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVertical className="size-4" />
-              </DropdownMenuTrigger>
+            <RowActions group="label" label="Tag options">
               <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-                  <Plus className="h-4 w-4" />
-                  New tag
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                    New tag
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </RowActions>
           </div>
         </SidebarGroupLabel>
 
@@ -132,49 +119,36 @@ function TagItem({ tag }: { tag: Tag }) {
           <span className="flex-1 truncate">{tag.name}</span>
         </SidebarMenuButton>
 
-        <span className="relative ml-1 flex h-7 shrink-0 items-center justify-center gap-1 [@media(hover:hover)]:w-7 [@media(hover:hover)]:gap-0">
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums transition-opacity duration-150 [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-0 [@media(hover:hover)]:group-hover/item:opacity-0 [@media(hover:hover)]:group-focus-within/item:opacity-0">
-            {tag.count}
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Options for tag ${tag.name}`}
-                  className="size-7 shrink-0 opacity-100 transition-opacity duration-150 after:absolute after:-inset-2 [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-0 [@media(hover:hover)]:m-auto [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/item:opacity-100 [@media(hover:hover)]:group-focus-within/item:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
-                />
-              }
-            >
-              <MoreVertical className="size-4" />
-            </DropdownMenuTrigger>
+        <RowActions group="item" label={`Options for tag ${tag.name}`} badge={tag.count}>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setEditOpen(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={() => setDeleteOpen(true)}
-              disabled={deleteTag.isPending}
-            >
-              {deleteTag.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </>
-              )}
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => setDeleteOpen(true)}
+                disabled={deleteTag.isPending}
+              >
+                {deleteTag.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </>
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
-          </DropdownMenu>
-        </span>
+        </RowActions>
       </div>
       <TagDialog tag={tag} open={editOpen} onOpenChange={setEditOpen} />
       <ConfirmDialog
