@@ -1,8 +1,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -42,6 +44,9 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
       .join("")
       .toUpperCase() || "?";
 
+  // Plan comes from the paywall epic (#18) — defaults to Free until user.plan exists.
+  const plan = (session.user as { plan?: string }).plan ?? "Free";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -57,6 +62,19 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
         <ChevronUp className="ml-auto h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="end">
+        <DropdownMenuLabel>
+          <span className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={session.user.image || ""} alt={session.user.name} />
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            </Avatar>
+            <span className="flex min-w-0 flex-col gap-1">
+              <span className="truncate font-medium">{session.user.name}</span>
+              <Badge variant="secondary" className="w-fit text-xs capitalize">{plan}</Badge>
+            </span>
+          </span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
         <DropdownMenuItem>
           <Settings className="h-4 w-4 mr-2" />
           settings

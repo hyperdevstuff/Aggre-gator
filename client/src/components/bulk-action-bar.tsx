@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { Archive, ArchiveRestore, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Collection } from "@/types";
 
 type BulkActionBarProps = {
@@ -27,8 +26,6 @@ export function BulkActionBar({
   onDelete,
   onClear,
 }: BulkActionBarProps) {
-  const [moveTarget, setMoveTarget] = useState("");
-
   if (count === 0) return null;
 
   const handleDelete = () => {
@@ -58,29 +55,24 @@ export function BulkActionBar({
             archive
           </Button>
         )}
-        <NativeSelect
-          aria-label="Move selection to collection"
-          value={moveTarget}
-          onChange={(event) => {
-            setMoveTarget(event.target.value);
-            if (event.target.value) {
-              onMove(event.target.value === "unsorted" ? null : event.target.value);
-              setMoveTarget("");
-            }
-          }}
+        <Select
+          value=""
+          onValueChange={(value) => onMove(value === "unsorted" ? null : value)}
         >
-          <NativeSelectOption value="" disabled>
-            move to…
-          </NativeSelectOption>
-          <NativeSelectOption value="unsorted">Unsorted</NativeSelectOption>
-          {collections
-            .filter((collection) => !collection.isSystem)
-            .map((collection) => (
-              <NativeSelectOption key={collection.id} value={collection.id}>
-                {collection.name}
-              </NativeSelectOption>
-            ))}
-        </NativeSelect>
+          <SelectTrigger size="sm" aria-label="Move selection to collection">
+            <SelectValue placeholder="move to…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unsorted">Unsorted</SelectItem>
+            {collections
+              .filter((collection) => !collection.isSystem)
+              .map((collection) => (
+                <SelectItem key={collection.id} value={collection.id}>
+                  {collection.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
         <Button type="button" variant="destructive" size="sm" onClick={handleDelete}>
           <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
           delete

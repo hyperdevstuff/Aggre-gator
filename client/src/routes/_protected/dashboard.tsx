@@ -13,7 +13,7 @@ import { BookmarksGrid } from "@/components/bookmark-grid";
 import { BulkActionBar } from "@/components/bulk-action-bar";
 import { Pagination } from "@/components/pagination";
 import { FilterBadges } from "@/components/filter-badges";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -131,14 +131,19 @@ function Dashboard() {
     <div className="min-w-0 flex-1 p-4 sm:p-6 space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <SearchBar key={search.search ?? ""} defaultValue={search.search} onSearch={handleSearch} />
-        <NativeSelect aria-label="Sort bookmarks" value={search.sort ?? "created_desc"}
-          onChange={(event) => updateFilters({ sort: event.target.value as SortOption })}>
-          <NativeSelectOption value="created_desc">Newest first</NativeSelectOption>
-          <NativeSelectOption value="created_asc">Oldest first</NativeSelectOption>
-          <NativeSelectOption value="title_asc">Title A–Z</NativeSelectOption>
-          <NativeSelectOption value="title_desc">Title Z–A</NativeSelectOption>
-          <NativeSelectOption value="url_asc">URL A–Z</NativeSelectOption>
-        </NativeSelect>
+        <Select value={search.sort ?? "created_desc"}
+          onValueChange={(value) => updateFilters({ sort: value as SortOption })}>
+          <SelectTrigger aria-label="Sort bookmarks">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="created_desc">Newest first</SelectItem>
+            <SelectItem value="created_asc">Oldest first</SelectItem>
+            <SelectItem value="title_asc">Title A–Z</SelectItem>
+            <SelectItem value="title_desc">Title Z–A</SelectItem>
+            <SelectItem value="url_asc">URL A–Z</SelectItem>
+          </SelectContent>
+        </Select>
         <Button className="cursor-pointer" onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />
           New

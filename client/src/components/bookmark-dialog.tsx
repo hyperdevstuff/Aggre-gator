@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -22,6 +22,9 @@ type BookmarkDialogProps = {
   isFavorite?: boolean;
   returnFocus?: RefObject<HTMLElement | null>;
 };
+
+/** Stand-in for "no selection" — Base UI Select treats "" as empty. */
+const NO_VALUE = "__none__";
 
 export function BookmarkDialog({ open, onOpenChange, returnFocus, ...defaults }: BookmarkDialogProps) {
   // Content is mounted afresh by the dialog on each open; cancelled drafts never
@@ -144,16 +147,21 @@ function BookmarkForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${id}-collection`}>Collection</Label>
-          <NativeSelect id={`${id}-collection`} className="w-full" value={collectionId}
-            onChange={(event) => setCollectionId(event.target.value)} disabled={collections.isPending}>
-            <NativeSelectOption value="">{bookmark ? "No collection" : "Unsorted (default)"}</NativeSelectOption>
-            {collectionId && !collections.data?.some((collection) => collection.id === collectionId) && (
-              <NativeSelectOption value={collectionId}>Current collection</NativeSelectOption>
-            )}
-            {collections.data?.map((collection) => (
-              <NativeSelectOption key={collection.id} value={collection.id}>{collection.name}</NativeSelectOption>
-            ))}
-          </NativeSelect>
+          <Select value={collectionId || NO_VALUE} onValueChange={(value) => setCollectionId(!value || value === NO_VALUE ? "" : value)}
+            disabled={collections.isPending}>
+            <SelectTrigger id={`${id}-collection`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_VALUE}>{bookmark ? "No collection" : "Unsorted (default)"}</SelectItem>
+              {collectionId && !collections.data?.some((collection) => collection.id === collectionId) && (
+                <SelectItem value={collectionId}>Current collection</SelectItem>
+              )}
+              {collections.data?.map((collection) => (
+                <SelectItem key={collection.id} value={collection.id}>{collection.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {collections.isPending && <p role="status" className="text-xs text-muted-foreground">Loading collections…</p>}
           {collections.isError && (
             <p role="status" className="text-xs text-muted-foreground">
@@ -189,10 +197,14 @@ function BookmarkForm({
           </div>
           <p id={`${id}-tag-help`} className="text-xs text-muted-foreground">Press Enter to add a tag. New tags are created when you save.</p>
           {availableTags.length > 0 && (
-            <NativeSelect aria-label="Choose an existing tag" className="w-full" value="" onChange={(event) => addTag(event.target.value)}>
-              <NativeSelectOption value="" disabled>Choose an existing tag…</NativeSelectOption>
-              {availableTags.map((tag) => <NativeSelectOption key={tag.id} value={tag.name}>{tag.name}</NativeSelectOption>)}
-            </NativeSelect>
+            <Select value={NO_VALUE} onValueChange={(value) => { if (value && value !== NO_VALUE) addTag(value); }}>
+              <SelectTrigger className="w-full" aria-label="Choose an existing tag">
+                <SelectValue placeholder="Choose an existing tag…" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTags.map((tag) => <SelectItem key={tag.id} value={tag.name}>{tag.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           )}
           {tags.isError && <p role="status" className="text-xs text-muted-foreground">Existing tags could not be loaded. You can still enter tag names.</p>}
         </div>

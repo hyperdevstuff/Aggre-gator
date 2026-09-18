@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -27,6 +27,9 @@ type CollectionDialogProps = {
 
 const ICON_CHOICES = ["", "📁", "🔖", "💻", "📚", "🎯", "🎵", "✈️", "💡", "🔥"];
 const COLOR_CHOICES = ["", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899"];
+
+/** Stand-in for "top level" — Base UI Select treats "" as empty. */
+const TOP_LEVEL = "__top__";
 
 export function CollectionDialog({ open, onOpenChange, collection, parentId }: CollectionDialogProps) {
   const isEdit = !!collection;
@@ -125,17 +128,21 @@ function CollectionForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="collection-parent">Parent collection</Label>
-          <NativeSelect id="collection-parent" className="w-full" value={selectedParent}
-            aria-invalid={!!selectedParentError}
-            aria-describedby={selectedParentError ? "collection-parent-error" : undefined}
-            onChange={(event) => setSelectedParent(event.target.value)}>
-            <NativeSelectOption value="">{isEdit ? "(top level)" : "(no parent — top level)"}</NativeSelectOption>
-            {parentOptions.map((candidate) => (
-              <NativeSelectOption key={candidate.id} value={candidate.id}>
-                {"— ".repeat(Math.max(0, collectionDepth(candidate.id, nodes) - 1))}{candidate.name}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+          <Select value={selectedParent || TOP_LEVEL} onValueChange={(value) => setSelectedParent(!value || value === TOP_LEVEL ? "" : value)}>
+            <SelectTrigger id="collection-parent" className="w-full"
+              aria-invalid={!!selectedParentError}
+              aria-describedby={selectedParentError ? "collection-parent-error" : undefined}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TOP_LEVEL}>{isEdit ? "(top level)" : "(no parent — top level)"}</SelectItem>
+              {parentOptions.map((candidate) => (
+                <SelectItem key={candidate.id} value={candidate.id}>
+                  {"— ".repeat(Math.max(0, collectionDepth(candidate.id, nodes) - 1))}{candidate.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {selectedParentError && (
             <p id="collection-parent-error" className="text-xs text-destructive">{selectedParentError}</p>
           )}

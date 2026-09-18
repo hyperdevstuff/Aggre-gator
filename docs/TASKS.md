@@ -108,7 +108,7 @@
 
 | Status | Task |
 |--------|------|
-| ✅ | Shadcn (Base UI port) components, dark mode provider, toasts, responsive sidebar; inset variant enabled, single main landmark and valid mobile trigger; account menu lives in `SidebarFooter` (bottom), dropdown opens upward |
+| ✅ | Shadcn (Base UI port) components, dark mode provider, toasts, responsive sidebar; inset variant enabled, single main landmark and valid mobile trigger; account menu lives in `SidebarFooter` (bottom), dropdown opens upward; logo + wordmark header; all dropdowns use styled `Select`, no native selects |
 | 🟡 | `ThemeToggle` exists but is not rendered anywhere |
 | ❌ | Landing page for logged-out users |
 | ❌ | Favicon + meta/OG tags |
