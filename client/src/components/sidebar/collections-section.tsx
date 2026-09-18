@@ -57,8 +57,8 @@ export function CollectionsSection({
     <Collapsible defaultOpen>
       <SidebarGroup>
         <SidebarGroupLabel>
-          <div className="-mr-2 flex w-full items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
+          <div className="-mr-2 flex h-8 w-full items-center justify-between group/label rounded-md">
+            <CollapsibleTrigger className="flex items-center gap-2 flex-1">
               <span className="text-sm font-light">Collections</span>
             </CollapsibleTrigger>
 
