@@ -24,7 +24,7 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
 
   const handleSignOut = async () => {
     await authClient.signOut();
-    toast.success("signed out");
+    toast.success("Signed out");
     navigate({ to: "/login" });
   };
 
@@ -32,7 +32,7 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
     return (
       <SidebarMenuButton>
         <User2 className="h-4 w-4" />
-        <span>loading...</span>
+        <span>Loading…</span>
       </SidebarMenuButton>
     );
   }
@@ -77,12 +77,12 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem>
           <Settings className="h-4 w-4 mr-2" />
-          settings
+          Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="h-4 w-4 mr-2" />
-          sign out
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

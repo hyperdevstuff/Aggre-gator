@@ -41,11 +41,11 @@ export function BookmarksGrid({
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-destructive mb-2">failed to load bookmarks</p>
+        <p className="text-destructive mb-2">Failed to load bookmarks</p>
         <p className="text-sm text-muted-foreground mb-4">{error.message}</p>
         {onRetry && (
           <Button variant="outline" onClick={onRetry}>
-            retry
+            Retry
           </Button>
         )}
       </div>
@@ -55,9 +55,9 @@ export function BookmarksGrid({
   if (!bookmarks || bookmarks.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground mb-4">no bookmarks found</p>
+        <p className="text-muted-foreground mb-4">No bookmarks found</p>
         {onCreateFirst && (
-          <Button onClick={onCreateFirst}>create your first bookmark</Button>
+          <Button onClick={onCreateFirst}>Create your first bookmark</Button>
         )}
       </div>
     );

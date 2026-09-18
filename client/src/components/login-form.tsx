@@ -106,7 +106,7 @@ export function LoginForm({
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">Login to your account</h1>
+          <h1 className="text-2xl font-bold">Log in to your account</h1>
           <p className="text-muted-foreground text-sm text-balance">
             Enter your email below to login to your account
           </p>
@@ -150,7 +150,7 @@ export function LoginForm({
         <Field>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && !socialSignIn.isPending
-              ? "Signing in..."
+              ? "Signing in…"
               : "Login"}
           </Button>
         </Field>
@@ -172,7 +172,7 @@ export function LoginForm({
                 fill="currentColor"
               />
             </svg>
-            {socialSignIn.isPending ? "Redirecting..." : "Login with Google"}
+            {socialSignIn.isPending ? "Redirecting…" : "Login with Google"}
           </Button>
           <FieldDescription className="text-center">
             Don&apos;t have an account?{" "}

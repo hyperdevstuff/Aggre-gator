@@ -34,10 +34,10 @@ export function useCreateBookmark() {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["tags"] });
-      toast.success("bookmark created");
+      toast.success("Bookmark created");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to create");
+      toast.error(err instanceof Error ? err.message : "Failed to create");
     },
   });
 }
@@ -53,10 +53,10 @@ export function useUpdateBookmark() {
       qc.invalidateQueries({ queryKey: ["bookmarks", id] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["tags"] });
-      toast.success("bookmark updated");
+      toast.success("Bookmark updated");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to update");
+      toast.error(err instanceof Error ? err.message : "Failed to update");
     },
   });
 }
@@ -70,10 +70,10 @@ export function useDeleteBookmark() {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["tags"] });
-      toast.success("bookmark deleted");
+      toast.success("Bookmark deleted");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to delete");
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
     },
   });
 }
@@ -87,10 +87,10 @@ export function useBulkDeleteBookmarks() {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["tags"] });
-      toast.success("bookmarks deleted");
+      toast.success("Bookmarks deleted");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to delete");
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
     },
   });
 }
@@ -105,11 +105,11 @@ export function useBulkArchiveBookmarks() {
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["tags"] });
       toast.success(
-        result.archived === 1 ? "bookmark archived" : `${result.archived} bookmarks archived`,
+        result.archived === 1 ? "Bookmark archived" : `${result.archived} bookmarks archived`,
       );
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to archive");
+      toast.error(err instanceof Error ? err.message : "Failed to archive");
     },
   });
 }
@@ -124,11 +124,11 @@ export function useBulkUnarchiveBookmarks() {
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["tags"] });
       toast.success(
-        result.unarchived === 1 ? "bookmark restored" : `${result.unarchived} bookmarks restored`,
+        result.unarchived === 1 ? "Bookmark restored" : `${result.unarchived} bookmarks restored`,
       );
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to restore");
+      toast.error(err instanceof Error ? err.message : "Failed to restore");
     },
   });
 }
@@ -147,10 +147,10 @@ export function useMoveBookmarks() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
-      toast.success("bookmarks moved");
+      toast.success("Bookmarks moved");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to move");
+      toast.error(err instanceof Error ? err.message : "Failed to move");
     },
   });
 }
@@ -162,7 +162,7 @@ export function useCreateCollection() {
     mutationFn: (data: CreateCollectionInput) => api.collections.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["collections"] });
-      toast.success("collection created");
+      toast.success("Collection created");
     },
   });
 }
@@ -176,7 +176,7 @@ export function useUpdateCollection() {
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["collections", id] });
-      toast.success("collection updated");
+      toast.success("Collection updated");
     },
   });
 }
@@ -189,7 +189,7 @@ export function useDeleteCollection() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
-      toast.success("collection deleted");
+      toast.success("Collection deleted");
     },
   });
 }
@@ -201,7 +201,7 @@ export function useCreateTag() {
     mutationFn: (data: CreateTagInput) => api.tags.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tags"] });
-      toast.success("tag created");
+      toast.success("Tag created");
     },
   });
 }
@@ -215,10 +215,10 @@ export function useUpdateTag() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tags"] });
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
-      toast.success("tag updated");
+      toast.success("Tag updated");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to update tag");
+      toast.error(err instanceof Error ? err.message : "Failed to update tag");
     },
   });
 }
@@ -231,7 +231,7 @@ export function useDeleteTag() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tags"] });
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
-      toast.success("tag deleted");
+      toast.success("Tag deleted");
     },
   });
 }
@@ -244,7 +244,7 @@ export function useUpdateUser() {
       api.user.update(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["user"] });
-      toast.success("profile updated");
+      toast.success("Profile updated");
     },
   });
 }
@@ -258,10 +258,10 @@ export function useShareCollection() {
     mutationFn: (collectionId: string) => api.share.create(collectionId),
     onSuccess: (_, collectionId) => {
       qc.invalidateQueries({ queryKey: ["share", collectionId] });
-      toast.success("collection is now public");
+      toast.success("Collection is now public");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to share");
+      toast.error(err instanceof Error ? err.message : "Failed to share");
     },
   });
 }
@@ -273,10 +273,10 @@ export function useUnshareCollection() {
     mutationFn: (collectionId: string) => api.share.revoke(collectionId),
     onSuccess: (_, collectionId) => {
       qc.invalidateQueries({ queryKey: ["share", collectionId] });
-      toast.success("collection is now private");
+      toast.success("Collection is now private");
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "failed to unshare");
+      toast.error(err instanceof Error ? err.message : "Failed to unshare");
     },
   });
 }

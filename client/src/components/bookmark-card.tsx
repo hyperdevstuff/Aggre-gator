@@ -26,6 +26,8 @@ import {
   ArchiveRestore,
 } from "lucide-react";
 import { useUpdateBookmark, useDeleteBookmark, useBulkArchiveBookmarks, useBulkUnarchiveBookmarks } from "@/hooks/use-mutations";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useState } from "react";
 import type { Bookmark } from "@/types";
 
 type BookmarkCardProps = {
@@ -44,6 +46,7 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag, isArchived, selected
   const deleteBookmark = useDeleteBookmark();
   const archiveBookmarks = useBulkArchiveBookmarks();
   const unarchiveBookmarks = useBulkUnarchiveBookmarks();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const toggleFavorite = () => {
     updateBookmark.mutate({
@@ -63,9 +66,7 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag, isArchived, selected
   };
 
   const handleDelete = () => {
-    if (confirm(`delete "${bookmark.title}"?`)) {
-      deleteBookmark.mutate(bookmark.id);
-    }
+    deleteBookmark.mutate(bookmark.id);
   };
 
   return (
@@ -143,12 +144,12 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag, isArchived, selected
                   }
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
-                  open
+                  Open
                 </DropdownMenuItem>
                 {onEdit && (
                   <DropdownMenuItem onClick={() => onEdit(bookmark)}>
                     <Edit className="h-4 w-4 mr-2" />
-                    edit
+                    Edit
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem
@@ -162,8 +163,8 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag, isArchived, selected
                   )}
                   {archivePending
                     ? isArchived
-                      ? "restoring..."
-                      : "archiving..."
+                      ? "Restoring…"
+                      : "Archiving…"
                     : isArchived
                       ? "restore"
                       : "archive"}
@@ -171,16 +172,24 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag, isArchived, selected
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive"
-                  onClick={handleDelete}
+                  onClick={() => setDeleteOpen(true)}
                   disabled={deleteBookmark.isPending}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  {deleteBookmark.isPending ? "deleting..." : "delete"}
+                  {deleteBookmark.isPending ? "Deleting…" : "Delete"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
+
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title={`Delete "${bookmark.title}"?`}
+          description="Archived bookmarks are deleted permanently. This cannot be undone."
+          onConfirm={handleDelete}
+        />
 
         <CardDescription className="line-clamp-2">
           {bookmark.description || bookmark.domain}

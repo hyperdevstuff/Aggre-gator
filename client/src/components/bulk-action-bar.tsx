@@ -47,12 +47,12 @@ export function BulkActionBar({
         {showUnarchive ? (
           <Button type="button" variant="outline" size="sm" onClick={onUnarchive}>
             <ArchiveRestore className="h-4 w-4 mr-2" aria-hidden="true" />
-            restore
+            Restore
           </Button>
         ) : (
           <Button type="button" variant="outline" size="sm" onClick={onArchive}>
             <Archive className="h-4 w-4 mr-2" aria-hidden="true" />
-            archive
+            Archive
           </Button>
         )}
         <Select
@@ -60,7 +60,7 @@ export function BulkActionBar({
           onValueChange={(value) => onMove(value === "unsorted" ? null : value)}
         >
           <SelectTrigger size="sm" aria-label="Move selection to collection">
-            <SelectValue placeholder="move to…" />
+            <SelectValue placeholder="Move to…" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="unsorted">Unsorted</SelectItem>
@@ -75,7 +75,7 @@ export function BulkActionBar({
         </Select>
         <Button type="button" variant="destructive" size="sm" onClick={handleDelete}>
           <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
-          delete
+          Delete
         </Button>
         <Button type="button" variant="ghost" size="icon-sm" onClick={onClear} aria-label="Clear selection">
           <X className="h-4 w-4" aria-hidden="true" />

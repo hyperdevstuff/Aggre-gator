@@ -14,6 +14,7 @@ import {
   useUnshareCollection,
 } from "@/hooks/use-mutations";
 import { Check, Copy, Globe, Loader2, Lock } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { Collection } from "@/types";
 
 type ShareDialogProps = {
@@ -28,6 +29,7 @@ export function ShareDialog({
   onOpenChange,
 }: ShareDialogProps) {
   const [copied, setCopied] = useState(false);
+  const [unshareOpen, setUnshareOpen] = useState(false);
 
   const { data: shareInfo, isLoading } = useShareStatus(collection?.id || "");
   const shareCollection = useShareCollection();
@@ -44,9 +46,7 @@ export function ShareDialog({
 
   const handleUnshare = () => {
     if (!collection) return;
-    if (confirm("This will make the collection private. Anyone with the link will no longer have access.")) {
-      unshareCollection.mutate(collection.id);
-    }
+    unshareCollection.mutate(collection.id);
   };
 
   const handleCopy = async () => {
@@ -108,13 +108,13 @@ export function ShareDialog({
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={handleUnshare}
+                onClick={() => setUnshareOpen(true)}
                 disabled={unshareCollection.isPending}
               >
                 {unshareCollection.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Removing...
+                    Removing…
                   </>
                 ) : (
                   "Stop sharing"
@@ -137,7 +137,7 @@ export function ShareDialog({
               {shareCollection.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Publishing...
+                  Publishing…
                 </>
               ) : (
                 <>
@@ -149,6 +149,14 @@ export function ShareDialog({
           </div>
         )}
       </DialogContent>
+      <ConfirmDialog
+        open={unshareOpen}
+        onOpenChange={setUnshareOpen}
+        title="Stop sharing this collection?"
+        description="The collection becomes private. Anyone with the link will no longer have access."
+        confirmLabel="Stop sharing"
+        onConfirm={handleUnshare}
+      />
     </Dialog>
   );
 }

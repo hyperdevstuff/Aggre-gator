@@ -44,7 +44,7 @@ export function SonnerTypes() {
                 setTimeout(() => resolve({ name: "Event" }), 2000),
               ),
             {
-              loading: "Loading...",
+              loading: "Loading…",
               success: (data) => `${data.name} has been created`,
               error: "Error",
             },

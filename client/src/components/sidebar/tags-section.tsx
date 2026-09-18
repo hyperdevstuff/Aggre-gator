@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useDeleteTag } from "@/hooks/use-mutations";
 import { TagDialog } from "@/components/tag-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useState } from "react";
 import type { Tag } from "@/types";
 
@@ -45,7 +46,7 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup>
         <SidebarGroupLabel>
-          <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent ">
+          <div className="-mr-2 flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent ">
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
               <span className="font-light text-sm">Tags</span>
             </CollapsibleTrigger>
@@ -67,7 +68,7 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
-                  New Tag
+                  New tag
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -103,11 +104,10 @@ function TagItem({ tag }: { tag: Tag }) {
   const active = search.tags?.includes(tag.id) ?? false;
   const deleteTag = useDeleteTag();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const handleDelete = () => {
-    if (confirm(`delete tag "${tag.name}"?`)) {
-      deleteTag.mutate(tag.id);
-    }
+    deleteTag.mutate(tag.id);
   };
 
   return (
@@ -152,12 +152,12 @@ function TagItem({ tag }: { tag: Tag }) {
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
-              edit
+              Edit
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive"
-              onClick={handleDelete}
+              onClick={() => setDeleteOpen(true)}
               disabled={deleteTag.isPending}
             >
               {deleteTag.isPending ? (
@@ -168,7 +168,7 @@ function TagItem({ tag }: { tag: Tag }) {
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  delete
+                  Delete
                 </>
               )}
             </DropdownMenuItem>
@@ -177,6 +177,13 @@ function TagItem({ tag }: { tag: Tag }) {
         </span>
       </div>
       <TagDialog tag={tag} open={editOpen} onOpenChange={setEditOpen} />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete tag "${tag.name}"?`}
+        description="The tag is removed from all bookmarks. This cannot be undone."
+        onConfirm={handleDelete}
+      />
     </SidebarMenuItem>
   );
 }

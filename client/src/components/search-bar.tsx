@@ -11,7 +11,7 @@ type SearchBarProps = {
 export function SearchBar({
   defaultValue = "",
   onSearch,
-  placeholder = "search bookmarks...",
+  placeholder = "Search bookmarks…",
 }: SearchBarProps) {
   const [value, setValue] = useState(defaultValue);
 

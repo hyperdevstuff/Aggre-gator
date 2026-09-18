@@ -188,7 +188,7 @@ export function SignupForm({
         <Field>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && !socialSignIn.isPending
-              ? "Creating account..."
+              ? "Creating account…"
               : "Sign up"}
           </Button>
         </Field>
@@ -210,7 +210,7 @@ export function SignupForm({
                 fill="currentColor"
               />
             </svg>
-            {socialSignIn.isPending ? "Redirecting..." : "Sign up with Google"}
+            {socialSignIn.isPending ? "Redirecting…" : "Sign up with Google"}
           </Button>
           <FieldDescription className="text-center">
             Already have an account?{" "}

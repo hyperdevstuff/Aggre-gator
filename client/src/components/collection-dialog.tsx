@@ -135,7 +135,7 @@ function CollectionForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={TOP_LEVEL}>{isEdit ? "(top level)" : "(no parent — top level)"}</SelectItem>
+              <SelectItem value={TOP_LEVEL}>{isEdit ? "(Top level)" : "(No parent — top level)"}</SelectItem>
               {parentOptions.map((candidate) => (
                 <SelectItem key={candidate.id} value={candidate.id}>
                   {"— ".repeat(Math.max(0, collectionDepth(candidate.id, nodes) - 1))}{candidate.name}

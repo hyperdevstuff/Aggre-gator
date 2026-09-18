@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useDeleteCollection } from "@/hooks/use-mutations";
 import { CollectionDialog } from "@/components/collection-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { MAX_COLLECTION_DEPTH, collectionDepth } from "#shared/collection-tree";
 import { useState, useMemo } from "react";
@@ -56,7 +57,7 @@ export function CollectionsSection({
     <Collapsible defaultOpen>
       <SidebarGroup>
         <SidebarGroupLabel>
-          <div className="flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
+          <div className="-mr-2 flex items-center justify-between group/label rounded-md transition-colors hover:bg-sidebar-accent">
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 py-1.5">
               <span className="text-sm font-light">Collections</span>
             </CollapsibleTrigger>
@@ -77,7 +78,7 @@ export function CollectionsSection({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
-                  new collection
+                  New collection
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -95,7 +96,7 @@ export function CollectionsSection({
             ) : collections.length === 0 ? (
               <p className="text-sm text-muted-foreground px-2 py-2">
                 {" "}
-                no collections
+                No collections
               </p>
             ) : (
               <SidebarMenu>
@@ -128,12 +129,11 @@ function CollectionItem({
   const [shareOpen, setShareOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const atMaxDepth = collectionDepth(collection.id, nodes) >= MAX_COLLECTION_DEPTH;
 
   const handleDelete = () => {
-    if (confirm(`delete "${collection.name}"?`)) {
-      deleteCollection.mutate(collection.id);
-    }
+    deleteCollection.mutate(collection.id);
   };
 
   return (
@@ -179,23 +179,23 @@ function CollectionItem({
             >
               <MoreVertical className="size-4" />
             </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="min-w-52">
             <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
-              edit
+              Edit
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSubOpen(true)} disabled={atMaxDepth}>
               <Plus className="h-4 w-4 mr-2" />
-              {atMaxDepth ? "sub-collection limit reached" : "new sub-collection"}
+              {atMaxDepth ? "Sub-collection limit reached" : "New sub-collection"}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShareOpen(true)}>
               <Share2 className="h-4 w-4 mr-2" />
-              share
+              Share
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive"
-              onClick={handleDelete}
+              onClick={() => setDeleteOpen(true)}
               disabled={deleteCollection.isPending}
             >
               {deleteCollection.isPending ? (
@@ -206,7 +206,7 @@ function CollectionItem({
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  delete
+                  Delete
                 </>
               )}
             </DropdownMenuItem>
@@ -229,6 +229,13 @@ function CollectionItem({
         parentId={collection.id}
         open={subOpen}
         onOpenChange={setSubOpen}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete "${collection.name}"?`}
+        description="Its bookmarks become unfiled but are kept. This cannot be undone."
+        onConfirm={handleDelete}
       />
     </SidebarMenuItem>
   );

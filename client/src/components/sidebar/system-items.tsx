@@ -57,7 +57,7 @@ export function SystemItems({ collections }: SystemItemsProps) {
               render={<Link to="/dashboard" search={{ isFavorite: true }} aria-current={search.isFavorite ? "page" : undefined} />}
             >
               <FolderHeart />
-              <span>favorites</span>
+              <span>Favorites</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
