@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { SidebarFooter as AccountMenu } from "@/components/sidebar/footer";
-import { AnimatedLogo } from "@/components/ui/animated-logo";
+import { Logo } from "@/components/ui/logo";
 import { Link } from "@tanstack/react-router";
 import { useCollections, useTags } from "@/hooks/queries";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,13 +16,19 @@ import { SystemItems } from "./sidebar/system-items";
 import { CollectionsSection } from "./sidebar/collections-section";
 import { TagsSection } from "./sidebar/tags-section";
 
+const SYSTEM_ORDER = ["unsorted", "archived"];
+
 export function AppSidebar() {
   const { data: collections, isLoading: collectionsLoading } = useCollections();
   const { data: tags, isLoading: tagsLoading } = useTags();
   const { session } = useAuth();
 
-  const systemCollections = collections?.filter((c) => c.isSystem) || [];
-  const userCollections = collections?.filter((c) => !c.isSystem) || [];
+  const systemCollections =
+    collections
+      ?.filter((c) => c.isSystem)
+      .sort((a, b) => SYSTEM_ORDER.indexOf(a.name.toLowerCase()) - SYSTEM_ORDER.indexOf(b.name.toLowerCase())) || [];
+  const userCollections =
+    collections?.filter((c) => !c.isSystem).sort((a, b) => a.name.localeCompare(b.name)) || [];
   return (
     <Sidebar variant="inset">
       <SidebarHeader>
@@ -33,7 +39,7 @@ export function AppSidebar() {
               render={<Link to="/dashboard" search={{ page: 1 }} aria-label="Aggre-gator home" />}
             >
               <span className="flex size-8 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <AnimatedLogo className="size-8 max-w-none" />
+                <Logo className="size-6" />
               </span>
               <span className="flex flex-col gap-0.5 leading-none">
                 <span className="font-semibold">Aggre-gator</span>

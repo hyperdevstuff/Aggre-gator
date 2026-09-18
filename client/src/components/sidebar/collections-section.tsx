@@ -6,7 +6,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuBadge,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -155,18 +154,30 @@ function CollectionItem({
             <span className="text-sm">{collection.icon}</span>
           ) : (
             <FolderIcon
-              className="h-4 w-4"
+              className="h-4 w-4 shrink-0"
               style={{ color: collection.color || undefined }}
             />
           )}
           <span className="flex-1 truncate">{collection.name}</span>
-          <SidebarMenuBadge>{collection.count}</SidebarMenuBadge>
         </SidebarMenuButton>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Options for collection ${collection.name}`} />}>
-            <MoreVertical className="h-4 w-4" />
-          </DropdownMenuTrigger>
+        <span className="relative ml-1 flex h-7 shrink-0 items-center justify-center gap-1 [@media(hover:hover)]:w-7 [@media(hover:hover)]:gap-0">
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums transition-opacity duration-150 [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-0 [@media(hover:hover)]:group-hover/item:opacity-0 [@media(hover:hover)]:group-focus-within/item:opacity-0">
+            {collection.count}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Options for collection ${collection.name}`}
+                  className="size-7 shrink-0 opacity-100 transition-opacity duration-150 after:absolute after:-inset-2 [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-0 [@media(hover:hover)]:m-auto [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/item:opacity-100 [@media(hover:hover)]:group-focus-within/item:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+                />
+              }
+            >
+              <MoreVertical className="size-4" />
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setEditOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
@@ -199,7 +210,8 @@ function CollectionItem({
               )}
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </span>
       </div>
 
       <ShareDialog

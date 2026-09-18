@@ -44,7 +44,7 @@ export function SystemItems({ collections }: SystemItemsProps) {
                   <FolderArchive />
                 )}
                 <span className="capitalize">{col.name}</span>
-                <SidebarMenuBadge className="ml-auto">
+                <SidebarMenuBadge className="ml-auto tabular-nums">
                   {col.count}
                 </SidebarMenuBadge>
               </SidebarMenuButton>
@@ -56,7 +56,7 @@ export function SystemItems({ collections }: SystemItemsProps) {
               isActive={search.isFavorite === true}
               render={<Link to="/dashboard" search={{ isFavorite: true }} aria-current={search.isFavorite ? "page" : undefined} />}
             >
-              <FolderHeart className="text-pink-600" />
+              <FolderHeart />
               <span>favorites</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
