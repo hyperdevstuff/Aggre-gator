@@ -1,3 +1,4 @@
+import { env } from "./env";
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
@@ -24,10 +25,7 @@ export const app = new Elysia()
   .get("/", () => "Do the frontend")
   .use(
     cors({
-      origin:
-        process.env.NODE_ENV === "production"
-          ? process.env.CLIENT_URL
-          : true,
+      origin: env.NODE_ENV === "production" ? env.CLIENT_URL : true,
       credentials: true,
     }),
   )
@@ -55,6 +53,6 @@ export const app = new Elysia()
 // Tests import `app` and drive it through `app.handle()`; Bun evaluates each test
 // file's module graph separately, so binding a port here would make the second
 // file fail with EADDRINUSE.
-if (process.env.NODE_ENV !== "test") {
-  app.listen(process.env.PORT || 3000);
+if (env.NODE_ENV !== "test") {
+  app.listen(env.PORT);
 }

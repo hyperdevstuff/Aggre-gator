@@ -3,12 +3,16 @@ import { openAPI } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index";
 import * as schema from "../db/schema";
+import { env } from "../env";
 import Elysia from "elysia";
 import { UnauthorizedError } from "../error";
 
+const isProduction = env.NODE_ENV === "production";
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  baseURL: process.env.BETTER_AUTH_URL as string,
+  baseURL: env.BETTER_AUTH_URL,
+  secret: env.BETTER_AUTH_SECRET,
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url, token }) => {
@@ -18,16 +22,21 @@ export const auth = betterAuth({
       console.log(`   Token: ${token}\n`);
     },
   },
-  trustedOrigins: [process.env.CLIENT_URL as string],
+  trustedOrigins: [env.CLIENT_URL],
   plugins: [openAPI()],
-  ...(process.env.GOOGLE_CLIENT_ID &&
-    process.env.GOOGLE_CLIENT_SECRET
+  advanced: {
+    // Deterministic secure cookies in production (env validation already
+    // requires https origins there). better-auth would infer this from the
+    // baseURL protocol, but explicit beats inferred for session security.
+    useSecureCookies: isProduction,
+  },
+  ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
     ? {
       socialProviders: {
         google: {
           prompt: "select_account",
-          clientId: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          clientId: env.GOOGLE_CLIENT_ID,
+          clientSecret: env.GOOGLE_CLIENT_SECRET,
         },
       },
     }
