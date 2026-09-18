@@ -1,8 +1,5 @@
 import {
   Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -24,6 +21,8 @@ import {
   Edit,
   Archive,
   ArchiveRestore,
+  Link2,
+  Tag as TagIcon,
 } from "lucide-react";
 import { useUpdateBookmark, useDeleteBookmark, useBulkArchiveBookmarks, useBulkUnarchiveBookmarks } from "@/hooks/use-mutations";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -70,161 +69,166 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag, isArchived, selected
   };
 
   return (
-    <Card className="group relative overflow-hidden hover:shadow-lg transition-shadow">
-      {onToggleSelect && (
-        <div className="absolute left-2 top-2 z-10 rounded-md bg-background/90 p-1 shadow-sm">
-          <Checkbox
-            checked={selected ?? false}
-            onCheckedChange={() => onToggleSelect(bookmark.id)}
-            aria-label={`Select ${bookmark.title}`}
-          />
-        </div>
-      )}
-      {bookmark.cover && (
-        <div className="aspect-video w-full overflow-hidden bg-muted">
+    <Card className="group flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
+      <div className="relative">
+        {bookmark.cover ? (
           <img
             src={bookmark.cover}
-            alt={bookmark.title}
-            className="w-full h-full object-cover"
+            alt=""
+            loading="lazy"
+            className="aspect-video w-full object-cover ring-1 ring-inset ring-black/10 dark:ring-white/10"
           />
-        </div>
-      )}
-
-      <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base line-clamp-2">
-            <a
-              href={bookmark.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:underline"
-            >
-              {bookmark.title}
-            </a>
-          </CardTitle>
-
-          <div className="flex items-center gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={toggleFavorite}
-              aria-label={bookmark.isFavorite ? "Remove from favorites" : "Add to favorites"}
-              aria-pressed={bookmark.isFavorite}
-              disabled={updateBookmark.isPending}
-            >
-              {updateBookmark.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Star
-                  className={`h-4 w-4 ${bookmark.isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
-                />
-              )}
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button size="icon" variant="ghost" className="h-8 w-8"
-                    aria-label={`Actions for ${bookmark.title}`}
-                    data-bookmark-menu={bookmark.id} />
-                }
-              >
-                <MoreVertical className="h-4 w-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="flex items-center"
-                  render={
-                    <a
-                      href={bookmark.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />
-                  }
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open
-                </DropdownMenuItem>
-                {onEdit && (
-                  <DropdownMenuItem onClick={() => onEdit(bookmark)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onClick={handleArchive}
-                  disabled={archivePending}
-                >
-                  {isArchived ? (
-                    <ArchiveRestore className="h-4 w-4 mr-2" />
-                  ) : (
-                    <Archive className="h-4 w-4 mr-2" />
-                  )}
-                  {archivePending
-                    ? isArchived
-                      ? "Restoring…"
-                      : "Archiving…"
-                    : isArchived
-                      ? "restore"
-                      : "archive"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setDeleteOpen(true)}
-                  disabled={deleteBookmark.isPending}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {deleteBookmark.isPending ? "Deleting…" : "Delete"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="flex aspect-video w-full items-center justify-center bg-muted"
+          >
+            <Link2 className="size-8 text-muted-foreground/50" />
           </div>
+        )}
+
+        {onToggleSelect && (
+          <div className="absolute left-2 top-2 rounded-md bg-background/90 p-1 shadow-sm">
+            <Checkbox
+              checked={selected ?? false}
+              onCheckedChange={() => onToggleSelect(bookmark.id)}
+              aria-label={`Select ${bookmark.title}`}
+            />
+          </div>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button size="icon" variant="ghost"
+                className="absolute right-2 top-2 h-8 w-8 bg-background/80 shadow-sm backdrop-blur-sm hover:bg-background/90"
+                aria-label={`Actions for ${bookmark.title}`}
+                data-bookmark-menu={bookmark.id} />
+            }
+          >
+            <MoreVertical className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="flex items-center"
+              render={
+                <a
+                  href={bookmark.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              }
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open
+            </DropdownMenuItem>
+            {onEdit && (
+              <DropdownMenuItem onClick={() => onEdit(bookmark)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={handleArchive}
+              disabled={archivePending}
+            >
+              {isArchived ? (
+                <ArchiveRestore className="h-4 w-4 mr-2" />
+              ) : (
+                <Archive className="h-4 w-4 mr-2" />
+              )}
+              {archivePending
+                ? isArchived
+                  ? "Restoring…"
+                  : "Archiving…"
+                : isArchived
+                  ? "Restore"
+                  : "Archive"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => setDeleteOpen(true)}
+              disabled={deleteBookmark.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteBookmark.isPending ? "Deleting…" : "Delete"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-1 p-4">
+        <div className="flex items-start gap-1">
+          <a
+            href={bookmark.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0 flex-1 truncate font-medium hover:underline"
+          >
+            {bookmark.title}
+          </a>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="-mr-2 -mt-1 h-8 w-8 shrink-0"
+            onClick={toggleFavorite}
+            aria-label={bookmark.isFavorite ? "Remove from favorites" : "Add to favorites"}
+            aria-pressed={bookmark.isFavorite}
+            disabled={updateBookmark.isPending}
+          >
+            {updateBookmark.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Star
+                className={`h-4 w-4 ${bookmark.isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
+              />
+            )}
+          </Button>
         </div>
 
-        <ConfirmDialog
-          open={deleteOpen}
-          onOpenChange={setDeleteOpen}
-          title={`Delete "${bookmark.title}"?`}
-          description="Archived bookmarks are deleted permanently. This cannot be undone."
-          onConfirm={handleDelete}
-        />
+        <p className="truncate text-xs text-muted-foreground">{bookmark.url}</p>
 
-        <CardDescription className="line-clamp-2">
-          {bookmark.description || bookmark.domain}
-        </CardDescription>
-      </CardHeader>
-
-      {bookmark.tags.length > 0 && (
-        <div className="px-6 pb-4 flex gap-1 flex-wrap">
-          {bookmark.tags.slice(0, 3).map((tag) =>
-            onEditTag ? (
-              <button
-                key={tag.id}
-                type="button"
-                className="min-h-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                onClick={() => onEditTag(tag)}
-                aria-label={`Edit tag ${tag.name}`}
-                title={`Edit tag ${tag.name}`}
-              >
-                <Badge variant="secondary" className="text-xs hover:bg-muted">
+        {bookmark.tags.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Tags">
+            {bookmark.tags.slice(0, 3).map((tag) => (
+              onEditTag ? (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => onEditTag(tag)}
+                  aria-label={`Edit tag ${tag.name}`}
+                  title={`Edit tag ${tag.name}`}
+                  className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  <Badge variant="outline" className="gap-1 rounded-full text-xs font-normal hover:bg-muted">
+                    <TagIcon className="size-3" aria-hidden="true" />
+                    {tag.name}
+                  </Badge>
+                </button>
+              ) : (
+                <Badge key={tag.id} variant="outline" className="gap-1 rounded-full text-xs font-normal">
+                  <TagIcon className="size-3" aria-hidden="true" />
                   {tag.name}
                 </Badge>
-              </button>
-            ) : (
-              <Badge key={tag.id} variant="secondary" className="text-xs">
-                {tag.name}
+              )
+            ))}
+            {bookmark.tags.length > 3 && (
+              <Badge variant="outline" className="rounded-full text-xs font-normal">
+                +{bookmark.tags.length - 3}
               </Badge>
-            ),
-          )}
-          {bookmark.tags.length > 3 && (
-            <Badge variant="secondary" className="text-xs">
-              +{bookmark.tags.length - 3}
-            </Badge>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete "${bookmark.title}"?`}
+        description="Archived bookmarks are deleted permanently. This cannot be undone."
+        onConfirm={handleDelete}
+      />
     </Card>
   );
 }
