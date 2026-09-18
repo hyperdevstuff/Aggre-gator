@@ -72,16 +72,22 @@ export function BookmarkCard({ bookmark, onEdit, onEditTag, isArchived, selected
     <Card className="group flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
       <div className="relative">
         {bookmark.cover ? (
-          <img
-            src={bookmark.cover}
-            alt=""
-            loading="lazy"
-            className="aspect-video w-full object-cover ring-1 ring-inset ring-black/10 dark:ring-white/10"
-          />
+          <>
+            <img
+              src={bookmark.cover}
+              alt=""
+              loading="lazy"
+              className="aspect-[16/10] w-full object-cover"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent"
+            />
+          </>
         ) : (
           <div
             aria-hidden="true"
-            className="flex aspect-video w-full items-center justify-center bg-muted"
+            className="flex aspect-[16/10] w-full items-center justify-center bg-muted"
           >
             <Link2 className="size-8 text-muted-foreground/50" />
           </div>
