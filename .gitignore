@@ -4,6 +4,7 @@
 .client-commandcode/
 client/.agents/
 client/.commandcode/
+opencode.json
 .agents/skills/find-skills/
 
 # agent lockfiles (local-only)
