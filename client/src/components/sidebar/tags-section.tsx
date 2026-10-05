@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
   SidebarGroup,
@@ -38,8 +39,8 @@ export function TagsSection({ tags, isLoading }: TagsSectionProps) {
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup>
         <SidebarGroupLabel className="group/label flex items-center justify-between">
-          <CollapsibleTrigger className="flex items-center gap-2 flex-1">
-            <span className="font-light text-sm">Tags</span>
+          <CollapsibleTrigger className="flex-1">
+            <span className="flex items-center gap-2 font-light text-sm">Tags</span>
           </CollapsibleTrigger>
 
           <RowActions group="label" label="Tag options">
@@ -106,8 +107,8 @@ function TagItem({ tag }: { tag: Tag }) {
         }
       >
         <TagIcon
-          className="size-4 shrink-0"
-          style={{ color: tag.color || undefined }}
+          className="size-4 shrink-0 text-(--tag-color)"
+          style={{ "--tag-color": tag.color || "currentColor" } as CSSProperties}
         />
         <span className="flex-1 truncate">{tag.name}</span>
       </SidebarMenuButton>
@@ -127,7 +128,7 @@ function TagItem({ tag }: { tag: Tag }) {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem
-              className="text-destructive"
+              variant="destructive"
               onClick={() => setDeleteOpen(true)}
               disabled={deleteTag.isPending}
             >

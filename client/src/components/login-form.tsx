@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -143,9 +144,7 @@ export function LoginForm({
           />
         </Field>
         {formError ? (
-          <FieldDescription className="text-sm text-destructive" role="alert">
-            {formError}
-          </FieldDescription>
+          <FieldError>{formError}</FieldError>
         ) : null}
         <Field>
           <Button type="submit" disabled={isSubmitting}>

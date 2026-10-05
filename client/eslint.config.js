@@ -26,12 +26,33 @@ export default [
         "warn",
         { allowConstantExport: true },
       ],
+      "shadcn/no-restyle": ["error", { allow: ["layout"] }],
+      "shadcn/no-raw-colors": "error",
+      "shadcn/no-arbitrary-values": "error",
+      "shadcn/no-inline-styles": "error",
+      "shadcn/no-unknown-classes": "error",
+      "shadcn/require-static-classes": "error",
+    },
+    settings: {
+      shadcn: {
+        note: "See AGENTS.md — use shadcn components, variants, and theme tokens.",
+      },
     },
   },
   {
-    files: ["src/components/ui/**/*.{ts,tsx}"],
+    files: [
+      "src/components/ui/**/*.{ts,tsx}",
+      "src/components/smoothui/**/*.{ts,tsx}",
+    ],
     rules: {
       "react-refresh/only-export-components": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "shadcn/no-restyle": "off",
+      "shadcn/no-raw-colors": "off",
+      "shadcn/no-arbitrary-values": "off",
+      "shadcn/no-inline-styles": "off",
+      "shadcn/no-unknown-classes": "off",
+      "shadcn/require-static-classes": "off",
     },
   },
 ];

@@ -60,13 +60,15 @@ export function ShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {shareInfo?.isActive ? (
-              <Globe className="h-5 w-5 text-green-500" />
-            ) : (
-              <Lock className="h-5 w-5 text-muted-foreground" />
-            )}
-            Share "{collection?.name}"
+          <DialogTitle>
+            <span className="flex items-center gap-2">
+              {shareInfo?.isActive ? (
+                <Globe className="h-5 w-5 text-success" />
+              ) : (
+                <Lock className="h-5 w-5 text-muted-foreground" />
+              )}
+              Share "{collection?.name}"
+            </span>
           </DialogTitle>
           <DialogDescription>
             {shareInfo?.isActive
@@ -86,7 +88,7 @@ export function ShareDialog({
               <Input
                 readOnly
                 value={shareUrl || ""}
-                className="font-mono text-sm"
+                fontMono
               />
               <Button
                 size="icon"
@@ -95,7 +97,7 @@ export function ShareDialog({
                 className="shrink-0"
               >
                 {copied ? (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-success" />
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}

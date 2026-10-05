@@ -51,12 +51,12 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" />
+          <SidebarMenuButton />
         }
       >
         <Avatar className="h-6 w-6">
           <AvatarImage src={session.user.image || ""} alt={session.user.name} />
-          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+          <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
         <span className="flex-1 truncate">{session.user.name}</span>
         <ChevronUp className="ml-auto h-4 w-4" />
@@ -66,11 +66,11 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
           <span className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
               <AvatarImage src={session.user.image || ""} alt={session.user.name} />
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <span className="flex min-w-0 flex-col gap-1">
               <span className="truncate font-medium">{session.user.name}</span>
-              <Badge variant="secondary" className="w-fit text-xs capitalize">{plan}</Badge>
+              <Badge variant="secondary" className="w-fit">{plan}</Badge>
             </span>
           </span>
         </DropdownMenuLabel>

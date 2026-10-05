@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Field,
-  FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -230,12 +230,7 @@ export default function ResetPasswordPage() {
               />
             </Field>
             {formError ? (
-              <FieldDescription
-                className="text-sm text-destructive"
-                role="alert"
-              >
-                {formError}
-              </FieldDescription>
+              <FieldError>{formError}</FieldError>
             ) : null}
             <Field>
               <Button type="submit" disabled={resetMutation.isPending}>

@@ -53,7 +53,7 @@ export function AppSidebar() {
               className="group"
             >
               <motion.span
-                className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg"
+                className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -71,15 +71,14 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent className="gap-0">
+      <SidebarContent>
         {/* Quick Actions */}
-        <SidebarMenu className="px-2 py-2">
+        <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               render={
                 <Link to="/dashboard" search={{}} className="flex items-center gap-2" />
               }
-              className="h-9 rounded-lg"
             >
               <Plus className="size-4" />
               <span className="text-sm">All Bookmarks</span>

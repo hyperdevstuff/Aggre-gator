@@ -1,4 +1,6 @@
+import type { CSSProperties } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { cn } from "@/lib/utils";
 import { usePublicShare } from "@/hooks/queries";
 import { z } from "zod";
 import {
@@ -31,7 +33,7 @@ function PublicSharePage() {
   if (isLoading) return <ShareSkeleton />;
 
   if (isError) {
-    const status = (error as any)?.status;
+    const status = (error as { status?: number } | null)?.status;
     return (
       <ShareErrorPage
         title={status === 410 ? "Link Expired" : "Not Found"}
@@ -73,13 +75,20 @@ function PublicSharePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
           <div className="flex items-start gap-4">
             <div
-              className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary shrink-0"
-              style={{
-                backgroundColor: data.collection.color
-                  ? `${data.collection.color}20`
-                  : undefined,
-                color: data.collection.color || undefined,
-              }}
+              className={cn(
+                "flex size-12 items-center justify-center rounded-xl shrink-0",
+                data.collection.color
+                  ? "bg-(--tint-bg) text-(--tint-fg)"
+                  : "bg-primary/10 text-primary",
+              )}
+              style={
+                {
+                  "--tint-bg": data.collection.color
+                    ? `${data.collection.color}20`
+                    : undefined,
+                  "--tint-fg": data.collection.color || undefined,
+                } as CSSProperties
+              }
             >
               {data.collection.icon ? (
                 <span className="text-xl">{data.collection.icon}</span>
@@ -132,14 +141,14 @@ function PublicSharePage() {
                 <Badge
                   key={nc.id}
                   variant="secondary"
-                  className="shrink-0 gap-1.5"
+                  className="shrink-0"
                 >
                   {nc.icon ? (
                     <span className="text-xs">{nc.icon}</span>
                   ) : (
                     <FolderIcon
-                      className="h-3 w-3"
-                      style={{ color: nc.color || undefined }}
+                      className="h-3 w-3 text-(--nc)"
+                      style={{ "--nc": nc.color || "currentColor" } as CSSProperties}
                     />
                   )}
                   {nc.name}
@@ -221,7 +230,16 @@ function PublicSharePage() {
 
 // --- Sub Components ---
 
-function PublicBookmarkCard({ bookmark }: { bookmark: any }) {
+type PublicBookmark = {
+  url: string;
+  title?: string | null;
+  description?: string | null;
+  domain?: string | null;
+  cover?: string | null;
+  tags?: { id: string; name: string; color: string | null }[];
+};
+
+function PublicBookmarkCard({ bookmark }: { bookmark: PublicBookmark }) {
   return (
     <a
       href={bookmark.url}
@@ -266,7 +284,7 @@ function PublicBookmarkCard({ bookmark }: { bookmark: any }) {
                 className="w-3.5 h-3.5 rounded-sm"
                 loading="lazy"
               />
-              <span className="truncate max-w-[140px]">
+              <span className="truncate max-w-35">
                 {bookmark.domain}
               </span>
             </div>
@@ -280,13 +298,18 @@ function PublicBookmarkCard({ bookmark }: { bookmark: any }) {
               (tag: { id: string; name: string; color: string | null }) => (
                 <span
                   key={tag.id}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary text-secondary-foreground"
-                  style={{
-                    backgroundColor: tag.color
-                      ? `${tag.color}20`
-                      : undefined,
-                    color: tag.color || undefined,
-                  }}
+                  className={cn(
+                    "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium",
+                    tag.color
+                      ? "bg-(--tag-bg) text-(--tag-fg)"
+                      : "bg-secondary text-secondary-foreground",
+                  )}
+                  style={
+                    {
+                      "--tag-bg": tag.color ? `${tag.color}20` : undefined,
+                      "--tag-fg": tag.color || undefined,
+                    } as CSSProperties
+                  }
                 >
                   {tag.name}
                 </span>

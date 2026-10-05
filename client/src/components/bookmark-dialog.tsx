@@ -37,7 +37,7 @@ export function BookmarkDialog({ open, onOpenChange, returnFocus, ...defaults }:
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!pending) onOpenChange(next); }}>
       <DialogContent
-        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg motion-reduce:animate-none"
+        className="max-h-dvh overflow-y-auto sm:max-w-lg"
         showCloseButton={!pending}
         finalFocus={() => returnFocus?.current?.isConnected ? returnFocus.current : false}
       >
@@ -149,7 +149,7 @@ function BookmarkForm({
           <Input id={`${id}-url`} name="url" type="url" required readOnly={!!bookmark}
             defaultValue={bookmark?.url} placeholder="https://example.com"
             pattern="https?://.+" title="Enter a full http:// or https:// URL."
-            autoComplete="url" className="read-only:bg-muted read-only:text-muted-foreground" />
+            autoComplete="url"  />
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${id}-title`}>Title{!bookmark && " (optional)"}</Label>

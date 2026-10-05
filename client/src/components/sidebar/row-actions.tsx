@@ -25,11 +25,6 @@ export function RowActions({ group, label, badge, children }: RowActionsProps) {
     group === "label"
       ? "[@media(hover:hover)]:group-hover/label:opacity-0 [@media(hover:hover)]:group-focus-within/label:opacity-0"
       : "[@media(hover:hover)]:group-hover/item:opacity-0 [@media(hover:hover)]:group-focus-within/item:opacity-0";
-  const buttonSwap =
-    group === "label"
-      ? "[@media(hover:hover)]:group-hover/label:opacity-100 [@media(hover:hover)]:group-focus-within/label:opacity-100"
-      : "[@media(hover:hover)]:group-hover/item:opacity-100 [@media(hover:hover)]:group-focus-within/item:opacity-100";
-
   return (
     <span className="relative ml-1 flex h-7 shrink-0 items-center justify-center gap-1 [@media(hover:hover)]:w-7 [@media(hover:hover)]:gap-0">
       {badge !== undefined && (
@@ -50,9 +45,9 @@ export function RowActions({ group, label, badge, children }: RowActionsProps) {
               size="icon"
               aria-label={label}
               className={cn(
-                "relative size-7 shrink-0 opacity-100 transition-opacity duration-150 after:absolute after:-inset-2 [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-0 [@media(hover:hover)]:m-auto [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-visible:opacity-100",
-                buttonSwap,
+                "relative size-7 shrink-0 after:absolute after:-inset-2 [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-0 [@media(hover:hover)]:m-auto",
               )}
+              reveal={group}
             />
           }
         >

@@ -44,7 +44,7 @@ export function SystemItems({ collections }: SystemItemsProps) {
                   <FolderArchive />
                 )}
                 <span className="capitalize">{col.name}</span>
-                <SidebarMenuBadge className="ml-auto tabular-nums">
+                <SidebarMenuBadge>
                   {col.count}
                 </SidebarMenuBadge>
               </SidebarMenuButton>

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import {
   SidebarGroup,
@@ -155,15 +156,13 @@ export function CollectionsSection({
     >
       <Collapsible defaultOpen>
         <SidebarGroup>
+          <div className={cn(isRootTarget && "rounded-md ring-2 ring-sidebar-ring")}>
           <SidebarGroupLabel
             ref={rootDropRef}
-            className={cn(
-              "group/label flex items-center justify-between",
-              isRootTarget && "ring-2 ring-sidebar-ring",
-            )}
+            className="group/label flex items-center justify-between"
           >
-            <CollapsibleTrigger className="flex items-center gap-2 flex-1">
-              <span className="text-sm font-light">Collections</span>
+            <CollapsibleTrigger className="flex-1">
+              <span className="flex items-center gap-2 text-sm font-light">Collections</span>
             </CollapsibleTrigger>
 
             <RowActions group="label" label="Collection options">
@@ -177,6 +176,7 @@ export function CollectionsSection({
               </DropdownMenuContent>
             </RowActions>
           </SidebarGroupLabel>
+          </div>
 
           <CollectionDialog open={createOpen} onOpenChange={setCreateOpen} />
 
@@ -218,11 +218,8 @@ export function CollectionsSection({
               className="flex items-center gap-2 rounded-md border bg-sidebar px-2 py-1.5 text-sm shadow-md"
             >
               <span
-                className="size-2 rounded-full"
-                style={{
-                  backgroundColor:
-                    dragged.color || "var(--muted-foreground)",
-                }}
+                className="size-2 rounded-full bg-(--dot)"
+                style={{ "--dot": dragged.color || "var(--muted-foreground)" } as CSSProperties}
               />
               <span className="truncate">{dragged.name}</span>
             </div>
@@ -267,15 +264,12 @@ function CollectionItem({
   return (
     <SidebarMenuItem
       ref={dropRef}
-      style={{ paddingLeft: (depth - 1) * 12 }}
-      className={cn(
-        "group/item flex items-center rounded-md",
-        isDropTarget && "ring-2 ring-sidebar-ring",
-      )}
+      className="group/item"
     >
+      <div className={cn("flex flex-1 items-center rounded-md pl-(--indent)", isDropTarget && "ring-2 ring-sidebar-ring", isDragging && "opacity-40")} style={{ "--indent": `${(depth - 1) * 12}px` } as CSSProperties}>
       <SidebarMenuButton
         ref={dragRef}
-        className={cn("flex-1", isDragging && "opacity-40")}
+        className="flex-1"
         isActive={active}
         render={
           <Link
@@ -288,10 +282,8 @@ function CollectionItem({
       >
         {/* Color dot (Raindrop pattern) */}
         <div
-          className="size-2 rounded-full"
-          style={{
-            backgroundColor: collection.color || "var(--muted-foreground)",
-          }}
+          className="size-2 rounded-full bg-(--dot)"
+          style={{ "--dot": collection.color || "var(--muted-foreground)" } as CSSProperties}
         />
         <span className="flex-1 truncate">{collection.name}</span>
       </SidebarMenuButton>
@@ -324,7 +316,7 @@ function CollectionItem({
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem
-              className="text-destructive"
+              variant="destructive"
               onClick={() => setDeleteOpen(true)}
               disabled={deleteCollection.isPending}
             >
@@ -343,6 +335,7 @@ function CollectionItem({
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </RowActions>
+      </div>
 
       <ShareDialog
         collection={collection}

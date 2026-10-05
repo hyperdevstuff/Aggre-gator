@@ -145,8 +145,7 @@ function Dashboard() {
               <BreadcrumbItem>
                 <BreadcrumbLink
                   render={<Link to="/dashboard" search={{ page: 1 }} />}
-                  className="text-lg font-semibold"
-                >
+                                  >
                   All Bookmarks
                 </BreadcrumbLink>
               </BreadcrumbItem>
@@ -155,7 +154,6 @@ function Dashboard() {
                   <BreadcrumbSeparator />
                   <BreadcrumbItem
                     aria-current="page"
-                    className="text-lg"
                   >
                     {collectionName ??
                       (collectionsLoading
@@ -182,7 +180,7 @@ function Dashboard() {
           >
             <SelectTrigger
               aria-label="Sort bookmarks"
-              className="w-[160px]"
+              className="w-40"
             >
               <span className="flex-1 truncate text-left">
                 {

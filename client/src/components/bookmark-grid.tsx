@@ -44,7 +44,7 @@ export function BookmarksGrid({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05, duration: 0.3 }}
           >
-            <Skeleton className="h-64 rounded-xl" />
+            <Skeleton className="h-64" />
           </motion.div>
         ))}
       </motion.div>

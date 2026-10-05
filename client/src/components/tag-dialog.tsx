@@ -1,4 +1,5 @@
-import { useState, type FormEvent, type RefObject } from "react";
+import { useState, type CSSProperties, type FormEvent, type RefObject } from "react";
+import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useCreateTag, useUpdateTag } from "@/hooks/use-mutations";
 import type { Bookmark } from "@/types";
@@ -82,8 +83,8 @@ function TagForm({ tag, onDone }: { tag?: TagDialogProps["tag"]; onDone: () => v
                     aria-checked={color === choice}
                     aria-label={choice ? `Color ${choice}` : "No color"}
                     onClick={() => setColor(choice)}
-                    className={`size-7 rounded-full border transition-transform hover:scale-110 active:scale-95 ${choice ? "" : "bg-muted"} ${color === choice ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""}`}
-                    style={choice ? { backgroundColor: choice } : undefined} />
+                    className={cn("size-7 rounded-full border transition-transform hover:scale-110 active:scale-95", !choice && "bg-muted", choice && "bg-(--swatch)", color === choice && "ring-2 ring-ring ring-offset-2 ring-offset-background")}
+                    style={choice ? ({ "--swatch": choice } as CSSProperties) : undefined} />
                 ))}
               </div>
             </div>

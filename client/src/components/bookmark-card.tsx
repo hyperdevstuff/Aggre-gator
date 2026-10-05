@@ -84,7 +84,7 @@ export function BookmarkCard({
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
     >
       {/* Cover Image */}
-      <div className="relative aspect-[16/10] overflow-hidden">
+      <div className="relative aspect-video overflow-hidden">
         {bookmark.cover ? (
           <>
             <img
@@ -101,7 +101,7 @@ export function BookmarkCard({
         ) : (
           <div
             aria-hidden="true"
-            className="flex aspect-[16/10] w-full items-center justify-center bg-muted"
+            className="flex aspect-video w-full items-center justify-center bg-muted"
           >
             <Link2 className="size-8 text-muted-foreground/50" />
           </div>
@@ -110,9 +110,8 @@ export function BookmarkCard({
         {/* Floating actions on hover (Raindrop pattern) */}
         <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           <Button
-            size="icon"
+            size="icon-sm"
             variant="secondary"
-            className="h-8 w-8 bg-background/80 shadow-sm backdrop-blur-sm hover:bg-background/90"
             onClick={toggleFavorite}
             aria-label={
               bookmark.isFavorite
@@ -126,7 +125,7 @@ export function BookmarkCard({
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <Star
-                className={`size-4 ${bookmark.isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`}
+                className={`size-4 ${bookmark.isFavorite ? "fill-favorite text-favorite" : ""}`}
               />
             )}
           </Button>
@@ -135,9 +134,8 @@ export function BookmarkCard({
             <DropdownMenuTrigger
               render={
                 <Button
-                  size="icon"
+                  size="icon-sm"
                   variant="secondary"
-                  className="h-8 w-8 bg-background/80 shadow-sm backdrop-blur-sm hover:bg-background/90"
                   aria-label={`Actions for ${bookmark.title}`}
                   data-bookmark-menu={bookmark.id}
                 />
@@ -184,7 +182,7 @@ export function BookmarkCard({
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-destructive"
+                variant="destructive"
                 onClick={() => setDeleteOpen(true)}
                 disabled={deleteBookmark.isPending}
               >
@@ -236,9 +234,9 @@ export function BookmarkCard({
                 >
                   <Badge
                     variant="outline"
-                    className="gap-1 rounded-full text-xs font-normal hover:bg-muted"
+                     
                   >
-                    <TagIcon className="size-3" aria-hidden="true" />
+                    <TagIcon aria-hidden="true" />
                     {tag.name}
                   </Badge>
                 </button>
@@ -246,9 +244,9 @@ export function BookmarkCard({
                 <Badge
                   key={tag.id}
                   variant="outline"
-                  className="gap-1 rounded-full text-xs font-normal"
+                   
                 >
-                  <TagIcon className="size-3" aria-hidden="true" />
+                  <TagIcon aria-hidden="true" />
                   {tag.name}
                 </Badge>
               ),
@@ -256,7 +254,7 @@ export function BookmarkCard({
             {bookmark.tags.length > 3 && (
               <Badge
                 variant="outline"
-                className="rounded-full text-xs font-normal"
+                 
               >
                 +{bookmark.tags.length - 3}
               </Badge>

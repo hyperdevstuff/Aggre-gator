@@ -20,7 +20,6 @@ export function FilterBadges({ filters }: FilterBadgesProps) {
         <Badge 
           key={filter.key} 
           variant="secondary"
-          className="gap-1 pr-1"
         >
           {filter.label}
           <button
