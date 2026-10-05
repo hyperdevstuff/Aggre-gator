@@ -3,6 +3,8 @@
   "version": "0.0.5",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir dist --external re2",
+    "start": "bun run dist/index.js",
     "test": "bun test --env-file=.env.test.local",
     "typecheck": "tsc --noEmit",
     "check:db": "bun run --env-file=.env.local scripts/check-db.ts",
