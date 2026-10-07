@@ -1,14 +1,67 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import { bookmarks, bookmarkTags, collections, tags } from "../db/schema";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { bookmarks, bookmarkTags, tags } from "../db/schema";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { ConflictError } from "../error";
 import { betterAuthPlugin } from "../utils/auth";
-import { requireUserCollection } from "../utils/collections";
+import {
+  getBookmarkCollectionIds,
+  isInCollection,
+  resolveCreateCollections,
+  setBookmarkCollections,
+} from "../utils/collections";
 import scrapeMetadata from "../utils/metadata";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
+import { rateLimitGuard } from "../utils/rate-limit";
 import { bookmarksIdRouter } from "./$id";
 import { bookmarksBulkRouter } from "./bulk";
+
+/**
+ * Fill in scraped metadata for a freshly created bookmark, after the response
+ * has been sent. One fetch, no retry loop: a URL that is down when the user
+ * saves it keeps its hostname title, and `PATCH /bookmarks/:id` remains the way
+ * to fix a title by hand. A durable queue (BullMQ / pg-boss) is the follow-up
+ * if scraping ever becomes a hard requirement rather than a nicety.
+ */
+function scheduleEnrichment({
+  id,
+  url,
+  placeholderTitle,
+  keep,
+}: {
+  id: string;
+  url: string;
+  placeholderTitle: string;
+  keep: { description: string | null; cover: string | null };
+}) {
+  const timer = setTimeout(() => {
+    void (async () => {
+      try {
+        const meta = await scrapeMetadata(url);
+        await db
+          .update(bookmarks)
+          .set({
+            title: meta.title,
+            description: keep.description ?? meta.description,
+            cover: keep.cover ?? meta.image,
+          })
+          // Only overwrite while the row still holds the placeholder, so a
+          // user edit that raced this fetch survives.
+          .where(
+            and(eq(bookmarks.id, id), eq(bookmarks.title, placeholderTitle)),
+          );
+      } catch (error) {
+        console.error(
+          `[bookmarks] metadata enrichment failed for ${id}: ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+      }
+    })();
+  }, 0);
+  // Background work must never be a reason to keep the process alive.
+  timer.unref?.();
+}
 
 export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
   .use(betterAuthPlugin)
@@ -29,69 +82,46 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         });
       }
 
-      // Fail fast on a foreign collection id instead of filing the
-      // bookmark somewhere the owner check would later hide.
-      if (body.collectionId) {
-        await requireUserCollection(db, userId, body.collectionId);
-      }
+      const hostname = new URL(body.url).hostname;
+      // Whatever the caller supplied wins; whatever it did not is filled in
+      // after the response has been sent, so saving never blocks on a slow page.
+      const title = body.title || hostname;
+      const description = body.description ?? null;
+      const cover = body.cover ?? null;
 
-      const metadata = body.title
-        ? {
-          title: body.title,
-          description: body.description || null,
-          image: body.cover || null,
-        }
-        : await scrapeMetadata(body.url);
-
-      const collectionId =
-        body.collectionId ??
-        (
-          await db
-            .select({ id: collections.id })
-            .from(collections)
-            .where(
-              and(
-                eq(collections.userId, userId),
-                eq(collections.slug, "unsorted"),
-              ),
-            )
-            .limit(1)
-        )[0]?.id;
+      // Validates ownership and defaults to Unsorted when nothing was chosen.
+      const collectionIds = await resolveCreateCollections(
+        db,
+        userId,
+        body.collectionIds,
+      );
 
       const [bookmark] = await db
         .insert(bookmarks)
         .values({
           url: body.url,
           note: body.note,
-          collectionId,
           userId,
-          domain: new URL(body.url).hostname,
+          domain: hostname,
           isFavorite: body.isFavorite ?? false,
-          title: body.title || new URL(body.url).hostname,
-          description: body.description ?? (metadata.description || null),
-          cover: body.cover || null,
+          title,
+          description,
+          cover,
         })
         .returning();
 
+      await setBookmarkCollections(db, userId, bookmark.id, collectionIds);
+
+      // Scrape once, after the response is out. The title guard means an edit
+      // that lands while the fetch is in flight is never clobbered by the
+      // scraped value, and a dead URL simply keeps its hostname title.
       if (!body.title) {
-        const attemptScrapping = async (retries = 2) => {
-          try {
-            const meta = await scrapeMetadata(body.url);
-            await db
-              .update(bookmarks)
-              .set({
-                title: meta.title,
-                description: body.description ?? meta.description,
-                cover: meta.image,
-              })
-              .where(eq(bookmarks.id, bookmark.id));
-          } catch (error) {
-            if (retries > 0) {
-              setTimeout(() => attemptScrapping(retries - 1), 9000);
-            }
-          }
-        };
-        await attemptScrapping();
+        scheduleEnrichment({
+          id: bookmark.id,
+          url: body.url,
+          placeholderTitle: title,
+          keep: { description, cover },
+        });
       }
 
       if (tagNames && tagNames.length > 0) {
@@ -122,9 +152,12 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         );
       }
 
-      return bookmark;
+      return { ...bookmark, collectionIds };
     },
     {
+      // Each create can trigger an outbound fetch to the saved URL, so this is
+      // the route worth capping: 120/minute per user is far above real use.
+      beforeHandle: rateLimitGuard({ name: "bookmarks:create", limit: 120 }),
       body: t.Object({
         url: t.String({ format: "uri" }),
         title: t.Optional(t.String({ minLength: 1, maxLength: 500 })),
@@ -132,7 +165,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         cover: t.Optional(t.String({ format: "uri", maxLength: 1000 })),
         note: t.Optional(t.String()),
         isFavorite: t.Optional(t.Boolean()),
-        collectionId: t.Optional(t.String()),
+        collectionIds: t.Optional(t.Array(t.String())),
         tags: t.Optional(t.Array(t.String())),
       }),
     },
@@ -147,6 +180,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         search,
         sort = "created_desc",
         tagIds,
+        archived,
         includeArchived = false,
       } = query;
 
@@ -157,29 +191,16 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
 
       let conditions = [eq(bookmarks.userId, userId)];
 
-      if (!includeArchived) {
-        const archivedId = (
-          await db
-            .select({ id: collections.id })
-            .from(collections)
-            .where(
-              and(
-                eq(collections.userId, userId),
-                eq(collections.slug, "archived"),
-              ),
-            )
-            .limit(1)
-        )[0]?.id;
-
-        if (archivedId) {
-          // NULL-safe: `!=` would hide legacy collectionId = NULL orphans
-          // (NULL != X is never true). IS DISTINCT FROM keeps them listed.
-          conditions.push(sql`${bookmarks.collectionId} IS DISTINCT FROM ${archivedId}`);
-        }
+      // Archived is a property of the bookmark now, not a collection it was
+      // moved into, so the bookmark keeps where it belonged while archived.
+      if (archived === true) {
+        conditions.push(isNotNull(bookmarks.archivedAt));
+      } else if (!includeArchived) {
+        conditions.push(isNull(bookmarks.archivedAt));
       }
 
       if (collectionId) {
-        conditions.push(eq(bookmarks.collectionId, collectionId));
+        conditions.push(isInCollection(bookmarks.id, collectionId));
       }
 
       if (isFavorite !== undefined) {
@@ -265,8 +286,10 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         >,
       );
 
+      const memberships = await getBookmarkCollectionIds(db, bookmarkIds);
       const dataWithTags = data.map((bookmark) => ({
         ...bookmark,
+        collectionIds: memberships.get(bookmark.id) ?? [],
         tags: tagsByBookmark[bookmark.id] || [],
       }));
 
@@ -281,6 +304,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         limit: t.Optional(t.Numeric({ minimum: 1 })),
         collectionId: t.Optional(t.String()),
         isFavorite: t.Optional(t.Boolean()),
+        archived: t.Optional(t.Boolean()),
         includeArchived: t.Optional(t.Boolean()),
         search: t.Optional(t.String()),
         sort: t.Optional(

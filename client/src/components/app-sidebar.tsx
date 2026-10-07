@@ -19,7 +19,7 @@ import { TagsSection } from "./sidebar/tags-section";
 import { Plus } from "lucide-react";
 import { motion } from "motion/react";
 
-const SYSTEM_ORDER = ["unsorted", "archived"];
+const SYSTEM_ORDER = ["unsorted"];
 
 export function AppSidebar() {
   const { data: collections, isLoading: collectionsLoading } = useCollections();

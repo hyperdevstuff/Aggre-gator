@@ -5,7 +5,9 @@ export type Bookmark = {
   description?: string | null;
   note?: string | null;
   cover?: string | null;
-  collectionId?: string | null;
+  collectionIds: string[];
+  /** Set when archived; the bookmark keeps its collection. */
+  archivedAt?: string | null;
   tags: { id: string; name: string; color: string | null }[];
   createdAt: string;
   updatedAt: string;
@@ -20,13 +22,11 @@ export type CreateBookmarkInput = {
   description?: string;
   note?: string;
   cover?: string;
-  collectionId?: string;
+  collectionIds?: string[];
   tags?: string[];
   isFavorite?: boolean;
 };
-export type UpdateBookmarkInput = Omit<Partial<CreateBookmarkInput>, "collectionId"> & {
-  collectionId?: string | null;
-};
+export type UpdateBookmarkInput = Partial<CreateBookmarkInput>;
 
 export type Collection = {
   id: string;
@@ -70,6 +70,9 @@ export type User = {
   name: string;
   avatar?: string;
   image?: string;
+  username?: string | null;
+  bio?: string | null;
+  plan?: string;
   createdAt: string;
 };
 
@@ -77,6 +80,7 @@ export type BookmarkFilter = {
   collectionId?: string;
   tags?: string[];
   isFavorite?: boolean;
+  archived?: boolean;
   search?: string;
 };
 
@@ -116,6 +120,12 @@ export type ShareInfo = {
   createdAt: string;
 };
 
+/**
+ * A bookmark as it appears on a public share page. Deliberately narrower than
+ * `Bookmark`: the API strips `note` and `isFavorite` before serving it.
+ */
+export type PublicBookmark = Omit<Bookmark, "isFavorite" | "note">;
+
 export type PublicShareResponse = {
   collection: {
     id: string;
@@ -126,7 +136,7 @@ export type PublicShareResponse = {
   };
   sharedBy: string;
   sharedAt: string;
-  bookmarks: PaginatedResponse<Bookmark>;
+  bookmarks: PaginatedResponse<PublicBookmark>;
   nestedCollections: Array<{
     id: string;
     name: string;
@@ -135,3 +145,17 @@ export type PublicShareResponse = {
     bookmarkCount: number;
   }>;
 };
+
+/** One entry in the public Explore directory (`GET /share/explore`). */
+export type ExploreShare = {
+  code: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  sharedBy: string;
+  sharedAt: string;
+  bookmarkCount: number;
+};
+
+export type ExploreShareResponse = PaginatedResponse<ExploreShare>;

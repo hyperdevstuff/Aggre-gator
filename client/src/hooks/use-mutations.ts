@@ -30,11 +30,24 @@ export function useCreateBookmark() {
 
   return useMutation({
     mutationFn: (data: CreateBookmarkInput) => api.bookmarks.create(data),
-    onSuccess: () => {
+    onSuccess: (bookmark, variables) => {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["collections"] });
       qc.invalidateQueries({ queryKey: ["tags"] });
       toast.success("Bookmark created");
+
+      // When no title was supplied the API returns a hostname placeholder and
+      // scrapes the page in the background, so poll a few times to pick up the
+      // real title instead of leaving a hostname on the card until reload.
+      if (!variables.title && bookmark.title === new URL(bookmark.url).hostname) {
+        let attempts = 0;
+        const poll = () => {
+          attempts += 1;
+          qc.invalidateQueries({ queryKey: ["bookmarks"] });
+          if (attempts < 4) window.setTimeout(poll, 2500);
+        };
+        window.setTimeout(poll, 1500);
+      }
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to create");
@@ -139,11 +152,11 @@ export function useMoveBookmarks() {
   return useMutation({
     mutationFn: ({
       ids,
-      collectionId,
+      collectionIds,
     }: {
       ids: string[];
-      collectionId: string | null;
-    }) => api.bookmarks.move(ids, collectionId),
+      collectionIds: string[];
+    }) => api.bookmarks.move(ids, collectionIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
       qc.invalidateQueries({ queryKey: ["collections"] });

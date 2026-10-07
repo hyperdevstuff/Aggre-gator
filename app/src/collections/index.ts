@@ -1,14 +1,19 @@
 import Elysia, { t } from "elysia";
 import { betterAuthPlugin } from "../utils/auth";
 import { db } from "../db";
-import { collections, bookmarks, sharedCollections, user as users } from "../db/schema";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { collections, bookmarks, collectionItems, sharedCollections, user as users } from "../db/schema";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { ConflictError, ForbiddenError, NotFoundError } from "../error";
 import { generateShareCode } from "../utils/nanoid";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 import { collectionParentError } from "../../../shared/collection-tree";
-import { getSystemCollectionId, requireUserCollection } from "../utils/collections";
+import {
+  collectionBookmarkCount,
+  getSystemCollectionId,
+  isInCollection,
+  requireUserCollection,
+} from "../utils/collections";
 
 /** Kebab-case slug, e.g. "design-inspiration". */
 const SLUG_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
@@ -58,16 +63,14 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         parentId: collections.parentId,
         createdAt: collections.createdAt,
         updatedAt: collections.updatedAt,
-        bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
+        bookmarkCount: collectionBookmarkCount(collections.id).as(
           "bookmark_count",
         ),
         isSystem: collections.isSystem,
         slug: collections.slug,
       })
       .from(collections)
-      .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
       .where(eq(collections.userId, userId))
-      .groupBy(collections.id)
       .orderBy(asc(collections.createdAt));
   })
   .get("/:id", async ({ params: { id }, user }) => {
@@ -85,14 +88,12 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         slug: collections.slug,
         createdAt: collections.createdAt,
         updatedAt: collections.updatedAt,
-        bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
+        bookmarkCount: collectionBookmarkCount(collections.id).as(
           "bookmark_count",
         ),
       })
       .from(collections)
-      .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
       .where(and(eq(collections.id, id), eq(collections.userId, userId)))
-      .groupBy(collections.id)
       .limit(1);
     if (!col) throw new NotFoundError();
     return col;
@@ -178,38 +179,64 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
           );
 
         if (deleteBookmarks) {
-          const deleted = await tx
-            .delete(bookmarks)
-            .where(
-              and(
-                eq(bookmarks.userId, userId),
-                eq(bookmarks.collectionId, col.id),
-              ),
-            )
-            .returning({ id: bookmarks.id });
+          const inCollection = await tx
+            .select({ bookmarkId: collectionItems.bookmarkId })
+            .from(collectionItems)
+            .where(eq(collectionItems.collectionId, col.id));
+          const ids = inCollection.map((row) => row.bookmarkId);
+          let deletedCount = 0;
+          if (ids.length > 0) {
+            const deleted = await tx
+              .delete(bookmarks)
+              .where(
+                and(eq(bookmarks.userId, userId), inArray(bookmarks.id, ids)),
+              )
+              .returning({ id: bookmarks.id });
+            deletedCount = deleted.length;
+          }
           await tx.delete(collections).where(eq(collections.id, col.id));
-          return { success: true, movedBookmarks: 0, deletedBookmarks: deleted.length };
+          return { success: true, movedBookmarks: 0, deletedBookmarks: deletedCount };
         }
 
-        // Default: keep the bookmarks, re-homed to Unsorted. A plain
-        // collection delete must never produce collectionId = NULL orphans
-        // (they fall out of every listing — NULL != archivedId is not true).
+        // Default: keep the bookmarks. A bookmark that would be left with no
+        // collection at all is re-homed to Unsorted, so a plain collection
+        // delete never produces an unfiled bookmark.
         const unsortedId = await getSystemCollectionId(tx, userId, "unsorted");
         if (!unsortedId)
           throw new NotFoundError("unsorted collection not found");
-        const moved = await tx
-          .update(bookmarks)
-          .set({ collectionId: unsortedId })
-          .where(
-            and(
-              eq(bookmarks.userId, userId),
-              eq(bookmarks.collectionId, col.id),
-            ),
-          )
-          .returning({ id: bookmarks.id });
+        const inCollection = await tx
+          .select({ bookmarkId: collectionItems.bookmarkId })
+          .from(collectionItems)
+          .where(eq(collectionItems.collectionId, col.id));
+        const affectedIds = inCollection.map((row) => row.bookmarkId);
+        await tx
+          .delete(collectionItems)
+          .where(eq(collectionItems.collectionId, col.id));
+        let movedCount = 0;
+        if (affectedIds.length > 0) {
+          const stillFiled = await tx
+            .select({ bookmarkId: collectionItems.bookmarkId })
+            .from(collectionItems)
+            .where(inArray(collectionItems.bookmarkId, affectedIds));
+          const filed = new Set(stillFiled.map((row) => row.bookmarkId));
+          const orphans = affectedIds.filter((id) => !filed.has(id));
+          if (orphans.length > 0) {
+            await tx
+              .insert(collectionItems)
+              .values(
+                orphans.map((bookmarkId) => ({
+                  collectionId: unsortedId,
+                  bookmarkId,
+                  position: 0,
+                })),
+              )
+              .onConflictDoNothing();
+            movedCount = orphans.length;
+          }
+        }
         await tx.delete(collections).where(eq(collections.id, col.id));
         // Shared links cascade off the collection FK — no code needed.
-        return { success: true, movedBookmarks: moved.length, deletedBookmarks: 0 };
+        return { success: true, movedBookmarks: movedCount, deletedBookmarks: 0 };
       });
     },
     {
@@ -232,7 +259,7 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
 
       const conditions = [
         eq(bookmarks.userId, userId),
-        eq(bookmarks.collectionId, id),
+        isInCollection(bookmarks.id, id),
       ];
 
       const [data, [{ count }]] = await Promise.all([
@@ -277,14 +304,12 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         slug: collections.slug,
         createdAt: collections.createdAt,
         updatedAt: collections.updatedAt,
-        bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
+        bookmarkCount: collectionBookmarkCount(collections.id).as(
           "bookmark_count",
         ),
       })
       .from(collections)
-      .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
       .where(and(eq(collections.userId, userId), eq(collections.parentId, id)))
-      .groupBy(collections.id)
       .orderBy(asc(collections.createdAt));
   })
   .get("/by-slug/:slug", async ({ params: { slug }, user }) => {
@@ -302,14 +327,12 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         updatedAt: collections.updatedAt,
         isSystem: collections.isSystem,
         slug: collections.slug,
-        bookmarkCount: sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
+        bookmarkCount: collectionBookmarkCount(collections.id).as(
           "bookmark_count",
         ),
       })
       .from(collections)
-      .leftJoin(bookmarks, eq(collections.id, bookmarks.collectionId))
       .where(and(eq(collections.userId, userId), eq(collections.slug, slug)))
-      .groupBy(collections.id)
       .limit(1);
     if (!col) throw new NotFoundError();
     return col;

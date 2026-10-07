@@ -12,7 +12,6 @@ type BookmarksGridProps = {
   onCreateFirst?: () => void;
   onEditBookmark?: (bookmark: Bookmark) => void;
   onEditTag?: (tag: Bookmark["tags"][number]) => void;
-  archivedCollectionId?: string;
   selectedIds?: string[];
   onToggleSelect?: (id: string) => void;
 };
@@ -25,7 +24,6 @@ export function BookmarksGrid({
   onCreateFirst,
   onEditBookmark,
   onEditTag,
-  archivedCollectionId,
   selectedIds,
   onToggleSelect,
 }: BookmarksGridProps) {
@@ -113,10 +111,6 @@ export function BookmarksGrid({
             bookmark={bookmark}
             onEdit={onEditBookmark}
             onEditTag={onEditTag}
-            isArchived={
-              archivedCollectionId !== undefined &&
-              bookmark.collectionId === archivedCollectionId
-            }
             selected={selectedIds?.includes(bookmark.id) ?? false}
             onToggleSelect={onToggleSelect}
           />

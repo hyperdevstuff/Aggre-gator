@@ -5,40 +5,121 @@ import {
   collections,
   bookmarks,
   bookmarkTags,
+  collectionItems,
   tags,
   user,
 } from "../db/schema";
-import { and, eq, inArray, sql, desc } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, sql, desc } from "drizzle-orm";
 import { GoneError, NotFoundError } from "../error";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
+import { rateLimitGuard } from "../utils/rate-limit";
+import { collectionBookmarkCount } from "../utils/collections";
 
 /**
- * Recursively collect all descendant collection IDs
- * (the shared collection + all its nested children at any depth).
+ * Every collection in the published subtree (the shared collection plus all
+ * descendants) in one round trip. The previous per-level loop issued one query
+ * per depth level; a recursive CTE keeps that at a single statement regardless
+ * of how the nesting cap changes.
  */
 async function getAllCollectionIds(
   collectionId: string,
   userId: string,
 ): Promise<string[]> {
-  const children = await db
-    .select({ id: collections.id })
-    .from(collections)
-    .where(
-      and(
-        eq(collections.userId, userId),
-        eq(collections.parentId, collectionId),
-      ),
-    );
-
-  const childIds = children.map((c) => c.id);
-  const deeperIds = await Promise.all(
-    childIds.map((id) => getAllCollectionIds(id, userId)),
-  );
-
-  return [collectionId, ...childIds, ...deeperIds.flat()];
+  const result = (await db.execute(sql`
+    WITH RECURSIVE subtree AS (
+      SELECT id FROM collections
+        WHERE id = ${collectionId} AND user_id = ${userId}
+      UNION ALL
+      SELECT child.id FROM collections child
+        JOIN subtree ON child.parent_id = subtree.id
+        WHERE child.user_id = ${userId}
+    )
+    SELECT id FROM subtree
+  `)) as { rows?: Array<{ id: string }> } | Array<{ id: string }>;
+  const rows = Array.isArray(result) ? result : (result.rows ?? []);
+  return rows.map((row) => row.id);
 }
 
 export const shareRouter = new Elysia({ prefix: "/share" })
+  // Public directory of every active shared collection.
+  // Registered before `/:code` so `explore` is never swallowed by the param route.
+  // No auth plugin — this is a public endpoint.
+  .get(
+    "/explore",
+    async ({ query }) => {
+      const { page, limit, offset } = normalizePagination({
+        page: query.page,
+        limit: query.limit,
+      });
+
+      const search = query.q?.trim();
+      const searchFilter = search
+        ? or(
+            ilike(collections.name, `%${search}%`),
+            ilike(collections.description, `%${search}%`),
+          )
+        : undefined;
+
+      // System collections (Unsorted / Archived) are never publishable content.
+      const where = and(
+        eq(sharedCollections.isActive, true),
+        eq(collections.isSystem, false),
+        searchFilter,
+      );
+
+      const rows = await db
+        .select({
+          code: sharedCollections.shareCode,
+          name: collections.name,
+          description: collections.description,
+          icon: collections.icon,
+          color: collections.color,
+          sharedBy: user.name,
+          sharedAt: sharedCollections.createdAt,
+          bookmarkCount: collectionBookmarkCount(collections.id).as(
+            "bookmark_count",
+          ),
+        })
+        .from(sharedCollections)
+        .innerJoin(
+          collections,
+          eq(sharedCollections.collectionId, collections.id),
+        )
+        .innerJoin(user, eq(sharedCollections.userId, user.id))
+        .where(where)
+        .orderBy(desc(sharedCollections.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(sharedCollections)
+        .innerJoin(
+          collections,
+          eq(sharedCollections.collectionId, collections.id),
+        )
+        .where(where);
+
+      return {
+        data: rows,
+        pagination: createPaginationMeta(page, limit, Number(count)),
+      };
+    },
+    {
+      // Anonymous, unlisted and enumerable: cap it so the directory cannot be
+      // scraped (or used as a free search backend) without an account.
+      beforeHandle: rateLimitGuard({
+        name: "share:explore",
+        limit: 60,
+        perUser: false,
+      }),
+      query: t.Object({
+        page: t.Optional(t.Numeric({ minimum: 1 })),
+        limit: t.Optional(t.Numeric({ minimum: 1 })),
+        q: t.Optional(t.String({ maxLength: 100 })),
+      }),
+    },
+  )
   // No betterAuthPlugin — this is a public endpoint
   .get(
     "/:code",
@@ -96,23 +177,17 @@ export const shareRouter = new Elysia({ prefix: "/share" })
                 name: collections.name,
                 icon: collections.icon,
                 color: collections.color,
-                bookmarkCount:
-                  sql<number>`COALESCE(COUNT(${bookmarks.id}), 0)::int`.as(
-                    "bookmark_count",
-                  ),
+                bookmarkCount: collectionBookmarkCount(collections.id).as(
+                  "bookmark_count",
+                ),
               })
               .from(collections)
-              .leftJoin(
-                bookmarks,
-                eq(collections.id, bookmarks.collectionId),
-              )
               .where(
                 inArray(
                   collections.id,
                   allCollectionIds.filter((id) => id !== share.collectionId),
                 ),
               )
-              .groupBy(collections.id)
           : [];
 
       // paginate bookmarks across all collections
@@ -121,7 +196,16 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         limit: query.limit,
       });
 
-      const conditions = [inArray(bookmarks.collectionId, allCollectionIds)];
+      // Bookmarks filed in any collection of the subtree.
+      const conditions = [
+        inArray(
+          bookmarks.id,
+          db
+            .select({ id: collectionItems.bookmarkId })
+            .from(collectionItems)
+            .where(inArray(collectionItems.collectionId, allCollectionIds)),
+        ),
+      ];
 
       const [bookmarksData, [{ count }]] = await Promise.all([
         db
@@ -170,13 +254,15 @@ export const shareRouter = new Elysia({ prefix: "/share" })
       );
 
       const bookmarksWithTags = bookmarksData.map((bookmark) => ({
+        // Deliberately narrower than the owner's bookmark row: `note` and
+        // `isFavorite` are private state and must never reach an anonymous
+        // reader of a public page.
         id: bookmark.id,
         url: bookmark.url,
         title: bookmark.title,
         description: bookmark.description,
         cover: bookmark.cover,
         domain: bookmark.domain,
-        isFavorite: bookmark.isFavorite,
         createdAt: bookmark.createdAt,
         tags: tagsByBookmark[bookmark.id] || [],
       }));
@@ -193,6 +279,11 @@ export const shareRouter = new Elysia({ prefix: "/share" })
       };
     },
     {
+      beforeHandle: rateLimitGuard({
+        name: "share:view",
+        limit: 120,
+        perUser: false,
+      }),
       params: t.Object({ code: t.String() }),
       query: t.Object({
         page: t.Optional(t.Numeric({ minimum: 1 })),

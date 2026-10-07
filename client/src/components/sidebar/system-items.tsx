@@ -16,7 +16,11 @@ type SystemItemsProps = {
 
 export function SystemItems({ collections }: SystemItemsProps) {
   const search = useSearch({ from: "/_protected/dashboard" });
-  const allActive = !search.collectionId && !search.tags?.length && search.isFavorite === undefined;
+  const allActive =
+    !search.collectionId &&
+    !search.tags?.length &&
+    search.isFavorite === undefined &&
+    search.archived === undefined;
   return (
     <SidebarGroup>
       <SidebarGroupContent>
@@ -50,6 +54,16 @@ export function SystemItems({ collections }: SystemItemsProps) {
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
+
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={search.archived === true}
+              render={<Link to="/dashboard" search={{ archived: true }} aria-current={search.archived === true ? "page" : undefined} />}
+            >
+              <FolderArchive />
+              <span>Archived</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton

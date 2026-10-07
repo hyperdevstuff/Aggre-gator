@@ -1,10 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
 import Elysia, { NotFoundError, t } from "elysia";
 import { db } from "../db";
-import { bookmarks, tags, bookmarkTags, collections } from "../db/schema";
+import { bookmarks, tags, bookmarkTags } from "../db/schema";
 import { ConflictError } from "../error";
 import { betterAuthPlugin } from "../utils/auth";
-import { requireUserCollection } from "../utils/collections";
+import {
+  getBookmarkCollectionIds,
+  setBookmarkCollections,
+} from "../utils/collections";
 
 export const bookmarksIdRouter = new Elysia()
   .use(betterAuthPlugin)
@@ -28,7 +31,12 @@ export const bookmarksIdRouter = new Elysia()
         .from(bookmarkTags)
         .innerJoin(tags, eq(bookmarkTags.tagId, tags.id))
         .where(eq(bookmarkTags.bookmarkId, id));
-      return { ...bookmark, tags: bookmarkTag };
+      const memberships = await getBookmarkCollectionIds(db, [id]);
+      return {
+        ...bookmark,
+        collectionIds: memberships.get(id) ?? [],
+        tags: bookmarkTag,
+      };
     },
     {
       params: t.Object({
@@ -40,7 +48,7 @@ export const bookmarksIdRouter = new Elysia()
     "/:id",
     async ({ params: { id }, body, user }) => {
       const userId = user.id;
-      const { tags: tagNames, ...updateData } = body;
+      const { tags: tagNames, collectionIds, ...updateData } = body;
 
       if (updateData.url) {
         const [existing] = await db
@@ -57,18 +65,30 @@ export const bookmarksIdRouter = new Elysia()
 
         if (existing) throw new ConflictError();
       }
-      // A bookmark must never be filed into another user's collection.
-      // null (unfiled) is allowed — the listing is NULL-safe.
-      if (updateData.collectionId !== undefined && updateData.collectionId !== null) {
-        await requireUserCollection(db, userId, updateData.collectionId);
+      // A bookmark must never be filed into another user's collection; an
+      // empty array means unfiled. `setBookmarkCollections` validates ownership.
+      // Only touch the row when there are scalar fields to change, so a
+      // membership-only PATCH does not run an empty UPDATE.
+      let bookmark: typeof bookmarks.$inferSelect | undefined;
+      if (Object.keys(updateData).length > 0) {
+        [bookmark] = await db
+          .update(bookmarks)
+          .set(updateData)
+          .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
+          .returning();
+      } else {
+        [bookmark] = await db
+          .select()
+          .from(bookmarks)
+          .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
+          .limit(1);
       }
-      const [bookmark] = await db
-        .update(bookmarks)
-        .set(updateData)
-        .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
-        .returning();
 
       if (!bookmark) throw new NotFoundError();
+
+      if (collectionIds !== undefined) {
+        await setBookmarkCollections(db, userId, id, collectionIds);
+      }
 
       if (tagNames !== undefined) {
         await db.delete(bookmarkTags).where(eq(bookmarkTags.bookmarkId, id));
@@ -99,7 +119,8 @@ export const bookmarksIdRouter = new Elysia()
         }
       }
 
-      return bookmark;
+      const memberships = await getBookmarkCollectionIds(db, [id]);
+      return { ...bookmark, collectionIds: memberships.get(id) ?? [] };
     },
     {
       params: t.Object({ id: t.String() }),
@@ -110,7 +131,7 @@ export const bookmarksIdRouter = new Elysia()
         note: t.Optional(t.String({ maxLength: 5000 })),
         cover: t.Optional(t.String({ format: "uri", maxLength: 1000 })),
         isFavorite: t.Optional(t.Boolean()),
-        collectionId: t.Optional(t.Union([t.String(), t.Null()])),
+        collectionIds: t.Optional(t.Array(t.String())),
         tags: t.Optional(t.Array(t.String())),
       }),
     },
@@ -119,24 +140,11 @@ export const bookmarksIdRouter = new Elysia()
     "/:id/archive",
     async ({ params: { id }, user }) => {
       const userId = user.id;
-      const archivedId = (
-        await db
-          .select({ id: collections.id })
-          .from(collections)
-          .where(
-            and(
-              eq(collections.userId, userId),
-              eq(collections.slug, "archived"),
-            ),
-          )
-          .limit(1)
-      )[0]?.id;
-
-      if (!archivedId) throw new NotFoundError("archived collection not found");
-
+      // Archiving is a flag, not a move: the bookmark keeps its collection so
+      // restoring it later puts it back where it was.
       const [bookmark] = await db
         .update(bookmarks)
-        .set({ collectionId: archivedId })
+        .set({ archivedAt: new Date() })
         .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
         .returning();
 
@@ -152,24 +160,9 @@ export const bookmarksIdRouter = new Elysia()
     "/:id/unarchive",
     async ({ params: { id }, user }) => {
       const userId = user.id;
-      const unsortedId = (
-        await db
-          .select({ id: collections.id })
-          .from(collections)
-          .where(
-            and(
-              eq(collections.userId, userId),
-              eq(collections.slug, "unsorted"),
-            ),
-          )
-          .limit(1)
-      )[0]?.id;
-
-      if (!unsortedId) throw new NotFoundError("unsorted collection not found");
-
       const [bookmark] = await db
         .update(bookmarks)
-        .set({ collectionId: unsortedId })
+        .set({ archivedAt: null })
         .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
         .returning();
 
@@ -185,31 +178,14 @@ export const bookmarksIdRouter = new Elysia()
     "/:id",
     async ({ params: { id }, user }) => {
       const userId = user.id;
-      const archivedId = (
-        await db
-          .select({ id: collections.id })
-          .from(collections)
-          .where(
-            and(
-              eq(collections.userId, userId),
-              eq(collections.slug, "archived"),
-            ),
-          )
-          .limit(1)
-      )[0]?.id;
-
-      if (!archivedId) {
-        throw new NotFoundError("Archieved Collection not Found");
-      }
-
       const [bookmark] = await db
-        .select({ collectionId: bookmarks.collectionId })
+        .select({ archivedAt: bookmarks.archivedAt })
         .from(bookmarks)
         .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
         .limit(1);
 
       if (!bookmark) throw new NotFoundError();
-      if (bookmark.collectionId != archivedId) {
+      if (bookmark.archivedAt == null) {
         throw new ConflictError("Bookmark should be archived first");
       }
       await db.delete(bookmarks).where(eq(bookmarks.id, id));

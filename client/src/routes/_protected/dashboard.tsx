@@ -26,6 +26,7 @@ const searchSchema = z.object({
   collectionId: z.string().optional(),
   tags: z.array(z.string()).optional(),
   isFavorite: z.boolean().optional(),
+  archived: z.boolean().optional(),
   search: z.string().optional(),
   page: z.number().int().positive().optional().default(1),
   sort: z.enum(["created_desc", "created_asc", "title_asc", "title_desc", "url_asc"]).optional(),
@@ -50,16 +51,14 @@ function Dashboard() {
   const { data: collections, isLoading: collectionsLoading } = useCollections();
   const { data: tags } = useTags();
   const collectionName = collections?.find((collection) => collection.id === search.collectionId)?.name;
-  const archivedCollectionId = collections?.find(
-    (collection) => collection.isSystem && collection.name.toLowerCase() === "archived",
-  )?.id;
-  const viewingArchived = search.collectionId !== undefined && search.collectionId === archivedCollectionId;
+  const viewingArchived = search.archived === true;
   const updateFilters = (patch: Partial<typeof search>) => {
     setSelectedIds([]);
     navigate({ to: "/dashboard", search: { ...search, ...patch, page: 1 } });
   };
   const filters = [
     ...(search.collectionId ? [{ key: "collection", label: collectionName ?? "Collection", onRemove: () => updateFilters({ collectionId: undefined }) }] : []),
+    ...(viewingArchived ? [{ key: "archived", label: "Archived", onRemove: () => updateFilters({ archived: undefined }) }] : []),
     ...(search.tags ?? []).map((id) => ({ key: `tag-${id}`, label: tags?.find((tag) => tag.id === id)?.name ?? "Tag", onRemove: () => updateFilters({ tags: search.tags?.filter((tagId) => tagId !== id) }) })),
     ...(search.isFavorite !== undefined ? [{ key: "favorite", label: search.isFavorite ? "Favorites" : "Not favorites", onRemove: () => updateFilters({ isFavorite: undefined }) }] : []),
     ...(search.search ? [{ key: "search", label: `Search: ${search.search}`, onRemove: () => updateFilters({ search: undefined }) }] : []),
@@ -95,6 +94,7 @@ function Dashboard() {
     collectionId: search.collectionId,
     tags: search.tags,
     isFavorite: search.isFavorite,
+    archived: search.archived,
     search: search.search,
     page: search.page,
     sort: search.sort,
@@ -162,6 +162,12 @@ function Dashboard() {
                   </BreadcrumbItem>
                 </>
               )}
+              {viewingArchived && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem aria-current="page">Archived</BreadcrumbItem>
+                </>
+              )}
             </BreadcrumbList>
           </Breadcrumb>
           {data?.pagination.total !== undefined && (
@@ -222,7 +228,6 @@ function Dashboard() {
         onCreateFirst={openCreate}
         onEditBookmark={openEdit}
         onEditTag={openEditTag}
-        archivedCollectionId={archivedCollectionId}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
       />
@@ -234,7 +239,10 @@ function Dashboard() {
         onArchive={() => bulkArchive.mutate(selectedIds, { onSuccess: clearAfterBulk })}
         onUnarchive={() => bulkUnarchive.mutate(selectedIds, { onSuccess: clearAfterBulk })}
         onMove={(collectionId) =>
-          moveBookmarks.mutate({ ids: selectedIds, collectionId }, { onSuccess: clearAfterBulk })
+          moveBookmarks.mutate(
+            { ids: selectedIds, collectionIds: collectionId ? [collectionId] : [] },
+            { onSuccess: clearAfterBulk },
+          )
         }
         onDelete={() => bulkDelete.mutate(selectedIds, { onSuccess: clearAfterBulk })}
         onClear={() => setSelectedIds([])}

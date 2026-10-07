@@ -5,7 +5,7 @@ import { db } from "../db/index";
 import * as schema from "../db/schema";
 import { env } from "../env";
 import Elysia from "elysia";
-import { UnauthorizedError } from "../error";
+import { InternalError, UnauthorizedError } from "../error";
 
 const isProduction = env.NODE_ENV === "production";
 
@@ -47,22 +47,24 @@ export const auth = betterAuth({
       create: {
         after: async (user) => {
           try {
-            await db.insert(schema.collections).values([
-              {
-                userId: user.id,
-                name: "Unsorted",
-                slug: "unsorted",
-                isSystem: true,
-              },
-              {
-                userId: user.id,
-                name: "Archived",
-                slug: "archived",
-                isSystem: true,
-              },
-            ]);
+            await db.insert(schema.collections).values({
+              userId: user.id,
+              name: "Unsorted",
+              slug: "unsorted",
+              isSystem: true,
+            });
           } catch (error) {
-            throw new UnauthorizedError();
+            // A user without the Unsorted collection cannot use the product:
+            // every default save would fail its collection lookup. Fail the
+            // signup loudly and with the real cause rather than reporting it
+            // as a 401, which told users their credentials were wrong.
+            console.error(
+              `[auth] failed to provision system collections for user ${user.id}:`,
+              error,
+            );
+            throw new InternalError(
+              "Could not finish creating your account. Please try again.",
+            );
           }
         },
       },
@@ -70,9 +72,33 @@ export const auth = betterAuth({
   },
 });
 
+/**
+ * Route prefixes that are public by design and must answer anonymous requests:
+ * a shared collection page is meant to be readable without an account.
+ *
+ * Because `betterAuthPlugin` is registered `.as("global")`, its `derive` runs
+ * for every route in the app, so public routes have to opt out explicitly here.
+ */
+const PUBLIC_PREFIXES = ["/share"];
+
+function isPublicPath(path: string) {
+  return PUBLIC_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  );
+}
+
 export const betterAuthPlugin = new Elysia({ name: "better-auth" })
   .derive<{ user: typeof auth.$Infer.Session.user; session: typeof auth.$Infer.Session.session }>(
-    async ({ request }) => {
+    async ({ request, path }) => {
+      // Public routes carry no `user`/`session`. The router that owns them must
+      // not read either field — see `share/index.ts`.
+      if (isPublicPath(path)) {
+        return {} as {
+          user: typeof auth.$Infer.Session.user;
+          session: typeof auth.$Infer.Session.session;
+        };
+      }
+
       const session = await auth.api.getSession({ headers: request.headers });
 
       if (!session) {
@@ -83,6 +109,6 @@ export const betterAuthPlugin = new Elysia({ name: "better-auth" })
         user: session.user,
         session: session.session,
       };
-    }
+    },
   )
   .as("global");

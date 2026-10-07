@@ -45,7 +45,7 @@ describe("bookmarks api", () => {
     const data = await res.json();
     expect(data.url).toBe("https://example.com/test");
     expect(data.title).toBe("Test Bookmark");
-    expect(data.collectionId).toBe(unsortedId);
+    expect(data.collectionIds).toEqual([unsortedId]);
   });
 
   test("POST /bookmarks rejects duplicate url", async () => {
@@ -142,7 +142,7 @@ describe("bookmarks api", () => {
     );
 
     const { data } = await res.json();
-    expect(data.every((b: any) => b.collectionId === unsortedId)).toBe(true);
+    expect(data.every((b: any) => b.collectionIds.includes(unsortedId))).toBe(true);
   });
 
   test("PATCH /bookmarks/:id updates bookmark", async () => {

@@ -1,11 +1,16 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 
-import Elysia, { NotFoundError, t } from "elysia";
+import Elysia, { t } from "elysia";
 import { db } from "../db";
-import { bookmarks, collections } from "../db/schema";
+import { bookmarks, collectionItems } from "../db/schema";
 import { betterAuthPlugin } from "../utils/auth";
-import { requireUserCollection } from "../utils/collections";
+import {
+  getBookmarkCollectionIds,
+  resolveCreateCollections,
+  setBookmarkCollections,
+} from "../utils/collections";
+import { rateLimitGuard } from "../utils/rate-limit";
 
 export const bookmarksBulkRouter = new Elysia()
   .use(betterAuthPlugin)
@@ -27,43 +32,22 @@ export const bookmarksBulkRouter = new Elysia()
             return { status: "skipped", url: bmk.url, reason: "duplicated" };
           }
 
-          if (bmk.collectionId) {
-            const [collection] = await db
-              .select({ id: collections.id })
-              .from(collections)
-              .where(
-                and(
-                  eq(collections.id, bmk.collectionId),
-                  eq(collections.userId, userId),
-                ),
-              )
-              .limit(1);
-            if (!collection) {
-              return { status: "failed", url: bmk.url, reason: "collection not found" };
-            }
+          let collectionIds: string[];
+          try {
+            collectionIds = await resolveCreateCollections(
+              db,
+              userId,
+              bmk.collectionIds,
+            );
+          } catch {
+            return { status: "failed", url: bmk.url, reason: "collection not found" };
           }
-
-          const collectionId =
-            bmk.collectionId ??
-            (
-              await db
-                .select({ id: collections.id })
-                .from(collections)
-                .where(
-                  and(
-                    eq(collections.userId, userId),
-                    eq(collections.slug, "unsorted"),
-                  ),
-                )
-                .limit(1)
-            )[0]?.id;
 
           const [bookmark] = await db
             .insert(bookmarks)
             .values({
               url: bmk.url,
               note: bmk.note,
-              collectionId,
               userId,
               domain: new URL(bmk.url).hostname,
               isFavorite: bmk.isFavorite ?? false,
@@ -72,7 +56,8 @@ export const bookmarksBulkRouter = new Elysia()
               cover: bmk.cover || null,
             })
             .returning();
-          return { status: "created", bookmark };
+          await setBookmarkCollections(db, userId, bookmark.id, collectionIds);
+          return { status: "created", bookmark: { ...bookmark, collectionIds } };
         }),
       );
 
@@ -92,6 +77,9 @@ export const bookmarksBulkRouter = new Elysia()
       };
     },
     {
+      // One bulk request inserts up to N bookmarks; keeping it well below the
+      // per-bookmark create limit stops it from being a way around that cap.
+      beforeHandle: rateLimitGuard({ name: "bookmarks:bulk", limit: 20 }),
       body: t.Object({
         bookmarks: t.Array(
           t.Object({
@@ -101,7 +89,7 @@ export const bookmarksBulkRouter = new Elysia()
             cover: t.Optional(t.String({ format: "uri", maxLength: 1000 })),
             note: t.Optional(t.String()),
             isFavorite: t.Optional(t.Boolean()),
-            collectionId: t.Optional(t.String()),
+            collectionIds: t.Optional(t.Array(t.String())),
           }),
         ),
       }),
@@ -113,16 +101,10 @@ export const bookmarksBulkRouter = new Elysia()
       const userId = user.id;
       const results = await Promise.allSettled(
         body.updates.map(async (update) => {
-          if (update.data.collectionId) {
-            try {
-              await requireUserCollection(db, userId, update.data.collectionId);
-            } catch {
-              return { status: "failed", id: update.id, reason: "collection not found" };
-            }
-          }
+          const { collectionIds, ...data } = update.data;
           const [bookmark] = await db
             .update(bookmarks)
-            .set(update.data)
+            .set(data)
             .where(
               and(eq(bookmarks.id, update.id), eq(bookmarks.userId, userId)),
             )
@@ -131,7 +113,21 @@ export const bookmarksBulkRouter = new Elysia()
           if (!bookmark) {
             return { status: "failed", id: update.id, reason: "not found" };
           }
-          return { status: "updated", bookmark };
+          if (collectionIds !== undefined) {
+            try {
+              await setBookmarkCollections(db, userId, update.id, collectionIds);
+            } catch {
+              return { status: "failed", id: update.id, reason: "collection not found" };
+            }
+          }
+          const memberships = await getBookmarkCollectionIds(db, [update.id]);
+          return {
+            status: "updated",
+            bookmark: {
+              ...bookmark,
+              collectionIds: memberships.get(update.id) ?? [],
+            },
+          };
         }),
       );
 
@@ -163,7 +159,7 @@ export const bookmarksBulkRouter = new Elysia()
               cover: t.Optional(t.String({ format: "uri", maxLength: 1000 })),
               note: t.Optional(t.String()),
               isFavorite: t.Optional(t.Boolean()),
-              collectionId: t.Optional(t.String()),
+              collectionIds: t.Optional(t.Array(t.String())),
             }),
           }),
         ),
@@ -174,24 +170,9 @@ export const bookmarksBulkRouter = new Elysia()
     "/bulk/archive",
     async ({ body, user }) => {
       const userId = user.id;
-      const archivedId = (
-        await db
-          .select({ id: collections.id })
-          .from(collections)
-          .where(
-            and(
-              eq(collections.userId, userId),
-              eq(collections.slug, "archived"),
-            ),
-          )
-          .limit(1)
-      )[0]?.id;
-
-      if (!archivedId) throw new NotFoundError("archived collection not found");
-
       const results = await db
         .update(bookmarks)
-        .set({ collectionId: archivedId })
+        .set({ archivedAt: new Date() })
         .where(
           and(eq(bookmarks.userId, userId), inArray(bookmarks.id, body.ids)),
         )
@@ -209,24 +190,9 @@ export const bookmarksBulkRouter = new Elysia()
     "/bulk/unarchive",
     async ({ body, user }) => {
       const userId = user.id;
-      const unsortedId = (
-        await db
-          .select({ id: collections.id })
-          .from(collections)
-          .where(
-            and(
-              eq(collections.userId, userId),
-              eq(collections.slug, "unsorted"),
-            ),
-          )
-          .limit(1)
-      )[0]?.id;
-
-      if (!unsortedId) throw new NotFoundError("unsorted collection not found");
-
       const results = await db
         .update(bookmarks)
-        .set({ collectionId: unsortedId })
+        .set({ archivedAt: null })
         .where(
           and(eq(bookmarks.userId, userId), inArray(bookmarks.id, body.ids)),
         )
@@ -245,29 +211,13 @@ export const bookmarksBulkRouter = new Elysia()
     async ({ body, user }) => {
       const userId = user.id;
 
-      // Find the archived collection for this user
-      const archivedId = (
-        await db
-          .select({ id: collections.id })
-          .from(collections)
-          .where(
-            and(
-              eq(collections.userId, userId),
-              eq(collections.slug, "archived"),
-            ),
-          )
-          .limit(1)
-      )[0]?.id;
-
-      if (!archivedId) throw new NotFoundError("archived collection not found");
-
-      // Only delete bookmarks that belong to the user AND are in the archived collection
+      // Only archived bookmarks can be permanently deleted.
       const deleted = await db
         .delete(bookmarks)
         .where(
           and(
             eq(bookmarks.userId, userId),
-            eq(bookmarks.collectionId, archivedId),
+            isNotNull(bookmarks.archivedAt),
             inArray(bookmarks.id, body.ids),
           ),
         )
@@ -292,52 +242,42 @@ export const bookmarksBulkRouter = new Elysia()
     async ({ body, user }) => {
       const userId = user.id;
 
-      // If collectionId is provided, verify it belongs to the user
-      if (body.collectionId) {
-        const [collection] = await db
-          .select({ id: collections.id })
-          .from(collections)
-          .where(
-            and(
-              eq(collections.id, body.collectionId),
-              eq(collections.userId, userId),
-            ),
-          )
-          .limit(1);
+      // An empty set means Unsorted, matching the old null target.
+      const targetCollectionIds = await resolveCreateCollections(
+        db,
+        userId,
+        body.collectionIds,
+      );
 
-        if (!collection) throw new NotFoundError("collection not found");
-      }
-
-      // Move bookmarks — if collectionId is null, move to unsorted
-      const targetCollectionId =
-        body.collectionId ??
-        (
-          await db
-            .select({ id: collections.id })
-            .from(collections)
-            .where(
-              and(
-                eq(collections.userId, userId),
-                eq(collections.slug, "unsorted"),
-              ),
-            )
-            .limit(1)
-        )[0]?.id;
-
-      const moved = await db
-        .update(bookmarks)
-        .set({ collectionId: targetCollectionId })
+      const owned = await db
+        .select({ id: bookmarks.id })
+        .from(bookmarks)
         .where(
           and(eq(bookmarks.userId, userId), inArray(bookmarks.id, body.ids)),
-        )
-        .returning({ id: bookmarks.id });
+        );
+      const ids = owned.map((r) => r.id);
 
-      return { moved: moved.length, ids: moved.map((r) => r.id) };
+      if (ids.length > 0) {
+        await db
+          .delete(collectionItems)
+          .where(inArray(collectionItems.bookmarkId, ids));
+        await db.insert(collectionItems).values(
+          targetCollectionIds.flatMap((collectionId) =>
+            ids.map((bookmarkId) => ({
+              collectionId,
+              bookmarkId,
+              position: 0,
+            })),
+          ),
+        );
+      }
+
+      return { moved: ids.length, ids };
     },
     {
       body: t.Object({
         ids: t.Array(t.String(), { minItems: 1 }),
-        collectionId: t.Union([t.String(), t.Null()]),
+        collectionIds: t.Array(t.String()),
       }),
     },
   );

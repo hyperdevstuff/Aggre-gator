@@ -6,14 +6,14 @@ import { createTestUser, getSessionCookie, cleanupTestUser } from "./setup";
 
 /**
  * Regression tests for issue #22: deleting a collection orphaned its
- * bookmarks (collectionId = NULL → invisible in every listing, yet the
- * (userId, url) unique index still blocked re-adding the URL).
+ * bookmarks (invisible in every listing, yet the (userId, url) unique index
+ * still blocked re-adding the URL).
  *
  * Contract under test:
- * - default delete re-homes bookmarks to Unsorted (never NULL);
+ * - default delete re-homes bookmarks that would be left unfiled to Unsorted;
  * - ?deleteBookmarks=true destroys them;
  * - parents with children are blocked (409, nothing mutated);
- * - collectionId assignment is owner-validated.
+ * - collection assignment is owner-validated.
  */
 describe("collection delete — orphan fix (#22)", () => {
   let userId: string;
@@ -41,11 +41,11 @@ describe("collection delete — orphan fix (#22)", () => {
       new Request("http://localhost/bookmarks", {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: useCookie },
-        body: JSON.stringify({ url: u, title: `T ${u}`, ...(collectionId ? { collectionId } : {}) }),
+        body: JSON.stringify({ url: u, title: `T ${u}`, ...(collectionId ? { collectionIds: [collectionId] } : {}) }),
       }),
     );
     expect(res.status).toBe(200);
-    return res.json() as Promise<{ id: string; collectionId: string | null }>;
+    return res.json() as Promise<{ id: string; collectionIds: string[] }>;
   };
 
   const deleteCollection = (id: string, qs = "", useCookie = cookie) =>
@@ -94,7 +94,7 @@ describe("collection delete — orphan fix (#22)", () => {
     const { data } = await list.json();
     const found = data.find((b: any) => b.id === bm.id);
     expect(found).toBeDefined();
-    expect(found.collectionId).toBe(unsortedId);
+    expect(found.collectionIds).toContain(unsortedId);
   });
 
   test("same URL still 409s after delete, with a fetchable existingId", async () => {
@@ -169,10 +169,10 @@ describe("collection delete — orphan fix (#22)", () => {
       new Request("http://localhost/bookmarks?limit=100", { headers: { Cookie: cookie } }),
     );
     const { data } = await feed.json();
-    expect(data.find((b: any) => b.url === u && b.collectionId === parent.id)).toBeDefined();
+    expect(data.find((b: any) => b.url === u && b.collectionIds?.includes(parent.id))).toBeDefined();
   });
 
-  test("assigning a foreign collectionId is rejected", async () => {
+  test("assigning a foreign collection is rejected", async () => {
     const victim = await createCollection("Victim", undefined, otherCookie);
     const u = url();
     const bm = await createBookmark(u);
@@ -182,7 +182,7 @@ describe("collection delete — orphan fix (#22)", () => {
       new Request("http://localhost/bookmarks", {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: cookie },
-        body: JSON.stringify({ url: url(), title: "X", collectionId: victim.id }),
+        body: JSON.stringify({ url: url(), title: "X", collectionIds: [victim.id] }),
       }),
     );
     expect(badCreate.status).toBe(404);
@@ -192,31 +192,33 @@ describe("collection delete — orphan fix (#22)", () => {
       new Request(`http://localhost/bookmarks/${bm.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Cookie: cookie },
-        body: JSON.stringify({ collectionId: victim.id }),
+        body: JSON.stringify({ collectionIds: [victim.id] }),
       }),
     );
     expect(badPatch.status).toBe(404);
   });
 
-  test("legacy NULL-collectionId orphans stay visible (NULL-safe filter)", async () => {
+  test("an unfiled bookmark stays visible and can be filed", async () => {
     const u = url();
     const [orphan] = await db
       .insert(bookmarks)
-      .values({ userId, url: u, title: "Legacy orphan", domain: "example.com", collectionId: null })
+      .values({ userId, url: u, title: "Unfiled", domain: "example.com" })
       .returning({ id: bookmarks.id });
 
     const list = await app.handle(
       new Request("http://localhost/bookmarks?limit=100", { headers: { Cookie: cookie } }),
     );
     const { data } = await list.json();
-    expect(data.find((b: any) => b.id === orphan.id)).toBeDefined();
+    const found = data.find((b: any) => b.id === orphan.id);
+    expect(found).toBeDefined();
+    expect(found.collectionIds).toEqual([]);
 
-    // And it can be re-homed through the normal update path.
+    // And it can be filed through the normal update path.
     const move = await app.handle(
       new Request(`http://localhost/bookmarks/${orphan.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Cookie: cookie },
-        body: JSON.stringify({ collectionId: unsortedId }),
+        body: JSON.stringify({ collectionIds: [unsortedId] }),
       }),
     );
     expect(move.status).toBe(200);

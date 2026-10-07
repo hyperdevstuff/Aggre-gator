@@ -1,8 +1,31 @@
-# Aggre-gator — Agent Notes
+# Aggregator — Agent Notes
 
 Bun monorepo: `app/` (Elysia + Drizzle + Postgres + Better Auth API) and `client/`
 (React + Vite + TanStack Router/Query + Tailwind + shadcn on Base UI).
-Product direction: `docs/SPEC.md`. Status tracker: `docs/TASKS.md`.
+
+Read these before starting anything:
+
+| Doc | What it decides |
+|---|---|
+| `docs/ROADMAP.md` | **The plan.** Six phases, and why the data-model migration (phase 2) blocks the public layer |
+| `docs/SPEC.md` | Product thesis, domain rules, monetization ladder |
+| `docs/TASKS.md` | Per-area status; update it when you finish something |
+| `docs/DESIGN.md` | Design system, landing page, hairline figures |
+| `docs/decisions/` | ADRs. Read the relevant one before implementing the phase it governs — they record *why*, including the options rejected |
+
+**Do not start phase 3+ before phase 2.** Changing a bookmark to live in many
+collections touches every listing, query and card; doing it after the public
+surfaces exist means rewriting them.
+
+## Naming
+
+- **The product name is `Aggregator`** — one word, capital A, double-g at the
+  end. Render it exactly like that in user-facing copy, aria labels and titles.
+- Do **not** write "Aggre-gator", "aggre-gator" or "aggregator" in product copy.
+  (The `aggregator` package name, the `aggregator_test` database and this repo's
+  own heading are identifiers, not the brand.)
+- The wordmark is not set in the landing navbar — it is the logo mark alone.
+  Elsewhere (login, share pages) the lockup is `components/ui/logo.tsx` + "Aggregator".
 
 ## Herdr (terminal management)
 
@@ -60,10 +83,9 @@ Per-package scripts also work (`cd app && bun run test`).
 
 ## Skills
 
-Frontend/design work should follow (when available): frontend-design, shadcn,
-fixing-accessibility, 12-principles-of-animation, emil-design-eng,
-make-interfaces-feel-better. Note: only `fixing-accessibility`,
-`12-principles-of-animation`, `emil-design-eng`, and `make-interfaces-feel-better`, `frontend-design` and `shadcn`.
+Frontend/design work should follow (when available): `frontend-design`, `shadcn`,
+`fixing-accessibility`, `12-principles-of-animation`, `emil-design-eng`,
+`make-interfaces-feel-better`.
 
 ## API gotchas
 
@@ -71,4 +93,15 @@ make-interfaces-feel-better. Note: only `fixing-accessibility`,
   accept `tags: string[]` (names). `Bookmark.tags` is the object form.
 - `GET /collections` returns `bookmarkCount`, not `count` — `collectionsApi.list` maps it.
 - Bookmark `PATCH /:id/archive` → `:id/unarchive`; delete requires archive first (409 otherwise).
+  Archiving sets `bookmarks.archivedAt` (it no longer moves the bookmark); `GET /bookmarks?archived=true`
+  lists archived ones. There is no "Archived" system collection.
+- A bookmark's collections are **many-to-many** via `collection_items`; responses carry
+  `collectionIds: string[]` and writes accept `collectionIds` (default filing is Unsorted).
+  The `GET /bookmarks?collectionId=` filter stays singular — it means "filed in this one collection".
 - Scraping metadata is best-effort: 404s/dead URLs fall back to hostname and log a single-line warning.
+- **Never `fetch` a user-supplied URL directly.** Run it through
+  `app/src/utils/url-guard.ts` (`assertSafeToFetch`) — it resolves the host and refuses
+  anything non-public, and redirects are followed by hand so every hop is re-checked.
+- **Rate limits** live in `app/src/utils/rate-limit.ts`: a global 1000/min per client in
+  `onRequest`, plus `rateLimitGuard` in the options of expensive routes. Counters are
+  in-process, so they only hold while there is a single replica.

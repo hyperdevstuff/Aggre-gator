@@ -36,8 +36,6 @@ type BookmarkCardProps = {
   onEdit?: (bookmark: Bookmark) => void;
   /** When set, tag chips render as buttons that open the tag editor. */
   onEditTag?: (tag: Bookmark["tags"][number]) => void;
-  /** Whether the bookmark lives in the Archived collection. */
-  isArchived?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
 };
@@ -46,7 +44,6 @@ export function BookmarkCard({
   bookmark,
   onEdit,
   onEditTag,
-  isArchived,
   selected,
   onToggleSelect,
 }: BookmarkCardProps) {
@@ -55,6 +52,8 @@ export function BookmarkCard({
   const archiveBookmarks = useBulkArchiveBookmarks();
   const unarchiveBookmarks = useBulkUnarchiveBookmarks();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // Archived is a property of the bookmark now, not a collection it lives in.
+  const isArchived = bookmark.archivedAt != null;
 
   const toggleFavorite = () => {
     updateBookmark.mutate({

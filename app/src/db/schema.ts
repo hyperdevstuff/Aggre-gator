@@ -4,22 +4,41 @@ import {
   text,
   timestamp,
   boolean,
+  integer,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
+
+/** A collection is private by default; unlisted is link-only; public is listed. */
+export type CollectionVisibility = "private" | "unlisted" | "public";
+
 // AUTO-GEN
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
+    username: text("username"),
+    bio: text("bio"),
+    avatar: text("avatar"),
+    plan: text("plan").notNull().default("free"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => ({
+    // Case-insensitive uniqueness; usernames are for public URLs, so "Alice"
+    // and "alice" must not both exist.
+    usernameUnique: uniqueIndex("user_username_unique")
+      .on(sql`lower(${table.username})`)
+      .where(sql`${table.username} is not null`),
+  }),
+);
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
@@ -84,9 +103,7 @@ export const bookmarks = pgTable(
     cover: text("cover"),
     domain: text("domain"),
     isFavorite: boolean("is_favorite").default(false).notNull(),
-    collectionId: text("collection_id").references(() => collections.id, {
-      onDelete: "set null",
-    }),
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -96,9 +113,6 @@ export const bookmarks = pgTable(
   (table) => ({
     userIdIdx: index("bookmarks_user_id_idx").on(table.userId),
     urlIdx: index("bookmarks_url_idx").on(table.url),
-    collectionIdIdx: index("bookmarks_collection_id_idx").on(
-      table.collectionId,
-    ),
     domainIdx: index("bookmarks_domain_idx").on(table.domain),
     createdAtIdx: index("bookmarks_created_at_idx").on(table.createdAt),
     userUrlUnique: uniqueIndex("bookmarks_user_url_unique").on(
@@ -126,6 +140,11 @@ export const collections = pgTable(
     }),
     isSystem: boolean("is_system").notNull().default(false),
     slug: text("slug"),
+    visibility: text("visibility")
+      .$type<CollectionVisibility>()
+      .notNull()
+      .default("private"),
+    publishedAt: timestamp("published_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -186,6 +205,34 @@ export const bookmarkTags = pgTable(
   }),
 );
 
+export const collectionItems = pgTable(
+  "collection_items",
+  {
+    collectionId: text("collection_id")
+      .notNull()
+      .references(() => collections.id, { onDelete: "cascade" }),
+    bookmarkId: text("bookmark_id")
+      .notNull()
+      .references(() => bookmarks.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    note: text("note"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: uniqueIndex("collection_items_pk").on(
+      table.collectionId,
+      table.bookmarkId,
+    ),
+    bookmarkIdIdx: index("collection_items_bookmark_id_idx").on(
+      table.bookmarkId,
+    ),
+    collectionPositionIdx: index("collection_items_collection_position_idx").on(
+      table.collectionId,
+      table.position,
+    ),
+  }),
+);
+
 export const sharedCollections = pgTable(
   "shared_collections",
   {
@@ -229,11 +276,8 @@ export const bookmarksRelations = relations(bookmarks, ({ one, many }) => ({
     fields: [bookmarks.userId],
     references: [user.id],
   }),
-  collection: one(collections, {
-    fields: [bookmarks.collectionId],
-    references: [collections.id],
-  }),
   bookmarkTags: many(bookmarkTags),
+  collectionItems: many(collectionItems),
 }));
 
 export const collectionsRelations = relations(collections, ({ one, many }) => ({
@@ -249,7 +293,7 @@ export const collectionsRelations = relations(collections, ({ one, many }) => ({
   children: many(collections, {
     relationName: "nested_collections",
   }),
-  bookmarks: many(bookmarks),
+  items: many(collectionItems),
 }));
 
 export const tagsRelations = relations(tags, ({ one, many }) => ({
@@ -270,6 +314,20 @@ export const bookmarkTagsRelations = relations(bookmarkTags, ({ one }) => ({
     references: [tags.id],
   }),
 }));
+
+export const collectionItemsRelations = relations(
+  collectionItems,
+  ({ one }) => ({
+    collection: one(collections, {
+      fields: [collectionItems.collectionId],
+      references: [collections.id],
+    }),
+    bookmark: one(bookmarks, {
+      fields: [collectionItems.bookmarkId],
+      references: [bookmarks.id],
+    }),
+  }),
+);
 
 export const sharedCollectionsRelations = relations(
   sharedCollections,

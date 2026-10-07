@@ -13,6 +13,7 @@ import type {
   PaginatedResponse,
   ShareInfo,
   PublicShareResponse,
+  ExploreShareResponse,
 } from "@/types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -65,6 +66,8 @@ export const bookmarksApi = {
     if (params?.tags?.length) query.set("tags", params.tags.join(","));
     if (params?.isFavorite !== undefined)
       query.set("isFavorite", String(params.isFavorite));
+    if (params?.archived !== undefined)
+      query.set("archived", String(params.archived));
     if (params?.search) query.set("search", params.search);
     if (params?.sort) query.set("sort", params.sort);
     if (params?.page) query.set("page", String(params.page));
@@ -111,10 +114,10 @@ export const bookmarksApi = {
       },
     ),
 
-  move: (ids: string[], collectionId: string | null) =>
+  move: (ids: string[], collectionIds: string[]) =>
     fetcher<void>("/bookmarks/move", {
       method: "POST",
-      body: JSON.stringify({ ids, collectionId }),
+      body: JSON.stringify({ ids, collectionIds }),
     }),
 };
 
@@ -198,6 +201,14 @@ export const shareApi = {
     if (params?.page) query.set("page", String(params.page));
     if (params?.limit) query.set("limit", String(params.limit));
     return fetcher<PublicShareResponse>(`/share/${code}?${query}`);
+  },
+
+  explore: (params?: { page?: number; limit?: number; q?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.q) query.set("q", params.q);
+    return fetcher<ExploreShareResponse>(`/share/explore?${query}`);
   },
 };
 

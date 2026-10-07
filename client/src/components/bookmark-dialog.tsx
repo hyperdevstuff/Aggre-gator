@@ -77,7 +77,7 @@ function BookmarkForm({
   const update = useUpdateBookmark();
   const collections = useCollections();
   const tags = useTags();
-  const [collectionId, setCollectionId] = useState(bookmark ? bookmark.collectionId ?? "" : defaultCollectionId ?? "");
+  const [collectionId, setCollectionId] = useState(bookmark ? bookmark.collectionIds[0] ?? "" : defaultCollectionId ?? "");
   const [favorite, setFavorite] = useState(bookmark?.isFavorite ?? defaultFavorite ?? false);
   const [selectedTags, setSelectedTags] = useState(bookmark?.tags.map((tag) => tag.name) ?? []);
   const [tagDraft, setTagDraft] = useState("");
@@ -114,14 +114,14 @@ function BookmarkForm({
     setError(null);
     try {
       if (bookmark) {
-        await update.mutateAsync({ id: bookmark.id, data: { ...details, title, collectionId: collectionId || null } });
+        await update.mutateAsync({ id: bookmark.id, data: { ...details, title, collectionIds: collectionId ? [collectionId] : [] } });
       } else {
         await create.mutateAsync({
           ...details,
           url: String(form.get("url")).trim(),
           title: title || undefined,
           description: details.description || undefined,
-          collectionId: collectionId || undefined,
+          collectionIds: collectionId ? [collectionId] : undefined,
         });
       }
       onClose();
