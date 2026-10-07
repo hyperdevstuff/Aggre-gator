@@ -7,7 +7,7 @@ import {
 import { LoginForm } from "@/components/login-form";
 import { authClient } from "@/lib/auth-client";
 import { z } from "zod";
-import { GalleryVerticalEnd } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { useAuth } from "@/hooks/use-auth";
 
 const searchSchema = z.object({
@@ -43,9 +43,9 @@ export default function LoginPage() {
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="#" className="flex items-center gap-2 font-medium">
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <GalleryVerticalEnd className="size-4" />
+              <Logo className="size-4" />
             </div>
-            Aggregator
+            <span className="font-geist">Aggregator</span>
           </a>
         </div>
         <div className="flex flex-1 items-center justify-center">

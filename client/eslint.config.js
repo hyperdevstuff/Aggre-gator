@@ -6,7 +6,10 @@ import tseslint from "typescript-eslint";
 import { plugin as shadcn } from "@shadcn/lint";
 
 export default [
-  { ignores: ["dist"] },
+  // Static/served assets are not source. `public/` has held scratch design
+  // files (standalone .html pages, one-off .js/.mjs scripts) that fail to parse
+  // as modules and otherwise take the whole lint run down.
+  { ignores: ["dist", "public"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

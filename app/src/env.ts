@@ -18,6 +18,13 @@ export type Env = {
   CLIENT_URL: string;
   GOOGLE_CLIENT_ID: string | undefined;
   GOOGLE_CLIENT_SECRET: string | undefined;
+  /**
+   * Trust `x-forwarded-for` / `cf-connecting-ip` for per-client rate limiting.
+   * Only enable when the API genuinely sits behind a proxy/CDN that overwrites
+   * those headers — otherwise a caller can spoof an IP and walk around the
+   * per-client limits.
+   */
+  TRUST_PROXY: boolean;
 };
 
 const isHttps = (url: string) => {
@@ -73,6 +80,14 @@ function validate(): Env {
     }
   }
 
+  const rawTrustProxy = (process.env.TRUST_PROXY ?? "").trim().toLowerCase();
+  if (rawTrustProxy && !["1", "true", "yes", "on"].includes(rawTrustProxy)) {
+    problems.push(
+      `TRUST_PROXY=${JSON.stringify(process.env.TRUST_PROXY)} is not a boolean — use true or false.`,
+    );
+  }
+  const TRUST_PROXY = ["1", "true", "yes", "on"].includes(rawTrustProxy);
+
   const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || undefined;
   const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || undefined;
   if ((GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_SECRET) || (!GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET)) {
@@ -105,6 +120,7 @@ function validate(): Env {
     CLIENT_URL: CLIENT_URL!,
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
+    TRUST_PROXY,
   };
 }
 

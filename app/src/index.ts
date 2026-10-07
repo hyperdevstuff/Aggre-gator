@@ -11,6 +11,10 @@ import { tagsRouter } from "./tags";
 import { userRouter } from "./user";
 import { shareRouter } from "./share";
 import { errorPlugin } from "./error";
+import { globalRateLimit } from "./utils/rate-limit";
+
+/** Paths that must never be rate limited: probes, docs and the auth handler. */
+const UNLIMITED_PATHS = ["/health", "/api/version", "/openapi", "/api/auth"];
 
 export const app = new Elysia()
   .get("/health", () => ({
@@ -30,6 +34,15 @@ export const app = new Elysia()
     }),
   )
   .use(errorPlugin)
+  // Safety net for everything without a route-specific limit. High enough that
+  // no normal client ever sees it, low enough to cap a runaway script.
+  .use(
+    globalRateLimit({
+      name: "global",
+      limit: 1_000,
+      exempt: UNLIMITED_PATHS,
+    }),
+  )
   .mount(auth.handler)
   .use(openapi({
     documentation: {

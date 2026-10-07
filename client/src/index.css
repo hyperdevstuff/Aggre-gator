@@ -35,8 +35,15 @@
   font-display: swap;
 }
 
+
 :root {
   --radius: 0.625rem;
+  /* The wordmark carries one tone and no accent. `--wordmark-ink` is deliberately
+     NOT declared here: a custom property substitutes where it is *declared*, so
+     putting `var(--foreground)` on `:root` would resolve it once against the root's
+     own foreground and inherit that fixed value, and the prototype's `data-wet-slate`
+     override could never reach it — the wordmark rendered in the old achromatic
+     ink. It is declared on `.wordmark`, where `--foreground` is already correct. */
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -70,6 +77,12 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
+
+  /* Text selection carries the brand's one accent. Clay is mid-light, so a single
+     value reads on both the light and the dark ground; the ink on it is the ground
+     tone — never white, which is 1.7:1 on clay. */
+  --selection: oklch(0.78 0.14 32);
+  --selection-ink: oklch(0.16 0.008 215);
 }
 
 .dark {
@@ -106,6 +119,11 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
+
+  /* On the dark ground the selection inverts instead of carrying clay: the
+     near-white ink becomes the fill and the ground becomes the ink. */
+  --selection: var(--foreground);
+  --selection-ink: var(--background);
 }
 @theme {
   --font-sans:
@@ -115,6 +133,10 @@
     "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Helvetica Neue", sans-serif;
   --font-mono: "Geist Mono", monospace;
+  /* Browser-chrome traffic lights for the landing page preview. */
+  --color-traffic-close: oklch(0.704 0.191 22.216);
+  --color-traffic-minimize: oklch(0.795 0.184 86.047);
+  --color-traffic-maximize: oklch(0.723 0.219 149.579);
 }
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -159,6 +181,13 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+
+  /* Every selected run of text, on every surface: the landing, the dashboard, the
+     share pages, the prototype. One rule, so it cannot drift per route. */
+  ::selection {
+    background-color: var(--selection);
+    color: var(--selection-ink);
+  }
 }
 
 /* Custom easing curves for polished animations */
@@ -166,7 +195,83 @@
   :root {
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+/*
+ * "Wet slate" — the landing theme from docs/DESIGN.md, scoped to the prototype
+ * route rather than applied app-wide, so nothing else in the app repaints.
+ * Blue-green tinted neutrals, so light and dark read as one material.
+ *
+ * Contrast was measured in sRGB, not estimated: fg/ground 9.85:1, fg/card 7.13:1,
+ * muted/ground 6.58:1, muted/card 4.77:1, accent-ink/ground 6.98:1. Muting is not
+ * one number — "muted" is 0.70 on a dark ground and 0.28 on a light one.
+ *
+ * Clay is the one accent and it means publish, share, or proof of readership.
+ * Clay fills take the ground as their ink, never white: white on clay is 1.7:1.
+ *
+ * The hairline palette reads these, so a figure follows the theme with no colour
+ * set in the figure itself.
+ *
+ * Dark is primary, and the theme is chosen by `data-theme` on the prototype's own
+ * wrapper and nothing else. Setting `color-scheme` here would make Lightning CSS
+ * fold these two blocks into a `light-dark()` pair, which then follows the
+ * browser's scheme rather than the prototype's toggle — `data-theme` is the one
+ * hook it leaves alone.
+ */
+@layer base {
+  [data-wet-slate] {
+    --background: oklch(0.16 0.008 215);
+    --card: oklch(0.205 0.010 215);
+    --popover: oklch(0.245 0.011 215);
+    --overlay: oklch(0.285 0.012 215);
+    --foreground: oklch(0.965 0.004 215);
+    --muted-foreground: oklch(0.70 0.012 215);
+    --meta-foreground: oklch(0.74 0.013 215);
+    --accent: oklch(0.78 0.14 32);
+    --accent-ink: oklch(0.16 0.008 215);
+    --border: oklch(1 0 0 / 9%);
+    --success: oklch(0.72 0.17 155);
+    --primary: oklch(0.965 0.004 215);
+    --primary-foreground: oklch(0.16 0.008 215);
+    --muted: oklch(0.245 0.011 215);
+    --secondary: oklch(0.245 0.011 215);
+    --ring: oklch(0.70 0.012 215);
+    --hairline-plate: var(--card);
+    --hairline-hi: var(--foreground);
+    --hairline-edge: oklch(0.50 0.014 215);
+    --hairline-mid: oklch(0.36 0.013 215);
+    --hairline-lo: oklch(0.27 0.012 215);
+    --selection: var(--foreground);
+    --selection-ink: var(--background);
+  }
+
+  [data-wet-slate][data-theme="light"] {
+    --background: oklch(0.975 0.003 215);
+    --card: #ffffff;
+    --popover: #ffffff;
+    --overlay: #ffffff;
+    --foreground: oklch(0.20 0.012 215);
+    --muted-foreground: oklch(0.28 0.014 215);
+    --meta-foreground: oklch(0.28 0.014 215);
+    --accent: oklch(0.70 0.14 28);
+    --accent-ink: oklch(0.42 0.19 28);
+    --border: oklch(0.20 0.012 215 / 12%);
+    --success: oklch(0.52 0.15 155);
+    --primary: oklch(0.20 0.012 215);
+    --primary-foreground: oklch(0.975 0.003 215);
+    --muted: oklch(0.955 0.004 215);
+    --secondary: oklch(0.955 0.004 215);
+    --ring: oklch(0.42 0.016 215);
+    --hairline-plate: #ffffff;
+    --hairline-hi: oklch(0.20 0.012 215);
+    --hairline-edge: oklch(0.55 0.014 215);
+    --hairline-mid: oklch(0.74 0.013 215);
+    --hairline-lo: oklch(0.86 0.012 215);
+    --selection: oklch(0.78 0.14 32);
+    --selection-ink: oklch(0.16 0.008 215);
   }
 }
 
@@ -179,6 +284,347 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@layer utilities {
+  /* Machine facts only: eyebrows, share codes, counts, captions. */
+  .meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .meta-sm {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* A hairline rule at the system's low-contrast value — never a full border. */
+  .hairline {
+    border-color: oklch(1 0 0 / 6%);
+  }
+  .dark .hairline {
+    border-color: oklch(1 0 0 / 8%);
+  }
+
+  /* The hairline figures' own proportion (the kernel's 400×320 viewBox). Named
+     so components don't reach for an arbitrary `aspect-[5/4]`. */
+  .figure-box {
+    aspect-ratio: 5 / 4;
+  }
+
+  /* Body measures, from the type rules. Named so components don't reach for
+     arbitrary `max-w-[Nch]` values. */
+  .measure-sm {
+    max-width: 46ch;
+  }
+  .measure {
+    max-width: 60ch;
+  }
+  .measure-lg {
+    max-width: 68ch;
+  }
+
+  /* The statement footer wordmark, cut in half. Sized in vw so it fills the
+     measure at any width, with tracking tightened to keep the glyphs optically
+     even.
+
+     `padding-block` reserves the room that a 0.8 line-height steals from the
+     ascenders and descenders — the ink box runs ~1.21em against a 0.8em line
+     box, and the container clips, which shears the tail off both "g"s. */
+  .wordmark {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 18.5vw;
+    line-height: 0.8;
+    letter-spacing: -0.05em;
+    padding-block: 0.22em;
+    /* See the note on the tokens: this has to resolve here, not on `:root`. */
+    --wordmark-ink: var(--foreground);
+  }
+  /* The wordmark, cut horizontally through the middle.
+
+     One element per letter, one colour, no accent layer at all. Earlier versions
+     drew each letter twice — once in ink, once in the second tone — and clipped
+     both to their own halves. That was solving a problem this does not have: with
+     a single tone there is nothing to blend, so there is nothing to clip against.
+     Two stacked glyphs were also the source of the hairline that traced the whole
+     shape at small sizes, because one glyph's antialiased edge landed on the
+     other's.
+
+     At rest the letter shows its top half and the bottom half reads as knocked
+     out into the page; on hover the clip opens and the word becomes whole. The
+     seam is horizontal — `inset(0 0 50% 0)` is the top half. Swapping to a
+     vertical seam is `inset(0 50% 0 0)`, in the rule and in the hover below. */
+  .wordmark-letter {
+    display: inline-block;
+    color: var(--wordmark-ink);
+    /* A clip-path clips to the element's own box, and an inline-block's box is
+       its line box — 0.8em here. The glyphs' content area is 1.21em, so the box
+       was missing ~49px of ascender above and 48px of descender below, and even
+       `inset(0 0 0 0)` sheared the tail off both "g"s. The padding grows the box
+       to the full content area; the equal negative margin gives that height back
+       so the line's rhythm is unchanged and the wordmark does not grow.
+
+       0.21em either side is 0.42em, which takes 0.8em to ~1.22em. */
+    padding-block: 0.21em;
+    margin-block: -0.21em;
+  }
+  .wordmark[data-variant="reveal"] .wordmark-letter {
+    clip-path: inset(0 0 50% 0);
+    transition: clip-path 460ms var(--ease-in-out);
+    transition-delay: var(--split-delay, 0ms);
+  }
+  /* A transition rather than an animation, so leaving mid-open reverses from
+     wherever the clip got to instead of restarting. Gated on hover capability so
+     a touch device is never left with the word half-cut and no way to open it. */
+  @media (hover: hover) and (pointer: fine) {
+    .wordmark[data-variant="reveal"]:hover .wordmark-letter,
+    .wordmark[data-variant="track"]:hover .wordmark-letter {
+      clip-path: inset(0 0 0 0);
+    }
+    /* `wave` straightens rather than opening. The seam undulates across the word
+       at rest and settles to one clean horizontal line on hover, which is a
+       quieter gesture than revealing and keeps the word half-cut either way. */
+    .wordmark[data-variant="wave"]:hover .wordmark-letter {
+      clip-path: inset(0 0 50% 0);
+    }
+  }
+
+  /* `wave` — the seam rides a sine across the letters, `--wave` set per letter by
+     the component. `calc()` keeps it a live value, so the wave flattens on hover
+     through the same transition rather than snapping. */
+  .wordmark[data-variant="wave"] .wordmark-letter {
+    clip-path: inset(0 0 calc(50% + var(--wave, 0%)) 0);
+    transition: clip-path 520ms var(--ease-in-out);
+    transition-delay: var(--split-delay, 0ms);
+  }
+
+  /* `track` — the seam is wherever the pointer is, so travelling down the word
+     fills it and travelling up empties it. A short transition rather than none:
+     the pointer jitters by a pixel or two, and this takes the edge off without
+     putting a lag between the cursor and the cut. */
+  .wordmark[data-variant="track"] .wordmark-letter {
+    clip-path: inset(0 0 var(--seam, 50%) 0);
+    transition: clip-path 90ms linear;
+  }
+
+  /* `wipe` — the word arrives as a hairline outline and fills, left to right, as
+     you read it. It is the one variant whose gesture is the product: a page that
+     fills as you add to it.
+
+     One element per letter, not two. The same glyph carries a hairline stroke and
+     an ink background clipped to its own text, so an outline and a fill never have
+     to line up across two stacked copies. `background-size` is the animatable
+     property here — gradients themselves are not, and the custom property the
+     other variants lean on does not interpolate without an `@property`
+     registration — so the fill sweeps in behind the outline. */
+  .wordmark[data-variant="wipe"] .wordmark-glyph {
+    display: inline-block;
+    color: transparent;
+    -webkit-text-stroke: 0.007em var(--wordmark-ink);
+    background-image: linear-gradient(var(--wordmark-ink), var(--wordmark-ink));
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: 0% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    transition: background-size 620ms var(--ease-out);
+    transition-delay: var(--split-delay, 0ms);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .wordmark[data-variant="wipe"]:hover .wordmark-glyph {
+      background-size: 100% 100%;
+    }
+  }
+  /* A touch device has no hover to complete the gesture, so the outline is already
+     filled there — the word is never left as an empty shell with no way to fill
+     it. The same guard the other variants use, pointed the other way. */
+  @media (hover: none) {
+    .wordmark[data-variant="wipe"] .wordmark-glyph {
+      background-size: 100% 100%;
+      -webkit-text-stroke: 0;
+    }
+  }
+
+  /* `riffle` — the word sits as a hand of cards, each letter tipped off a shared
+     baseline by `--tilt`. The pointer stands one letter up and it squares to the
+     line with a small lift: the same gesture the hero's riffle figure makes, so the
+     footer closes on the motion the page opened with.
+
+     The transform lives on the glyph, not the letter. Motion writes the entrance
+     (`y`) as an inline transform on the letter, and an inline style beats a
+     stylesheet rule — a transform on the same node would simply never apply. */
+  .wordmark[data-variant="riffle"] .wordmark-glyph {
+    display: inline-block;
+    transform-origin: 50% 90%;
+    transform: rotate(var(--tilt, 0deg));
+    transition: transform 380ms var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .wordmark[data-variant="riffle"] .wordmark-letter:hover .wordmark-glyph {
+      transform: rotate(0deg) translateY(-0.04em);
+    }
+  }
+
+  /* `focus` — every letter knocked back to a ghost tone, and the pointer brings
+     one to full ink while the rest recede further. Retrieval rather than reveal:
+     find the one link in the pile and read it.
+
+     The hovered rule repeats `:has(...)` so it outranks the sibling-dim rule — both
+     would otherwise match the hovered letter, and `:has()` carries the specificity
+     of its argument, which makes the dim rule the stronger of the two. */
+  .wordmark[data-variant="focus"] .wordmark-letter {
+    color: color-mix(in oklch, var(--wordmark-ink) 18%, transparent);
+    transition: color 240ms var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .wordmark[data-variant="focus"]:has(.wordmark-letter:hover) .wordmark-letter {
+      color: color-mix(in oklch, var(--wordmark-ink) 12%, transparent);
+    }
+    .wordmark[data-variant="focus"]:has(.wordmark-letter:hover)
+      .wordmark-letter:hover {
+      color: var(--wordmark-ink);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wordmark[data-variant="reveal"] .wordmark-letter,
+    .wordmark[data-variant="wave"] .wordmark-letter,
+    .wordmark[data-variant="track"] .wordmark-letter,
+    .wordmark[data-variant="wipe"] .wordmark-glyph,
+    .wordmark[data-variant="riffle"] .wordmark-glyph,
+    .wordmark[data-variant="focus"] .wordmark-letter {
+      transition: none;
+    }
+  }
+
+  /* Press feedback on every pressable surface, 120ms per the motion rules. */
+  .pressable {
+    transition: transform 120ms var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .pressable:active {
+      transform: scale(0.97);
+    }
+  }
+}
+
+/*
+ * Landing-page decoration. These are pattern/3D effects rather than design
+ * tokens, so they live here instead of as arbitrary values in a component's
+ * className (which the shadcn lint rules reject).
+ */
+@layer utilities {
+  .nav-three-up {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  /* The hero's scatter of tags and links. Positions arrive as custom properties
+     from the component, so the coordinates stay in one readable table instead of
+     scattered through classNames. Sized in px and faded with opacity rather than
+     a colour, because the marks take the ink from the foreground token and must
+     not repaint when the theme does.
+
+     No z-index. The section is position: relative with z-index: auto, so it makes
+     no stacking context and a negative z here would drop these behind the route's
+     own background — invisible, and silent about why. They sit behind the copy
+     because they come first in the DOM and the content above them is positioned. */
+  /* The hero's split: the claim a shade wider than the tray. A 50/50 grid starves
+     the headline of a word per line at the sizes this runs, and the tray has a
+     fixed 5:4 so it does not need the extra track.
+
+     The breakpoint is here rather than as `lg:` on the element, because a plain
+     utility is not responsive — `lg:hero-split` matches nothing, and the grid
+     stays single-column with the tray spanning the full width. Setting the
+     columns unconditionally is not the fix either: on one column the first child
+     would take the 1.05fr track and sit at half width. */
+  @media (width >= 64rem) {
+    .hero-split {
+      grid-template-columns: 1.05fr 1fr;
+    }
+  }
+  .hero-scatter {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .hero-mark {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: var(--size);
+    height: var(--size);
+    margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+    rotate: var(--rotate);
+    color: var(--foreground);
+    opacity: var(--mark-opacity);
+  }
+  .hero-mark svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  /* The scatter is a consequence of the split, so it leaves with it. Below
+     64rem the copy re-centres and the figure stacks under it, which leaves no
+     negative space at all — the margins are 24px of padding, and marks there land
+     on top of the paragraph. Hiding the whole layer beats hiding some of them. */
+  @media (width < 64rem) {
+    .hero-scatter {
+      display: none;
+    }
+  }
+  /* The navbar's bar width. Kept as a class transition rather than a JS-driven
+     scroll-linked value: mapping width to scroll position 1:1 makes a trackpad
+     flick read as visible stepping, because scrollY jumps several px per
+     frame. Toggling a state and letting CSS interpolate is both smoother and
+     cheaper — and a transition retargets cleanly if the reader scrolls back
+     before it finishes. */
+  .nav-bar-shell {
+    max-width: 1024px;
+    transition: max-width 300ms var(--ease-out);
+  }
+  .nav-bar-shell[data-compact="true"] {
+    max-width: 700px;
+  }
+  .landing-grid {
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in oklch, var(--foreground) 7%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklch, var(--foreground) 7%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(70% 50% at 50% 0%, #000, transparent);
+    mask-image: radial-gradient(70% 50% at 50% 0%, #000, transparent);
+  }
+  /* A radial gradient is already a smooth ramp, so this needs no `blur-*` on
+     top — the 40px blur it used to carry was the most expensive thing on the
+     page during scroll. */
+  .landing-glow {
+    background-image: radial-gradient(
+      70% 70% at 50% 0%,
+      color-mix(in oklch, var(--primary) 15%, transparent) 0%,
+      color-mix(in oklch, var(--primary) 6%, transparent) 35%,
+      transparent 78%
+    );
+  }
+  .landing-tilt {
+    perspective: 1600px;
+  }
+  .landing-tilt-child {
+    transform-origin: top center;
   }
 }
 

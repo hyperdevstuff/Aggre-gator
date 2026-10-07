@@ -53,6 +53,28 @@ export class GoneError extends ApiError {
   }
 }
 
+export class TooManyRequestsError extends ApiError {
+  /** Seconds the caller should wait before retrying (sets `Retry-After`). */
+  constructor(
+    message = "Too many requests",
+    public retryAfterSeconds = 60,
+  ) {
+    super(429, message);
+  }
+
+  override toResponse() {
+    const response = super.toResponse();
+    response.headers.set("Retry-After", String(this.retryAfterSeconds));
+    return response;
+  }
+}
+
+export class InternalError extends ApiError {
+  constructor(message = "Internal Server Error") {
+    super(500, message);
+  }
+}
+
 export const errorPlugin = new Elysia({ name: "error-handler" })
   .error({
     UnauthorizedError,
@@ -60,6 +82,8 @@ export const errorPlugin = new Elysia({ name: "error-handler" })
     ConflictError,
     ForbiddenError,
     GoneError,
+    TooManyRequestsError,
+    InternalError,
   })
   .onError(({ code, error, set }) => {
     if (code === "VALIDATION") {

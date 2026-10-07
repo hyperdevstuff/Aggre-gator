@@ -98,3 +98,20 @@ export const usePublicShare = (
   code: string,
   params?: { page?: number; limit?: number },
 ) => useQuery(publicShareQueryOptions(code, params));
+
+export const exploreQueryOptions = (params?: {
+  page?: number;
+  limit?: number;
+  q?: string;
+}) =>
+  queryOptions({
+    queryKey: ["share-explore", params],
+    queryFn: () => api.share.explore(params),
+    staleTime: 1000 * 60,
+  });
+
+export const useExplore = (params?: {
+  page?: number;
+  limit?: number;
+  q?: string;
+}) => useQuery(exploreQueryOptions(params));

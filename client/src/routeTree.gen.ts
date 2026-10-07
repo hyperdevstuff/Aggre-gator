@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProtectedRouteImport } from './routes/_protected'
+import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LandingPrototypeRouteImport } from './routes/landing-prototype'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as LogoRouteImport } from './routes/logo'
+import { Route as PrototypeFooterRouteImport } from './routes/prototype-footer'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
@@ -28,9 +30,19 @@ const ProtectedRoute = ProtectedRouteImport.update({
   id: '/_protected',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExploreRoute = ExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandingPrototypeRoute = LandingPrototypeRouteImport.update({
+  id: '/landing-prototype',
+  path: '/landing-prototype',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -38,9 +50,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LogoRoute = LogoRouteImport.update({
-  id: '/logo',
-  path: '/logo',
+const PrototypeFooterRoute = PrototypeFooterRouteImport.update({
+  id: '/prototype-footer',
+  path: '/prototype-footer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -66,9 +78,11 @@ const ShareCodeRoute = ShareCodeRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/landing-prototype': typeof LandingPrototypeRoute
   '/login': typeof LoginRoute
-  '/logo': typeof LogoRoute
+  '/prototype-footer': typeof PrototypeFooterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/dashboard': typeof ProtectedDashboardRoute
@@ -76,9 +90,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/landing-prototype': typeof LandingPrototypeRoute
   '/login': typeof LoginRoute
-  '/logo': typeof LogoRoute
+  '/prototype-footer': typeof PrototypeFooterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/dashboard': typeof ProtectedDashboardRoute
@@ -88,9 +104,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_protected': typeof ProtectedRouteWithChildren
+  '/explore': typeof ExploreRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/landing-prototype': typeof LandingPrototypeRoute
   '/login': typeof LoginRoute
-  '/logo': typeof LogoRoute
+  '/prototype-footer': typeof PrototypeFooterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/_protected/dashboard': typeof ProtectedDashboardRoute
@@ -100,9 +118,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/explore'
     | '/forgot-password'
+    | '/landing-prototype'
     | '/login'
-    | '/logo'
+    | '/prototype-footer'
     | '/reset-password'
     | '/signup'
     | '/dashboard'
@@ -110,9 +130,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/explore'
     | '/forgot-password'
+    | '/landing-prototype'
     | '/login'
-    | '/logo'
+    | '/prototype-footer'
     | '/reset-password'
     | '/signup'
     | '/dashboard'
@@ -121,9 +143,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_protected'
+    | '/explore'
     | '/forgot-password'
+    | '/landing-prototype'
     | '/login'
-    | '/logo'
+    | '/prototype-footer'
     | '/reset-password'
     | '/signup'
     | '/_protected/dashboard'
@@ -133,9 +157,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProtectedRoute: typeof ProtectedRouteWithChildren
+  ExploreRoute: typeof ExploreRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LandingPrototypeRoute: typeof LandingPrototypeRoute
   LoginRoute: typeof LoginRoute
-  LogoRoute: typeof LogoRoute
+  PrototypeFooterRoute: typeof PrototypeFooterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   ShareCodeRoute: typeof ShareCodeRoute
@@ -157,11 +183,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/explore': {
+      id: '/explore'
+      path: '/explore'
+      fullPath: '/explore'
+      preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/forgot-password': {
       id: '/forgot-password'
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landing-prototype': {
+      id: '/landing-prototype'
+      path: '/landing-prototype'
+      fullPath: '/landing-prototype'
+      preLoaderRoute: typeof LandingPrototypeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -171,11 +211,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/logo': {
-      id: '/logo'
-      path: '/logo'
-      fullPath: '/logo'
-      preLoaderRoute: typeof LogoRouteImport
+    '/prototype-footer': {
+      id: '/prototype-footer'
+      path: '/prototype-footer'
+      fullPath: '/prototype-footer'
+      preLoaderRoute: typeof PrototypeFooterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -224,9 +264,11 @@ const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProtectedRoute: ProtectedRouteWithChildren,
+  ExploreRoute: ExploreRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  LandingPrototypeRoute: LandingPrototypeRoute,
   LoginRoute: LoginRoute,
-  LogoRoute: LogoRoute,
+  PrototypeFooterRoute: PrototypeFooterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   ShareCodeRoute: ShareCodeRoute,

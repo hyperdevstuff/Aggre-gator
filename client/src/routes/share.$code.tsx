@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/ui/logo";
 
 const searchSchema = z.object({
   page: z.number().optional().default(1),
@@ -62,7 +63,7 @@ function PublicSharePage() {
               className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-                <BookmarkIcon className="size-3.5" />
+                <Logo className="size-3.5" />
               </div>
               <span className="font-geist">Aggregator</span>
             </a>

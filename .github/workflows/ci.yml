@@ -15,11 +15,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run build
-      # Non-blocking until the 4 pre-existing no-explicit-any errors in
-      # client/src/routes/share.$code.tsx are fixed (design-agent owned).
       - name: lint
         run: bun run lint
-        continue-on-error: true
 
   test:
     runs-on: ubuntu-latest

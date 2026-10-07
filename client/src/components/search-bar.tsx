@@ -7,12 +7,18 @@ type SearchBarProps = {
   defaultValue?: string;
   onSearch: (query: string) => void;
   placeholder?: string;
+  /** Accessible name for the field. Defaults to the dashboard wording. */
+  label?: string;
+  /** Show the ⌘K affordance. Only correct where that shortcut is wired up. */
+  showShortcut?: boolean;
 };
 
 export function SearchBar({
   defaultValue = "",
   onSearch,
   placeholder = "Search bookmarks…",
+  label = "Search bookmarks",
+  showShortcut = true,
 }: SearchBarProps) {
   const [value, setValue] = useState(defaultValue);
 
@@ -36,7 +42,7 @@ export function SearchBar({
           <Search className="text-muted-foreground" />
         </InputGroupAddon>
         <InputGroupInput
-          aria-label="Search bookmarks"
+          aria-label={label}
           placeholder={placeholder}
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -53,7 +59,9 @@ export function SearchBar({
               <X />
             </InputGroupButton>
           )}
-          <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
+          {showShortcut && (
+            <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
+          )}
         </InputGroupAddon>
       </InputGroup>
     </form>

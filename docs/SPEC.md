@@ -1,7 +1,7 @@
-# Aggre-gator — Product Spec
+# Aggregator — Product Spec
 
-> Status: living document. Last updated 2026-09-16.
-> Companion: `docs/TASKS.md` (build tracker).
+> Status: living document. Last updated 2026-10-07.
+> Companion: `docs/ROADMAP.md` (phased plan) and `docs/TASKS.md` (build tracker).
 
 ## 1. Thesis
 
@@ -23,19 +23,34 @@ always-up-to-date public page without signing up for anything.
   technical one: it keeps the sidebar tree and the public share page readable. Enforce it in the API
   on collection create/update (reject a `parentId` that already sits at the deepest level) and hide
   the "new sub-collection" affordance in the UI at that depth.
+- **Visibility** — every collection is `private`, `unlisted`, or `public`, and that
+  state lives on the collection itself. `private` is the default and never leaves the
+  owner's dashboard. `unlisted` is reachable only by its link (a random code — the
+  existing `shared_collections` row) and is excluded from Explore. `public` appears
+  in Explore, on the owner's profile, and at a readable URL
+  (`/u/:username/:slug`). Being *published* and being *accessible by link* are
+  different decisions, which is why they are two fields rather than one.
 - **Tag** — applies to **bookmarks only**. Decision: tags do **not** attach to collections.
   Rationale: tags are a retrieval tool ("find every react link"), collections are a curation
   tool ("this set, in this order, published together"). Giving tags to collections would
   duplicate nesting under a different name and complicate the share contract below. Tags on the
   **shared page** are derived from the bookmarks inside it.
-- **Shared collection** — a public snapshot published from one collection at
-  `GET /share/:code`. The share row (`shared_collections`) owns: the code, active/inactive
-  state, and later the paywall attributes (expiry, password, view count, expiry, plan).
+- **Share link** — the row in `shared_collections` that makes a collection reachable
+  at `GET /share/:code`. It owns the random code and the active/revoked state, and later
+  the paywall attributes (expiry, password, view count, plan). It does **not** own
+  visibility — that is the collection's job, per the Visibility bullet above. A revoked
+  link answers `410`; the collection may still be `public` at its readable URL.
+- **Profile** — a user has a unique `username` and appears at `/u/:username`. Their
+  public collections are listed there. This is the surface that makes Explore a place
+  people return to, rather than a feed they pass through once.
 
 ## 3. Shareable collections (the money-maker)
 
 Sharing is the feature the paywall guards. Current free behavior: any collection can be
 published to a public link with its nested sub-collections and paginated bookmarks.
+Free behavior after the visibility change: a `public` collection is reachable by slug and
+listed publicly with no paywall at all; `unlisted` links and any paid attribute below
+are what the tiers charge for.
 
 Planned paid behavior, in build order:
 
@@ -54,10 +69,11 @@ Planned paid behavior, in build order:
 
 | Area | Already built | Billable / next |
 |------|---------------|-----------------|
-| Save | Auto metadata scrape, duplicate detection, bulk import API | Browser extension quick-save, mobile share-target, RSS/OPML import, email-to-save |
-| Organize | Collections + sub-collections, tags, favorites, archive, bulk move/archive/delete | Saved filters (smart collections), full-text search over page content, duplicate finder |
-| Share | Public links, nested collections, pagination, revoke | Limits + analytics + passwords + expiry + custom slugs + multi-collection pages + branding |
-| Social | — | Fork/copy a shared collection, follow a curator, "remix" counts as social proof |
+| Save | Auto metadata scrape (SSRF-guarded), duplicate detection, bulk import API | Save others' links, browser extension quick-save, mobile share-target, RSS/OPML import, email-to-save |
+| Organize | Collections + sub-collections, tags, favorites, archive, bulk move/archive/delete | A bookmark in many collections, manual ordering within a collection, saved filters, full-text search over page content, duplicate finder |
+| Share | Public links, nested collections, pagination, revoke | Visibility tiers, readable `/u/:name/:slug` URLs, limits + analytics + passwords + expiry + custom slugs + multi-collection pages + branding |
+| Discover | A basic public directory, newest-first | Explore v2: image mosaics, masonry, categories, ranking by saves/views, full-text search |
+| Social | — | Public profiles, follow a curator, fork/copy a shared collection, view counts |
 | Team | — | Shared workspaces with roles; this is the seat-based plan |
 
 ## 5. Monetization ladder
