@@ -14,9 +14,17 @@ import type {
   ShareInfo,
   PublicShareResponse,
   ExploreShareResponse,
+  PublicProfile,
+  PublicCollectionPage,
+  PublicExploreEntry,
 } from "@/types";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+/**
+ * Must match the proxy target in `vite.config.ts` and the API's `PORT` default
+ * (3001). Defaulting to 3000 was wrong: a checkout without `VITE_API_URL` set
+ * would silently talk to whatever else happened to be on 3000.
+ */
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export class ApiError extends Error {
   constructor(
@@ -175,11 +183,34 @@ export const tagsApi = {
 export const userApi = {
   me: () => fetcher<User>("/user/me"),
 
-  update: (data: Partial<{ name: string; image: string }>) =>
+  update: (data: Partial<{
+    name: string;
+    image: string;
+    username: string;
+    bio: string;
+    avatar: string;
+  }>) =>
     fetcher<User>("/user/profile", {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+
+  /** True when `username` is unclaimed. Backed by better-auth's endpoint. */
+  isUsernameAvailable: async (username: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/is-username-available`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username }),
+      });
+      if (!res.ok) return true; // Don't block the user on a probe failure.
+      const data = await res.json();
+      return data.available === true;
+    } catch {
+      return true;
+    }
+  },
 };
 
 export const shareApi = {
@@ -212,10 +243,43 @@ export const shareApi = {
   },
 };
 
+// === PUBLIC PROFILES (anonymous) ===
+
+export const publicApi = {
+  profile: (username: string, params?: { page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    return fetcher<PublicProfile>(`/u/${username}?${query}`);
+  },
+
+  collection: (
+    username: string,
+    slug: string,
+    params?: { page?: number; limit?: number },
+  ) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    return fetcher<PublicCollectionPage>(`/u/${username}/${slug}?${query}`);
+  },
+
+  explore: (params?: { page?: number; limit?: number; q?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.q) query.set("q", params.q);
+    return fetcher<PaginatedResponse<PublicExploreEntry>>(
+      `/u/explore?${query}`,
+    );
+  },
+};
+
 export const api = {
   bookmarks: bookmarksApi,
   collections: collectionsApi,
   tags: tagsApi,
   user: userApi,
   share: shareApi,
+  public: publicApi,
 };

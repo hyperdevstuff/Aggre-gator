@@ -1,11 +1,13 @@
 import { betterAuth } from "better-auth";
-import { openAPI } from "better-auth/plugins";
+import { openAPI, username } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index";
 import * as schema from "../db/schema";
 import { env } from "../env";
 import Elysia from "elysia";
 import { InternalError, UnauthorizedError } from "../error";
+import { validateUsername } from "./username";
+import { findAvailableUsername } from "./user-identity";
 
 const isProduction = env.NODE_ENV === "production";
 
@@ -23,7 +25,59 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [env.CLIENT_URL],
-  plugins: [openAPI()],
+  plugins: [
+    openAPI(),
+    // The plugin owns the `username` column's normalisation and its uniqueness
+    // rules. Our column is nullable + uniquely indexed on `lower(username)`,
+    // which is exactly what the plugin expects, so there is no schema change.
+    //
+    // `displayUsername: false` because `user.name` is already the display name;
+    // the plugin's separate field would just be a second source of truth.
+    //
+    // `post-normalization` matters: with the default `pre` order the validator
+    // sees the raw input, so "Alice" is rejected by our lower-case-only pattern
+    // before it is ever normalized. Post-order normalizes first, so the user can
+    // type "Alice" and end up at /u/alice.
+    username({
+      displayUsername: false,
+      minUsernameLength: 3,
+      maxUsernameLength: 30,
+      validationOrder: { username: "post-normalization" },
+      // Case-insensitive on purpose. better-auth's `signInUsername` only
+      // normalizes its input when the order is literally "pre-normalization",
+      // so under post-order it looks the account up with the *raw* string. A
+      // case-sensitive validator would reject "SIO_123" outright and make
+      // username sign-in case-sensitive — a real usability bug for a field
+      // people type from memory. Normalization lower-cases before the lookup,
+      // so accepting mixed case here is safe.
+      //
+      // Reserved words and the format rule live in one place, and the auth layer
+      // enforces them for every caller — not just our profile route.
+      usernameValidator: (value) =>
+        validateUsername(value.toLowerCase()) === undefined,
+    }),
+  ],
+  // better-auth's own limiter is production-only by default, and the global
+  // Elysia limiter exempts `/api/auth` entirely — so without this there is no
+  // cap on credential endpoints in dev/test at all.
+  //
+  // better-auth's built-in special rule is 3 requests / 10s on /sign-in* and
+  // /sign-up*. That is tight enough to be hostile: signing up from two tabs, or
+  // behind a shared office IP, trips it. 10 / 60s still caps credential stuffing
+  // while tolerating a real person mistyping a password a few times.
+  //
+  // The integration suite creates and authenticates dozens of accounts, so the
+  // limit is disabled under NODE_ENV=test rather than worked around in tests.
+  rateLimit: isProduction
+    ? {
+        enabled: true,
+        customRules: {
+          "/sign-in/username": { window: 60, max: 10 },
+          "/sign-in/email": { window: 60, max: 10 },
+          "/sign-up/email": { window: 60, max: 10 },
+        },
+      }
+    : { enabled: false },
   advanced: {
     // Deterministic secure cookies in production (env validation already
     // requires https origins there). better-auth would infer this from the
@@ -45,6 +99,28 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        // Assign in `before`, not `after`: the value is then part of the INSERT,
+        // so the user object returned from sign-up already carries the username
+        // instead of reporting `null` until the next fetch.
+        before: async (user) => {
+          try {
+            const username = await findAvailableUsername(db, user.name);
+            if (!username) {
+              throw new Error(
+                `no username candidate could be derived from "${user.name}"`,
+              );
+            }
+            return { data: { ...user, username } };
+          } catch (error) {
+            console.error(
+              `[auth] failed to assign a username for new user:`,
+              error,
+            );
+            throw new InternalError(
+              "Could not finish creating your account. Please try again.",
+            );
+          }
+        },
         after: async (user) => {
           try {
             await db.insert(schema.collections).values({
@@ -79,7 +155,7 @@ export const auth = betterAuth({
  * Because `betterAuthPlugin` is registered `.as("global")`, its `derive` runs
  * for every route in the app, so public routes have to opt out explicitly here.
  */
-const PUBLIC_PREFIXES = ["/share"];
+const PUBLIC_PREFIXES = ["/share", "/u", "/og"];
 
 function isPublicPath(path: string) {
   return PUBLIC_PREFIXES.some(

@@ -10,6 +10,8 @@ import { searchRouter } from "./search";
 import { tagsRouter } from "./tags";
 import { userRouter } from "./user";
 import { shareRouter } from "./share";
+import { publicRouter } from "./public";
+import { ogRouter } from "./og";
 import { errorPlugin } from "./error";
 import { globalRateLimit } from "./utils/rate-limit";
 
@@ -61,7 +63,9 @@ export const app = new Elysia()
   .use(tagsRouter)
   .use(searchRouter)
   .use(userRouter)
-  .use(shareRouter);
+  .use(shareRouter)
+  .use(publicRouter)
+  .use(ogRouter);
 
 // Tests import `app` and drive it through `app.handle()`; Bun evaluates each test
 // file's module graph separately, so binding a port here would make the second

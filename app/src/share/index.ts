@@ -14,6 +14,9 @@ import { GoneError, NotFoundError } from "../error";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { rateLimitGuard } from "../utils/rate-limit";
 import { collectionBookmarkCount } from "../utils/collections";
+import { isCrawler } from "../utils/crawler";
+import { renderCrawlerDocument } from "../utils/html";
+import { env } from "../env";
 
 /**
  * Every collection in the published subtree (the shared collection plus all
@@ -41,9 +44,14 @@ async function getAllCollectionIds(
 }
 
 export const shareRouter = new Elysia({ prefix: "/share" })
-  // Public directory of every active shared collection.
+  // Public directory of every collection whose owner has published it.
   // Registered before `/:code` so `explore` is never swallowed by the param route.
   // No auth plugin — this is a public endpoint.
+  //
+  // Listing is driven by `collections.visibility`, not by `isActive`. A share
+  // code now means "anyone with the link" (the unlisted tier); only
+  // `visibility = 'public'` is enumerable. `GET /u/explore` is the successor to
+  // this route and will replace it.
   .get(
     "/explore",
     async ({ query }) => {
@@ -62,7 +70,8 @@ export const shareRouter = new Elysia({ prefix: "/share" })
 
       // System collections (Unsorted / Archived) are never publishable content.
       const where = and(
-        eq(sharedCollections.isActive, true),
+        eq(collections.visibility, "public"),
+        sql`${collections.publishedAt} is not null`,
         eq(collections.isSystem, false),
         searchFilter,
       );
@@ -74,30 +83,29 @@ export const shareRouter = new Elysia({ prefix: "/share" })
           description: collections.description,
           icon: collections.icon,
           color: collections.color,
+          slug: collections.slug,
+          username: user.username,
           sharedBy: user.name,
-          sharedAt: sharedCollections.createdAt,
+          sharedAt: collections.publishedAt,
           bookmarkCount: collectionBookmarkCount(collections.id).as(
             "bookmark_count",
           ),
         })
-        .from(sharedCollections)
-        .innerJoin(
-          collections,
+        .from(collections)
+        .leftJoin(
+          sharedCollections,
           eq(sharedCollections.collectionId, collections.id),
         )
-        .innerJoin(user, eq(sharedCollections.userId, user.id))
+        .innerJoin(user, eq(collections.userId, user.id))
         .where(where)
-        .orderBy(desc(sharedCollections.createdAt))
+        .orderBy(desc(collections.publishedAt))
         .limit(limit)
         .offset(offset);
 
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)` })
-        .from(sharedCollections)
-        .innerJoin(
-          collections,
-          eq(sharedCollections.collectionId, collections.id),
-        )
+        .from(collections)
+        .innerJoin(user, eq(collections.userId, user.id))
         .where(where);
 
       return {
@@ -123,7 +131,7 @@ export const shareRouter = new Elysia({ prefix: "/share" })
   // No betterAuthPlugin — this is a public endpoint
   .get(
     "/:code",
-    async ({ params: { code }, query }) => {
+    async ({ params: { code }, query, request }) => {
       // find the share
       const [share] = await db
         .select({
@@ -148,16 +156,20 @@ export const shareRouter = new Elysia({ prefix: "/share" })
           description: collections.description,
           icon: collections.icon,
           color: collections.color,
+          slug: collections.slug,
         })
         .from(collections)
         .where(eq(collections.id, share.collectionId))
         .limit(1);
 
       if (!col) throw new NotFoundError("collection not found");
+      const colSlug = col.slug;
 
-      // get the sharing user's name
+      // get the sharing user's name and username — the username lets the crawler
+      // document point its canonical at the readable `/u/...` URL instead of
+      // the code, so the link a platform stores is the one the owner can change.
       const [sharer] = await db
-        .select({ name: user.name })
+        .select({ name: user.name, username: user.username })
         .from(user)
         .where(eq(user.id, share.userId))
         .limit(1);
@@ -196,7 +208,9 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         limit: query.limit,
       });
 
-      // Bookmarks filed in any collection of the subtree.
+      // Bookmarks filed in any collection of the subtree. Archived bookmarks are
+      // excluded: archiving is the owner's filing decision, and a public page is
+      // a publication, not a view of their private filing.
       const conditions = [
         inArray(
           bookmarks.id,
@@ -205,6 +219,7 @@ export const shareRouter = new Elysia({ prefix: "/share" })
             .from(collectionItems)
             .where(inArray(collectionItems.collectionId, allCollectionIds)),
         ),
+        sql`${bookmarks.archivedAt} is null`,
       ];
 
       const [bookmarksData, [{ count }]] = await Promise.all([
@@ -267,7 +282,7 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         tags: tagsByBookmark[bookmark.id] || [],
       }));
 
-      return {
+      const payload = {
         collection: col,
         sharedBy: sharer?.name || "Unknown",
         sharedAt: share.createdAt,
@@ -277,6 +292,37 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         },
         nestedCollections,
       };
+
+      // Crawlers get a static document. Served from this same handler, after
+      // the same queries, so the preview and the page cannot disagree.
+      if (isCrawler(request.headers.get("user-agent"))) {
+        const total = Number(count);
+        const canonical =
+          sharer?.username && colSlug
+            ? `${env.CLIENT_URL.replace(/\/$/, "")}/u/${sharer.username}/${colSlug}`
+            : `${env.CLIENT_URL.replace(/\/$/, "")}/share/${code}`;
+        return new Response(
+          renderCrawlerDocument({
+            title: col.name,
+            description:
+              col.description ??
+              `${total} bookmark${total === 1 ? "" : "s"}, shared by ${sharer?.name || "someone"}.`,
+            image: `${env.CLIENT_URL.replace(/\/$/, "")}/og/collection/${encodeURIComponent(share.collectionId)}.png`,
+            url: canonical,
+            type: "article",
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "text/html; charset=utf-8",
+              "Cache-Control": "public, max-age=300",
+              "X-Robots-Tag": "noindex",
+            },
+          },
+        );
+      }
+
+      return payload;
     },
     {
       beforeHandle: rateLimitGuard({

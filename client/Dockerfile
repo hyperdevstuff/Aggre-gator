@@ -18,4 +18,8 @@ RUN bun run build
 FROM nginx:alpine AS runtime
 COPY client/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /srv/client/dist /usr/share/nginx/html
+# Fail the image build on a broken config rather than at container start. The
+# crawler-routing `map` + `if`/`proxy_pass` block in nginx.conf is the kind of
+# thing nginx accepts at runtime and rejects loudly in some versions.
+RUN nginx -t
 EXPOSE 80

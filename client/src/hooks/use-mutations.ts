@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
 import type {
@@ -252,15 +252,51 @@ export function useDeleteTag() {
   });
 }
 
+/**
+ * Debounced availability probe for the settings form.
+ *
+ * Returns `undefined` while idle or in flight, `true` when the name is free,
+ * `false` when it is taken. The API answers 409 with the real reason on save,
+ * so this is only a hint — it must never block typing.
+ */
+export function useUsernameAvailability(username: string) {
+  const normalized = username.trim().toLowerCase();
+  const worthChecking =
+    normalized.length >= 3 && normalized.length <= 30 && /^[a-z0-9_]+$/.test(normalized);
+
+  return useQuery({
+    queryKey: ["username-available", normalized],
+    queryFn: () => api.user.isUsernameAvailable(normalized),
+    enabled: worthChecking,
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useUpdateUser() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Partial<{ name: string; image: string }>) =>
-      api.user.update(data),
+    mutationFn: (data: Partial<{
+      name: string;
+      image: string;
+      username: string;
+      bio: string;
+      avatar: string;
+    }>) => api.user.update(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["user"] });
+      // The sidebar footer and the settings preview both read the session user.
+      // `authClient` caches that outside the query client, so invalidating here
+      // does not refresh it — re-fetch explicitly.
+      authClient.getSession().catch(() => undefined);
       toast.success("Profile updated");
+    },
+    onError: (err) => {
+      // The API answers 409 with a readable reason (already taken, reserved,
+      // malformed) — surface that rather than a generic failure.
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update profile",
+      );
     },
   });
 }

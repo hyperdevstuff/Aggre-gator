@@ -115,3 +115,56 @@ export const useExplore = (params?: {
   limit?: number;
   q?: string;
 }) => useQuery(exploreQueryOptions(params));
+
+// === PUBLIC PROFILES (anonymous) ===
+
+export const publicProfileQueryOptions = (
+  username: string,
+  params?: { page?: number; limit?: number },
+) =>
+  queryOptions({
+    queryKey: ["public-profile", username, params],
+    queryFn: () => api.public.profile(username, params),
+    enabled: !!username,
+    staleTime: 1000 * 60,
+  });
+
+export const usePublicProfile = (
+  username: string,
+  params?: { page?: number; limit?: number },
+) => useQuery(publicProfileQueryOptions(username, params));
+
+export const publicCollectionQueryOptions = (
+  username: string,
+  slug: string,
+  params?: { page?: number; limit?: number },
+) =>
+  queryOptions({
+    queryKey: ["public-collection", username, slug, params],
+    queryFn: () => api.public.collection(username, slug, params),
+    enabled: !!username && !!slug,
+    staleTime: 1000 * 60,
+  });
+
+export const usePublicCollection = (
+  username: string,
+  slug: string,
+  params?: { page?: number; limit?: number },
+) => useQuery(publicCollectionQueryOptions(username, slug, params));
+
+export const publicExploreQueryOptions = (params?: {
+  page?: number;
+  limit?: number;
+  q?: string;
+}) =>
+  queryOptions({
+    queryKey: ["public-explore", params],
+    queryFn: () => api.public.explore(params),
+    staleTime: 1000 * 60,
+  });
+
+export const usePublicExplore = (params?: {
+  page?: number;
+  limit?: number;
+  q?: string;
+}) => useQuery(publicExploreQueryOptions(params));

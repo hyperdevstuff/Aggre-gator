@@ -151,7 +151,10 @@ describe("collection_items (phase 2 data model)", () => {
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
-    expect(account.username).toBeNull();
+    // `username` is no longer null on a fresh account — phase 3 auto-assigns
+    // one at sign-up so `/u/:username` works immediately. `bio` and `avatar`
+    // are still unset by default.
+    expect(account.username).toMatch(/^[a-z0-9_]{3,30}$/);
     expect(account.bio).toBeNull();
     expect(account.avatar).toBeNull();
     expect(account.plan).toBe("free");

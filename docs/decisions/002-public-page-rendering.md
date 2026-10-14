@@ -1,6 +1,7 @@
 # ADR-002 — Public pages: crawler-served HTML, not full SSR
 
-> Status: **accepted** · Date: 2026-10-07 · Relates to `ROADMAP.md` Phase 3
+> Status: **accepted** · Date: 2026-10-07 · **Implemented** 2026-10-12 ·
+> Relates to `ROADMAP.md` Phase 3
 
 ## Context
 
@@ -81,11 +82,52 @@ Serve the card from the **API**, not from nginx, to avoid the SPA catch-all
 swallowing the route — a documented failure mode where `/api/og` kept returning
 `index.html`.
 
+## What implementation added (2026-10-12)
+
+Three things this ADR did not foresee. All three are now handled; recording them
+because each one looks correct in review and fails in production.
+
+1. **The edge has to be taught to route crawlers.** nginx owns the public pages
+   (`try_files … /index.html`), so a crawler hitting `client.com/u/alice` never
+   reaches the API no matter what the API would answer. nginx now maps
+   `User-Agent` → `$aggregator_is_crawler` and proxies `/u/`, `/share/` to the API
+   only for crawlers.
+
+   The rejected alternative — proxy unconditionally and let the API redirect
+   browsers — **deadlocks**: the redirect target is the same path nginx just
+   proxied, so nginx proxies it again. Routing by User-Agent keeps browsers
+   entirely in the SPA and never involves the API.
+
+   `nginx -t` runs in the client image build. `proxy_pass` inside `if` is valid
+   only because the upstream has no URI part, and only `proxy_pass` is permitted
+   there — `proxy_http_version` and friends must sit at `location` level. That is
+   exactly the kind of thing that passes review and fails the build.
+
+2. **Satori's layout engine treats percentages as content-box.** The card is
+   built with a root `width: 100%` and `padding: 72px`, which a browser renders
+   as 1200×630. Yoga adds the padding instead of subtracting it, producing
+   1344×774 — the bottom row lands at y=681 and is clipped off the canvas,
+   while `resvg` still emits a perfectly valid 1200×630 PNG. Size the root in
+   pixels and let a `flexGrow` wrapper carry the padding.
+
+   This is why the OG tests assert *layout*, not just that a PNG comes back: the
+   failure mode is a valid image with missing content.
+
+3. **Fonts and WASM need path resolution that survives bundling.** The API
+   bundles to `app/dist/index.js`, one directory deeper than the source, and Bun
+   hoists `node_modules` differently in the container than in a checkout. Both
+   are resolved by walking up from the module rather than by a fixed relative
+   path — and there is a test for it, because this is exactly the class of bug
+   that only appears after deploy.
+
 ## Deployment impact: none
 
-`app/Dockerfile` gains the renderer dependency and one route. `client/Dockerfile`
-and `client/nginx.conf` are unchanged. The API is already a long-running Bun
-server with a health check; it just gains a route that does some rendering.
+`app/Dockerfile` gains the renderer dependency, one route, and the vendored
+fonts. `client/Dockerfile` gains `nginx -t`. `client/nginx.conf` gains the
+crawler-routing block described above — that is the one part of this ADR that
+touches the edge, and it exists because the edge is what serves the public URLs.
+The API is already a long-running Bun server with a health check; it just gains a
+route that does some rendering.
 
 ## Consequences
 

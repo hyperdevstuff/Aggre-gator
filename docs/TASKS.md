@@ -19,7 +19,7 @@ Where each section below sits in the roadmap:
 |---|---|---|
 | [1](ROADMAP.md#phase-1--hardening--done-2026-10-07) | Hardening: SSRF, scrape, stats, rate limits, share payload | ✅ done |
 | [2](ROADMAP.md#phase-2--data-model-migration--done-2026-10-07) | Data model: `collection_items`, `archived_at`, visibility, user identity | ✅ done (2026-10-07) |
-| [3](ROADMAP.md#phase-3--public-layer) | Public layer: profiles, readable URLs, server-rendered previews | ❌ not started |
+| [3](ROADMAP.md#phase-3--public-layer--done-2026-10-12) | Public layer: profiles, readable URLs, crawler HTML, OG images | ✅ done (2026-10-12) |
 | [4](ROADMAP.md#phase-4--explore-v2) | Explore v2: image mosaics, masonry, ranking, full-text search | ❌ not started |
 | [5](ROADMAP.md#phase-5--social-loop) | Social loop: save, fork, follow, view counts | ❌ not started |
 | [6](ROADMAP.md#phase-6--monetization) | Monetization: `user.plan`, limits at the API layer | ❌ not started |
@@ -39,9 +39,13 @@ Where each section below sits in the roadmap:
 | ✅ | `POST /api/auth/sign-up/email`, sign-in, sign-out |
 | ✅ | Forgot/reset password (reset link printed to console — needs a real mail provider) |
 | ✅ | `GET /user/me`, `GET /user/stats` (independent counts), `PATCH /user/profile` |
-| ❌ | Email verification flow — **needed before public profiles**, or spam accounts fill Explore |
+| ❌ | Email verification flow — spam accounts can still reach a profile page; it gates who may *publish*, not who may exist |
 | ❌ | Real email provider (Resend/similar) for password reset |
-| ✅ | `username` / `bio` / `avatar` / `plan` on `user` (phase 2). `PATCH /user/profile` validates + stores them (reserved words, case-insensitive-unique index). `plan` is server-managed and **not** client-writable. `/u/:username` itself is phase 3 |
+| ✅ | `username` / `bio` / `avatar` / `plan` on `user` (phase 2). `PATCH /user/profile` validates + stores them (reserved words, case-insensitive-unique index). `plan` is server-managed and **not** client-writable |
+| ✅ | **better-auth `username()` plugin** (phase 3) — owns normalisation and uniqueness at the auth layer, so no hand-rolled check can be bypassed by calling the auth API directly. `displayUsername: false` (we already have `name`), `validationOrder: "post-normalization"` so "Alice" → `alice` rather than being rejected. No schema change: our nullable column + `user_username_unique` expression index already satisfy it |
+| ✅ | Auto-assigned usernames — every signup gets one in a `create.before` hook (so the sign-up response carries it, not `null`), derived from the display name with numbered fallbacks and a random last resort. Migration `0010` backfilled existing accounts and normalised every stored value to lower-case, which the plugin's exact-match availability lookup requires |
+| ✅ | `POST /sign-in/username` — sign in with a username; case-insensitive, and a wrong password and an unknown user return the identical message so it cannot enumerate accounts |
+| ✅ | `rateLimit` pinned on the auth config. better-auth's limiter is production-only by default and our global Elysia limiter exempts `/api/auth`, so dev/test had **no** cap on credential endpoints. Built-in special rule (3/10s) relaxed to 10/60s for `/sign-in/*` + `/sign-up/email` — strict enough to blunt credential stuffing, loose enough not to block a real person. Disabled under `NODE_ENV=test` |
 
 ### Bookmarks API
 
@@ -60,7 +64,12 @@ Where each section below sits in the roadmap:
 | Status | Task |
 |--------|------|
 | ✅ | Collections CRUD (+ system-collection protection), by-slug, children, bookmarks-by-collection |
-| ✅ | `collections.visibility` (`private｜unlisted｜public`) + `published_at` exist (phase 2) — default `private`; **not enforced yet**, that is phase 3 |
+| ✅ | `collections.visibility` (`private｜unlisted｜public`) + `published_at` exist (phase 2) — default `private`; **enforced in phase 3**. `POST`/`PATCH /collections` accept `visibility`; publishing requires an owner username, reuses the collection's slug (deriving one from the name when absent), stamps `publishedAt`, and clearing the stamp takes it out of Explore |
+| ✅ | `GET /u/explore` — the public directory, `visibility = 'public'` only, newest-published first, with `username` + `slug` for readable links. Explore is **no longer driven by `sharedCollections.isActive`**: a share code means "anyone with the link" (the unlisted tier), and only `visibility` decides what is enumerated |
+| ✅ | `GET /u/:username` — public profile: avatar (→ `image` → initials), bio, join date, published collections, and counts that exist today. No email, plan or verification state is ever selected. Distinct-counts bookmarks so one filed in two collections counts once |
+| ✅ | `GET /u/:username/:slug` — the readable collection URL. Payload is **identical in shape to `GET /share/:code`**, so the client renders one component for both. Serves `public` and `unlisted`; `private` is a 404, not a 403 (a 403 confirms the collection exists) |
+| ✅ | Publishing a parent does **not** publish its children — a served subtree and its bookmark listing include only non-`private` descendants |
+| ✅ | Archived bookmarks are excluded from public pages; archiving is filing, not publication |
 | ✅ | `collection_items(collection_id, bookmark_id, position, note)` — a bookmark lives in many collections, with per-collection order/note (phase 2). `bookmarks.collectionId` and its FK are **dropped**; reads return `collectionIds` |
 | ✅ | `bookmarks.archived_at` — archiving is a flag, not a move, so an archived bookmark keeps its real collection. The `Archived` system collection is gone (phase 2) |
 | ✅ | #17: 3-level nesting cap — API rejects a 4th level on create + update (subtree-aware, regression-tested); UI disables "new sub-collection" at max depth and filters the parent picker with inline reasons |
@@ -76,15 +85,16 @@ Where each section below sits in the roadmap:
 
 | Status | Task |
 |--------|------|
-| ✅ | Drizzle schema with relations + indexes, 9 migrations (now committed to git; `0006`–`0009` are phase 2) |
+| ✅ | Drizzle schema with relations + indexes, 10 migrations (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3) |
 | ✅ | Isolated test database (`aggregator_test`) via `docker compose` |
-| ✅ | `bun test` → **88 passing / 0 failing** across 15 files (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard and the limiter) |
+| ✅ | `bun test` → **190 passing / 0 failing** across 22 files (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation and OG rendering) |
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |
 | ✅ | Rate limiting: fixed-window, in-process (`app/src/utils/rate-limit.ts`). Global 1000/min per client in `onRequest` (so it caps unauthenticated floods *before* the session lookup), plus per-route 120/min on `POST /bookmarks`, 20/min on bulk, 60/min on `/share/explore`, 120/min on `/share/:code`. Health/version/OpenAPI/auth are exempt. 429 carries `Retry-After` |
 | ✅ | Client IP for limits comes from the socket; `x-forwarded-for` / `cf-connecting-ip` are only trusted when `TRUST_PROXY=true` (new env var, documented in `app/.env.example`) so a directly exposed API can't be dodged by spoofing a header |
 | 🟡 | Rate-limit counters are per process — a multi-replica deploy needs a shared store (Postgres/Redis) before the limits mean anything |
 | ❌ | Request logging / monitoring |
-| ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20 |
+| ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20. `app/Dockerfile` now also copies `app/assets/fonts` (the OG renderer needs them), and `client/Dockerfile` runs `nginx -t` so a broken crawler-routing config fails the image build rather than the deploy |
+| 🟡 | OG rendering adds ~8 MB to the API bundle (satori + resvg WASM, loaded lazily on first request). Fine at current scale; worth revisiting if the API image size becomes a constraint |
 
 ---
 
@@ -96,6 +106,7 @@ Where each section below sits in the roadmap:
 |--------|------|
 | ✅ | File-based routing, protected layout with auth guard, session-aware `/` redirect |
 | ✅ | Login (email/password + Google), sign-up page, forgot/reset password pages |
+| ✅ | Settings page (`/_protected/settings`) — display name, username, bio, avatar, with a live availability probe and a link to the public profile. Reachable from the sidebar account menu, whose "Settings" item previously did nothing. Form state is seeded by the inner form's initialiser rather than an effect (`react-hooks/set-state-in-effect` rejects the latter) |
 | ✅ | `useAuth` context, sign out, `notFoundComponent` wired in `__root.tsx` |
 | ✅ | Base UI migration type-safe (all leftover `asChild` → `render`) |
 | ✅ | Dev server port pinned & configurable (`VITE_PORT`) |
@@ -129,10 +140,14 @@ Where each section below sits in the roadmap:
 | Status | Task |
 |--------|------|
 | ✅ | Share dialog (create/copy/revoke) + public `/share/:code` page with pagination & nested collections |
-| ✅ | Public `GET /share/explore` directory (active shares only, system collections excluded, `?q=` + pagination, sharer name only — never email) + `/explore` client page |
-| ❌ | Public profile `/u/:username` and readable collection URL `/u/:username/:slug` (phase 3) |
-| ❌ | **Crawler HTML + OG tags from the API** — the SPA renders client-side, so link previews on Slack/Discord/X are blank. Decided in `docs/decisions/002-public-page-rendering.md` (API renders for crawlers, *not* TanStack Start). Blocks phase 3 |
-| ❌ | OG images at 1200×630 via `satori` + `@resvg/resvg-wasm`, served from the API, cached hard |
+| ✅ | Share dialog gained the visibility tier (Private / Unlisted / Public) and a slug field for the readable URL. A share code and `visibility` are independent: the code is the unlisted URL, `visibility` decides whether it is *listed* |
+| ✅ | Public `GET /share/explore` directory (sharer name only — never email) + `/explore` client page, now listing `visibility = 'public'` and linking to the readable `/u/:username/:slug` |
+| ✅ | Public profile `/u/:username` and readable collection URL `/u/:username/:slug` (phase 3) — see Auth & User / Collections above |
+| ✅ | **Crawler HTML + OG tags from the API** (phase 3) — the SPA renders client-side, so link previews were blank. `utils/crawler.ts` detects the unfurlers; `utils/html.ts` renders `og:*`, `twitter:card` and a `<link rel=canonical>`. The branch lives **inside** the existing handlers, after the same queries, so a preview and the page a human sees cannot disagree. Browsers still get exactly the JSON they got before — asserted in `crawler.test.ts` |
+| ✅ | Canonical URLs: a crawler arriving via a share code is pointed at `/u/:username/:slug`, so the link a platform stores is the one the owner can change |
+| ✅ | **OG images at 1200×630** (phase 3) — `satori` + `@resvg/resvg-wasm`, served from the API (`/og/collection/:id.png`, `/og/profile/:username.png`), `public, max-age=86400, stale-while-revalidate=43200`. Fonts vendored as TrueType in `app/assets/fonts/` because satori cannot read the woff2 files. `X-Robots-Tag: noindex` on the crawler HTML: this is a link-preview surface, not an SEO one |
+| ✅ | **nginx crawler routing** — `client/nginx.conf` maps `User-Agent` to `$aggregator_is_crawler` and proxies `/u/`, `/share/` to the API *only* for crawlers; browsers fall through to `try_files` and never touch the API. Unconditional proxying would deadlock, since the redirect target is the same path nginx just proxied. `nginx -t` runs in the image build, because that `if`/`proxy_pass` combination is version-sensitive |
+| ✅ | Favicon (`favicon.svg`), theme-color, description and title in `index.html` |
 | ❌ | `GET /share/explore` count ignores sub-collections (`share/index.ts`) |
 | ❌ | Image-first presentation: 4-image mosaic covers + masonry on public pages |
 
@@ -156,15 +171,17 @@ Where each section below sits in the roadmap:
 | ✅ | "Wet slate" design tokens landed in `client/src/index.css` (`[data-wet-slate]`, `--hairline-*` palette, `meta-sm`) — see `docs/DESIGN.md` |
 | ✅ | Hairline figures run in-app: `components/hairline/figure.tsx` + `lib/hairline/host.ts` load `client/public/<name>.js`, `landing-prototype` route switches between them |
 | 🟡 | `ThemeToggle` exists but is not rendered anywhere |
-| 🟡 | Landing page — shipped: floating navbar (brand / Features·Pricing·Explore / Sign in + Start free), hero, browser-framed share-page preview, `#features` + `#pricing`, close CTA. Still to do: footer, social proof, final copy pass |
-| ❌ | Favicon + meta/OG tags (required for phase 3 — see Share/Public) |
-| ❌ | User settings page (sidebar "settings" item does nothing) |
+| 🟡 | Landing page — shipped: floating navbar (brand / Features·Pricing·Explore / Sign in + Start free), hero, browser-framed share-page preview, `#features` + `#pricing`, close CTA. Still to do: social proof, final copy pass |
+| ✅ | Favicon + meta/OG tags (phase 3) — `favicon.svg` built from the same three paths as the React `Logo`, plus title/description/theme-color in `index.html`. Public-page OG tags are served by the API, not the SPA (see Share/Public) |
+| ✅ | User settings page (sidebar "settings" item now routes to `/settings`) |
+| ✅ | `Avatar` gained an `xl` size for the public profile header, rather than overriding typography on `AvatarFallback` (the shadcn lint forbids that) |
 
 ### Lint
 
-`bun run lint` passes: **0 errors, 16 warnings**. All 16 are
+`bun run lint` passes: **0 errors, 20 warnings**. All 20 are
 `react-refresh/only-export-components`, expected for route files that export a
-`Route` alongside a component. CI runs lint as a **blocking** step.
+`Route` alongside a component (four more route files arrived in phase 3). CI runs
+lint as a **blocking** step.
 
 ### API Client & Hooks
 
@@ -200,6 +217,45 @@ Four migrations, applied in this order:
   passing**. Migrate the test DB (`bun run db:migrate:test`) before running them.
 - **Not** done here: enforcing `visibility` on public surfaces (phase 3), and a
   multi-select collection UI (the storage supports many; the UI still files one).
+
+## Phase 3 shipped — the public layer (2026-10-12)
+
+The social half's entry point. `/u/:username` and `/u/:username/:slug` exist,
+`visibility` is enforced, and a pasted link previews.
+
+| Piece | Where |
+|---|---|
+| `username()` plugin + auto-assignment | `app/src/utils/auth.ts`, `app/src/utils/username.ts`, `app/src/utils/user-identity.ts` |
+| Backfill + Explore index | `app/drizzle/0010_public-identity-backfill.sql` |
+| Public profile + readable collection + directory | `app/src/public/index.ts` |
+| Publish rules (slug, `publishedAt`, preconditions) | `app/src/collections/index.ts` |
+| Crawler detection + document | `app/src/utils/crawler.ts`, `app/src/utils/html.ts` |
+| OG card rendering | `app/src/og/render.ts`, `app/src/og/index.ts`, `app/assets/fonts/` |
+| Edge routing | `client/nginx.conf` |
+| Shared public-collection view | `client/src/components/public/public-collection-view.tsx` |
+
+Decisions worth remembering:
+
+- **better-auth's plugin replaced our hand-rolled username rules.** Our column
+  was already nullable and uniquely indexed on `lower(username)`, so no schema
+  change was needed — only config. The manual uniqueness query in
+  `PATCH /user/profile` is gone; the plugin is the authority.
+- **`validationOrder: "post-normalization"` is load-bearing.** With the default
+  `pre` order the validator sees the raw input and rejects "Alice" before it can
+  be normalized.
+- **The plugin's availability lookup is exact-match** (`WHERE username = ?`),
+  which is why migration `0010` normalises every stored value to lower-case.
+- **Explore is keyed on `visibility`, not on `isActive`.** A share code means
+  "anyone with the link"; only `visibility = 'public'` is enumerable. This is
+  what makes "unlisted" a tier that means something.
+- **One renderer for two URLs.** `/u/:username/:slug` returns exactly the
+  `/share/:code` payload shape so `PublicCollectionView` serves both; two copies
+  would drift.
+- **Crawler HTML branches inside the existing handlers**, after the same
+  queries, rather than in a parallel route — so a preview can never disagree
+  with the page.
+- **nginx routes by User-Agent.** Unconditional proxying deadlocks, because the
+  API's redirect target is the same path nginx just proxied.
 
 ## 3. Fixed on 2026-10-07 (hardening pass)
 
@@ -240,6 +296,9 @@ Four migrations, applied in this order:
 | Severity | Bug |
 |----------|-----|
 | 🟡 | Password reset emails only `console.log` the link |
+| 🟡 | No email verification, so any signup can reach a profile page. It does not gate *publishing* — nothing is listed until an owner marks a collection public — but spam accounts can still appear on `/u/:username` and in `/og/profile/…` |
+| 🟡 | Crawler HTML is keyed off a User-Agent allowlist. A preview service we do not recognise degrades to an empty card rather than breaking anything — the documented failure mode in ADR-002 |
+| 🟡 | OG cards have no cache-busting revision, so renaming a collection leaves a stale card in a platform's cache until `stale-while-revalidate` (12h) elapses. The URL shape takes a revision suffix if that ever matters |
 | 🟡 | Metadata scraping is still in-process fire-and-forget. A URL saved with no title keeps its hostname until the background fetch lands (~5s timeout, single attempt); the client polls briefly to pick it up. A durable queue is the follow-up if this becomes load-bearing |
 | ✅ | ~~`DELETE /collections/:id` orphaned bookmarks to `collectionId = null` (invisible + un-re-addable)~~ fixed in #22: default delete re-homes to Unsorted, `?deleteBookmarks=true` destroys, parents with children blocked (409), legacy NULLs backfilled + listing is NULL-safe |
 | 🟡 | `bunfig.toml` disables **all** dependency lifecycle scripts — a future dependency that genuinely needs a postinstall (sharp, esbuild) will need this revisited |
@@ -252,11 +311,11 @@ The private dashboard's planned work is complete. What remains is in the phases.
 
 1. ~~Add Bookmark dialog~~ ✅ · ~~Edit Bookmark dialog~~ ✅ · ~~collection & tag dialogs~~ ✅ ·
    ~~sort + filter chips~~ ✅ · ~~breadcrumb + sidebar state~~ ✅ · ~~archive + bulk actions~~ ✅
-2. **Small UI debt** — render `ThemeToggle`, favicon/meta/OG, a settings page behind
-   the sidebar "settings" item that currently does nothing.
-3. **Everything else follows `ROADMAP.md` phases 3–6.** The phase-2 migration
-   has landed, so the public layer (phase 3) is unblocked. The data model now
-   supports a bookmark in many collections; a multi-select collection UI is a
-   separate "organize" feature and can follow the public surfaces.
+2. **Small UI debt** — render `ThemeToggle`; landing-page social proof and a final
+   copy pass. Favicon/meta and the settings page landed in phase 3.
+3. **Everything else follows `ROADMAP.md` phases 4–6.** Phases 2 and 3 are done, so
+   Explore v2 and the social loop are unblocked. The data model supports a
+   bookmark in many collections; a multi-select collection UI is a separate
+   "organize" feature and can follow.
 
 

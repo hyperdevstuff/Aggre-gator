@@ -6,6 +6,27 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { ConflictError } from "../error";
 import { validateUsername } from "../utils/username";
 
+/**
+ * better-auth signals username problems with a machine code (`APIError.body.code`).
+ * Our own pre-check already produces a friendlier message for the common cases,
+ * so this only has to cover what the plugin can reject that we do not model.
+ */
+function usernameErrorMessage(error: unknown): string {
+  const code = (error as { body?: { code?: string } } | null)?.body?.code;
+  switch (code) {
+    case "USERNAME_IS_ALREADY_TAKEN":
+      return "That username is already taken.";
+    case "USERNAME_TOO_SHORT":
+    case "USERNAME_TOO_LONG":
+    case "INVALID_USERNAME":
+      return "Usernames are 3–30 characters and may contain lowercase letters, numbers and underscores.";
+    case "USERNAME_IS_IMMUTABLE":
+      return "Your username can no longer be changed.";
+    default:
+      return "Could not update your username. Please try again.";
+  }
+}
+
 export const userRouter = new Elysia({ prefix: "/user" })
   .use(betterAuthPlugin)
   .get("/me", async ({ user }) => {
@@ -50,10 +71,15 @@ export const userRouter = new Elysia({ prefix: "/user" })
     async ({ body, request, user }) => {
       const userId = user.id;
 
-      // Username is the public identity: validate format/reserved words and
-      // enforce case-insensitive uniqueness before touching anything.
+      // Username is the public identity. Check it here for a readable message,
+      // then let the `username()` plugin be the authority on normalisation and
+      // uniqueness — it is the same code path sign-up uses, so two concurrent
+      // profile edits cannot race a duplicate past us.
       if (body.username !== undefined) {
-        const error = validateUsername(body.username);
+        // Validate the post-normalisation form to match the plugin's
+        // `validationOrder: "post-normalization"`, so "Alice" is accepted and
+        // stored as `alice` instead of being rejected for its capitals.
+        const error = validateUsername(body.username.toLowerCase());
         if (error) throw new ConflictError(error);
         const [taken] = await db
           .select({ id: users.id })
@@ -68,17 +94,30 @@ export const userRouter = new Elysia({ prefix: "/user" })
         if (taken) throw new ConflictError("That username is already taken.");
       }
 
-      const authChanges: { name?: string; image?: string } = {};
+      // Everything better-auth owns goes through its API, including `username`
+      // now that the plugin manages the column.
+      const authChanges: {
+        name?: string;
+        image?: string;
+        username?: string;
+      } = {};
       if (body.name !== undefined) authChanges.name = body.name;
       if (body.image !== undefined) authChanges.image = body.image;
+      if (body.username !== undefined) authChanges.username = body.username;
       if (Object.keys(authChanges).length > 0) {
-        await auth.api.updateUser({ headers: request.headers, body: authChanges });
+        try {
+          await auth.api.updateUser({ headers: request.headers, body: authChanges });
+        } catch (error) {
+          // The pre-check above normally catches this first, so getting here
+          // means the plugin rejected it for a reason we did not model — a race,
+          // or a rule it enforces beyond ours. Surface it as a 409, not a 500.
+          throw new ConflictError(usernameErrorMessage(error));
+        }
       }
 
       // Custom identity fields managed here, never through better-auth — and
       // `plan` is deliberately not writable by the user.
-      const changes: Partial<{ username: string; bio: string; avatar: string }> = {};
-      if (body.username !== undefined) changes.username = body.username;
+      const changes: Partial<{ bio: string; avatar: string }> = {};
       if (body.bio !== undefined) changes.bio = body.bio;
       if (body.avatar !== undefined) changes.avatar = body.avatar;
       if (Object.keys(changes).length > 0) {

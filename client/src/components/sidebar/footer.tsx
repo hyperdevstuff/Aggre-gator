@@ -11,7 +11,7 @@ import {
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import type { Session } from "@/hooks/use-auth";
 import { authClient } from "@/lib/auth-client";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronUp, LogOut, Settings, User2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -75,10 +75,11 @@ export function SidebarFooter({ session }: SidebarFooterProps) {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
-          <Settings className="h-4 w-4 mr-2" />
+        {/* `render` (not asChild) hands the router link the click behaviour while
+            Base UI keeps the item's own menu semantics. */}
+        <DropdownMenuItem render={<Link to="/settings" />}>
+          <Settings className="mr-2 h-4 w-4" />
           Settings
-          <span className="ml-auto text-xs text-muted-foreground">Soon</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>

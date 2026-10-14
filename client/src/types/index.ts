@@ -40,7 +40,13 @@ export type Collection = {
   createdAt: string;
   updatedAt: string;
   parentId?: string;
+  /** Phase 3: `private` (default) | `unlisted` (link only) | `public` (listed). */
+  visibility?: CollectionVisibility;
+  /** Set when the collection transitions into `public`, cleared otherwise. */
+  publishedAt?: string | null;
 };
+
+export type CollectionVisibility = "private" | "unlisted" | "public";
 
 export type CreateCollectionInput = {
   name: string;
@@ -49,6 +55,7 @@ export type CreateCollectionInput = {
   icon?: string;
   color?: string;
   parentId?: string;
+  visibility?: CollectionVisibility;
 };
 export type UpdateCollectionInput = Omit<Partial<CreateCollectionInput>, "parentId"> & {
   /** null clears the parent and moves the collection to the top level. */
@@ -146,16 +153,93 @@ export type PublicShareResponse = {
   }>;
 };
 
-/** One entry in the public Explore directory (`GET /share/explore`). */
-export type ExploreShare = {
-  code: string;
+/** One entry in the public directory (`GET /u/explore`). */
+export type PublicExploreEntry = {
+  id: string;
   name: string;
   description: string | null;
   icon: string | null;
   color: string | null;
+  slug: string | null;
+  username: string | null;
   sharedBy: string;
-  sharedAt: string;
+  publishedAt: string | null;
+  bookmarkCount: number;
+};
+
+/** One entry in the public Explore directory (`GET /share/explore`). */
+export type ExploreShare = {
+  code: string | null;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  /** Present once the owner has a username (phase 3); null for legacy rows. */
+  username: string | null;
+  slug: string | null;
+  sharedBy: string;
+  sharedAt: string | null;
   bookmarkCount: number;
 };
 
 export type ExploreShareResponse = PaginatedResponse<ExploreShare>;
+
+/** A collection as it appears on a public profile or in the public directory. */
+export type PublicCollection = {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  slug: string | null;
+  publishedAt?: string | null;
+  bookmarkCount: number;
+};
+
+/** `GET /u/:username`. Deliberately excludes email, plan and verification. */
+export type PublicProfile = {
+  profile: {
+    username: string;
+    name: string;
+    bio: string | null;
+    avatar: string | null;
+    joinedAt: string;
+    stats: {
+      /**
+       * Follower counts are deliberately absent — the `follows` table arrives in
+       * phase 5. Rendering zeros before then would be a lie.
+       */
+      publicCollections: number;
+      publicBookmarks: number;
+    };
+  };
+  collections: PaginatedResponse<PublicCollection>;
+};
+
+/** `GET /u/:username/:slug`, shaped to match `PublicShareResponse`. */
+export type PublicCollectionPage = {
+  collection: {
+    id: string;
+    name: string;
+    description: string | null;
+    icon: string | null;
+    color: string | null;
+    slug: string | null;
+  };
+  owner: {
+    username: string;
+    name: string;
+    avatar: string | null;
+  };
+  /** The unlisted fallback URL, or null when the owner has no active share. */
+  shareCode: string | null;
+  bookmarks: PaginatedResponse<PublicBookmark>;
+  nestedCollections: Array<{
+    id: string;
+    name: string;
+    icon: string | null;
+    color: string | null;
+    slug: string | null;
+    bookmarkCount: number;
+  }>;
+};

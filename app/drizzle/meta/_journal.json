@@ -71,6 +71,13 @@
       "when": 1791380593433,
       "tag": "0009_goofy_the_hood",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791472000000,
+      "tag": "0010_public-identity-backfill",
+      "breakpoints": true
     }
   ]
 }

@@ -7,8 +7,9 @@ import { Wordmark } from "@/components/landing/wordmark";
  * link columns over a utility row, with the wordmark at the foot. Four things put
  * right, and nothing moved:
  *
- * - "See an example" appeared in both columns, pointing at /explore twice. Gone;
- *   Explore lives in one column now.
+ * - "Explore" and "See an example" were two links to the same destination, in two
+ *   columns, saying the same thing twice in two vocabularies. One survives; the
+ *   page-level name wins because that is what /explore is called everywhere else.
  * - "curator's choice" said nothing to anyone who had not read the pricing table.
  *   Gone, and its slot goes to the line that does work.
  * - The brand was three separate things: a text label, a 24px glyph below it, and

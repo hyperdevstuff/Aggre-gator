@@ -1,13 +1,13 @@
 import type { CSSProperties } from "react";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Globe, FolderIcon } from "lucide-react";
+import { Globe } from "lucide-react";
 import { z } from "zod";
 import { SiteNavbar } from "@/components/landing/site-navbar";
 import { Pagination } from "@/components/pagination";
 import { SearchBar } from "@/components/search-bar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useExplore } from "@/hooks/queries";
-import type { ExploreShare } from "@/types";
+import { usePublicExplore } from "@/hooks/queries";
+import type { PublicExploreEntry } from "@/types";
 import { cn } from "@/lib/utils";
 
 const searchSchema = z.object({
@@ -20,10 +20,14 @@ export const Route = createFileRoute("/explore")({
   component: ExplorePage,
 });
 
+/**
+ * The public directory. Lists `visibility = 'public'` collections only — an
+ * unlisted collection is reachable by URL but never enumerated here.
+ */
 function ExplorePage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const { data, isLoading, isError, refetch } = useExplore({
+  const { data, isLoading, isError, refetch } = usePublicExplore({
     q: search.q,
     page: search.page,
     limit: 24,
@@ -86,7 +90,9 @@ function ExplorePage() {
         ) : shares.length === 0 ? (
           <div className="mt-10 flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-20 text-center">
             <Globe className="size-6 text-muted-foreground/50" />
-            <p className="text-sm font-medium">Nothing published yet</p>
+            <p className="text-sm font-medium">
+              {search.q ? "No matches" : "Nothing published yet"}
+            </p>
             <p className="max-w-sm text-sm text-muted-foreground">
               {search.q
                 ? `No collections match “${search.q}”.`
@@ -97,7 +103,7 @@ function ExplorePage() {
           <>
             <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {shares.map((share) => (
-                <ExploreCard key={share.code} share={share} />
+                <ExploreCard key={share.id} share={share} />
               ))}
             </div>
 
@@ -119,11 +125,18 @@ function ExplorePage() {
   );
 }
 
-function ExploreCard({ share }: { share: ExploreShare }) {
+function ExploreCard({ share }: { share: PublicExploreEntry }) {
+  // Prefer the readable URL. Every published collection has both a slug and a
+  // username, so this is the normal path; the id fallback only covers rows that
+  // predate the phase-3 backfill.
+  const to =
+    share.username && share.slug
+      ? `/u/${share.username}/${share.slug}`
+      : `/u/${share.username ?? ""}`;
+
   return (
     <Link
-      to="/share/$code"
-      params={{ code: share.code }}
+      to={to}
       className={cn(
         "group flex flex-col rounded-xl border border-border/70 bg-card p-5 transition-colors",
         "hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
@@ -132,7 +145,7 @@ function ExploreCard({ share }: { share: ExploreShare }) {
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-lg",
+            "flex size-9 shrink-0 items-center justify-center rounded-lg text-base",
             share.color
               ? "bg-(--tint-bg) text-(--tint-fg)"
               : "bg-primary/10 text-primary",
@@ -144,25 +157,21 @@ function ExploreCard({ share }: { share: ExploreShare }) {
             } as CSSProperties
           }
         >
-          {share.icon ? (
-            <span className="text-base">{share.icon}</span>
-          ) : (
-            <FolderIcon className="size-4" />
-          )}
+          {share.icon ?? "📁"}
         </span>
 
         <div className="min-w-0">
           <h2 className="truncate text-sm font-medium group-hover:text-primary">
             {share.name}
           </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            shared by {share.sharedBy}
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {share.username ? `@${share.username}` : share.sharedBy}
           </p>
         </div>
       </div>
 
       {share.description && (
-        <p className="mt-3 line-clamp-3 text-sm text-pretty text-muted-foreground">
+        <p className="mt-3 line-clamp-3 text-pretty text-sm text-muted-foreground">
           {share.description}
         </p>
       )}

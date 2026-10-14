@@ -14,6 +14,11 @@ RUN bun install --frozen-lockfile --production --filter app
 # `drizzle/` ships the migrations the deploy step applies.
 COPY app/src ./app/src
 COPY app/drizzle ./app/drizzle
+# TrueType fonts for the Open Graph renderer. Satori cannot read the woff2 files
+# in client/public/fonts, so the OG weights are vendored here — see
+# app/assets/fonts/README.md. Rendering a preview card is not optional, so a
+# missing directory must fail the build rather than surface as a 500 later.
+COPY app/assets ./app/assets
 COPY shared ./shared
 
 ENV NODE_ENV=production
