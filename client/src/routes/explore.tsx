@@ -3,6 +3,7 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Globe } from "lucide-react";
 import { z } from "zod";
 import { SiteNavbar } from "@/components/landing/site-navbar";
+import { CollectionMosaic } from "@/components/public/collection-mosaic";
 import { Pagination } from "@/components/pagination";
 import { SearchBar } from "@/components/search-bar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,7 +102,7 @@ function ExplorePage() {
           </div>
         ) : (
           <>
-            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-10 columns-1 gap-5 sm:columns-2 lg:columns-3">
               {shares.map((share) => (
                 <ExploreCard key={share.id} share={share} />
               ))}
@@ -138,47 +139,51 @@ function ExploreCard({ share }: { share: PublicExploreEntry }) {
     <Link
       to={to}
       className={cn(
-        "group flex flex-col rounded-xl border border-border/70 bg-card p-5 transition-colors",
+        "group mb-5 flex break-inside-avoid flex-col overflow-hidden rounded-xl border border-border/70 bg-card transition-colors",
         "hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
       )}
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-lg text-base",
-            share.color
-              ? "bg-(--tint-bg) text-(--tint-fg)"
-              : "bg-primary/10 text-primary",
-          )}
-          style={
-            {
-              "--tint-bg": share.color ? `${share.color}20` : undefined,
-              "--tint-fg": share.color || undefined,
-            } as CSSProperties
-          }
-        >
-          {share.icon ?? "📁"}
-        </span>
+      <CollectionMosaic covers={share.covers} />
 
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-medium group-hover:text-primary">
-            {share.name}
-          </h2>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {share.username ? `@${share.username}` : share.sharedBy}
-          </p>
+      <div className="flex flex-1 flex-col p-5">
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-lg text-base",
+              share.color
+                ? "bg-(--tint-bg) text-(--tint-fg)"
+                : "bg-primary/10 text-primary",
+            )}
+            style={
+              {
+                "--tint-bg": share.color ? `${share.color}20` : undefined,
+                "--tint-fg": share.color || undefined,
+              } as CSSProperties
+            }
+          >
+            {share.icon ?? "📁"}
+          </span>
+
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-medium group-hover:text-primary">
+              {share.name}
+            </h2>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {share.username ? `@${share.username}` : share.sharedBy}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {share.description && (
-        <p className="mt-3 line-clamp-3 text-pretty text-sm text-muted-foreground">
-          {share.description}
+        {share.description && (
+          <p className="mt-3 line-clamp-3 text-pretty text-sm text-muted-foreground">
+            {share.description}
+          </p>
+        )}
+
+        <p className="mt-4 text-xs text-muted-foreground">
+          {share.bookmarkCount} bookmark{share.bookmarkCount === 1 ? "" : "s"}
         </p>
-      )}
-
-      <p className="mt-4 text-xs text-muted-foreground">
-        {share.bookmarkCount} bookmark{share.bookmarkCount === 1 ? "" : "s"}
-      </p>
+      </div>
     </Link>
   );
 }

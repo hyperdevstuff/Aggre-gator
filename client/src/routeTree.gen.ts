@@ -21,6 +21,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
 import { Route as ShareCodeRouteImport } from './routes/share.$code'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
+import { Route as UUsernameIndexRouteImport } from './routes/u.$username.index'
 import { Route as UUsernameSlugRouteImport } from './routes/u.$username.$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -82,6 +83,11 @@ const UUsernameRoute = UUsernameRouteImport.update({
   path: '/u/$username',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UUsernameIndexRoute = UUsernameIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => UUsernameRoute,
+} as any)
 const UUsernameSlugRoute = UUsernameSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/share/$code': typeof ShareCodeRoute
   '/u/$username': typeof UUsernameRouteWithChildren
   '/u/$username/$slug': typeof UUsernameSlugRoute
+  '/u/$username/': typeof UUsernameIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -113,8 +120,8 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/share/$code': typeof ShareCodeRoute
-  '/u/$username': typeof UUsernameRouteWithChildren
   '/u/$username/$slug': typeof UUsernameSlugRoute
+  '/u/$username': typeof UUsernameIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,6 +138,7 @@ export interface FileRoutesById {
   '/share/$code': typeof ShareCodeRoute
   '/u/$username': typeof UUsernameRouteWithChildren
   '/u/$username/$slug': typeof UUsernameSlugRoute
+  '/u/$username/': typeof UUsernameIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,6 +155,7 @@ export interface FileRouteTypes {
     | '/share/$code'
     | '/u/$username'
     | '/u/$username/$slug'
+    | '/u/$username/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -159,8 +168,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/dashboard'
     | '/share/$code'
-    | '/u/$username'
     | '/u/$username/$slug'
+    | '/u/$username'
   id:
     | '__root__'
     | '/'
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/share/$code'
     | '/u/$username'
     | '/u/$username/$slug'
+    | '/u/$username/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -278,6 +288,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UUsernameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$username/': {
+      id: '/u/$username/'
+      path: '/'
+      fullPath: '/u/$username/'
+      preLoaderRoute: typeof UUsernameIndexRouteImport
+      parentRoute: typeof UUsernameRoute
+    }
     '/u/$username/$slug': {
       id: '/u/$username/$slug'
       path: '/$slug'
@@ -302,10 +319,12 @@ const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
 
 interface UUsernameRouteChildren {
   UUsernameSlugRoute: typeof UUsernameSlugRoute
+  UUsernameIndexRoute: typeof UUsernameIndexRoute
 }
 
 const UUsernameRouteChildren: UUsernameRouteChildren = {
   UUsernameSlugRoute: UUsernameSlugRoute,
+  UUsernameIndexRoute: UUsernameIndexRoute,
 }
 
 const UUsernameRouteWithChildren = UUsernameRoute._addFileChildren(

@@ -165,6 +165,8 @@ export type PublicExploreEntry = {
   sharedBy: string;
   publishedAt: string | null;
   bookmarkCount: number;
+  /** Up to 4 cover images from the collection's subtree, for the mosaic. */
+  covers: string[];
 };
 
 /** One entry in the public Explore directory (`GET /share/explore`). */
@@ -180,6 +182,8 @@ export type ExploreShare = {
   sharedBy: string;
   sharedAt: string | null;
   bookmarkCount: number;
+  /** Up to 4 cover images from the collection's subtree, for the mosaic. */
+  covers: string[];
 };
 
 export type ExploreShareResponse = PaginatedResponse<ExploreShare>;
@@ -194,6 +198,8 @@ export type PublicCollection = {
   slug: string | null;
   publishedAt?: string | null;
   bookmarkCount: number;
+  /** Up to 4 cover images from the collection's subtree, for the mosaic. */
+  covers: string[];
 };
 
 /** `GET /u/:username`. Deliberately excludes email, plan and verification. */

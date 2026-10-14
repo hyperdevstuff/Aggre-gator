@@ -202,7 +202,7 @@ export function PublicCollectionView({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
             {bookmarks.data.map((bookmark) => (
               <PublicBookmarkCard key={bookmark.id} bookmark={bookmark} />
             ))}
@@ -261,7 +261,7 @@ function PublicBookmarkCard({ bookmark }: { bookmark: PublicBookmark }) {
       href={bookmark.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block overflow-hidden rounded-xl border border-border/60 bg-card transition-all duration-200 hover:border-border hover:shadow-lg"
+      className="group mb-4 block break-inside-avoid overflow-hidden rounded-xl border border-border/60 bg-card transition-all duration-200 hover:border-border hover:shadow-lg"
     >
       {bookmark.cover && (
         <div className="relative aspect-video overflow-hidden bg-muted">

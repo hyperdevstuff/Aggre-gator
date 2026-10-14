@@ -41,10 +41,10 @@ The private product is done. The public product does not exist yet.
 | Public profile `/u/:username` | ✅ | Phase 3 |
 | Public / unlisted / private | ✅ | Phase 3. `visibility` is enforced; Explore lists `public` only, so a code is genuinely link-only |
 | Readable public URLs | ✅ | Phase 3. Slug derived from the name on publish, editable, unique per owner |
-| Explore worth browsing | 🟡 | Text cards, newest-first, no images, no ranking. Bookmark count still ignores sub-collections |
+| Explore worth browsing | 🟡 | Phase 4a landed: 4-image mosaic covers + masonry on the public pages, and the count now includes sub-collections. Still newest-first, no ranking, no image search |
 | Save someone else's link / collection | ❌ | Not built. This is the Pinterest loop — the many-to-many storage it needs landed in phase 2 |
 | Follow / like / view counts | ❌ | No tables (phase 5) |
-| Image-first masonry layout | ❌ | Cover images are fetched and stored; the public pages just don't show them well |
+| Image-first masonry layout | ✅ | Phase 4a. 4-image mosaic covers built from each collection's subtree + CSS-column masonry on the public pages |
 | Manual ordering in a collection | ❌ | The spec promises "in this order". `collection_items.position` exists but nothing reorders it |
 | Plans / billing | ❌ | `user.plan` exists but is never enforced or read |
 | Email verification + mail provider | ❌ | Still open. Nothing is *listed* until an owner publishes, but spam accounts can reach a profile page and an OG card |
@@ -227,10 +227,30 @@ mosaics (phase 4), the Explore sub-collection count bug (phase 4).
 
 ### Phase 4 — Explore v2
 
-- 4-image mosaic covers built from bookmark images, masonry layout.
-- Tags and categories; ranking by saves, views and recency.
+**4a ✅ done (2026-10-14) — the visual pass and the count.**
+
+- 4-image mosaic covers built from bookmark images across each collection's
+  subtree, and CSS-column masonry on Explore, the public profile and the public
+  collection page. No schema change: covers and counts are computed at read time
+  by `getCollectionSubtreeMeta()` (one recursive CTE per page). A card with no
+  images stays a compact text card, which is what gives masonry its height
+  variety.
+- The sub-collection count bug is fixed for every public surface — Explore, the
+  profile, the collection pages' nested pills and the OG card now count the
+  whole subtree (non-private descendants, non-archived, each bookmark once),
+  matching the page they preview. The owner's dashboard keeps its direct counts.
+- **A phase-3 routing bug surfaced and was fixed:** the profile route had a
+  nested child but no `<Outlet/>`, so `/u/:username/:slug` rendered the profile
+  instead of the collection. The profile is now an index route under a layout —
+  the readable collection page actually renders, verified in a browser.
+
+**4b — still to do.**
+
+- Tags and categories on the directory. *Decided:* "categories" means reusing
+  the tags already on public bookmarks as filter **facets** — no new taxonomy.
 - Postgres full-text search to replace `ILIKE`.
-- Fix the count to include sub-collections.
+- Ranking. *Blocked on phase 5 for its best signals:* "saves" and "views" are
+  phase-5 tables, so ranking is recency + subtree bookmark count until then.
 
 ### Phase 5 — Social loop
 

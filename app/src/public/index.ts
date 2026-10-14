@@ -13,7 +13,7 @@ import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { NotFoundError } from "../error";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { rateLimitGuard } from "../utils/rate-limit";
-import { collectionBookmarkCount } from "../utils/collections";
+import { getCollectionSubtreeMeta } from "../utils/collections";
 import { usernameEq } from "../utils/user-identity";
 import { isCrawler } from "../utils/crawler";
 import { renderCrawlerDocument } from "../utils/html";
@@ -202,7 +202,7 @@ async function buildPublicCollectionPage(
   // Nested collections are listed flat, matching `/share/:code`. Filtered to
   // the same published set as the bookmark listing above, so the pills and the
   // grid can never disagree about what is visible.
-  const nested =
+  const nestedRows =
     visibleIds.length > 1
       ? await db
           .select({
@@ -211,9 +211,6 @@ async function buildPublicCollectionPage(
             icon: collections.icon,
             color: collections.color,
             slug: collections.slug,
-            bookmarkCount: collectionBookmarkCount(collections.id).as(
-              "bookmark_count",
-            ),
           })
           .from(collections)
           .where(
@@ -225,6 +222,16 @@ async function buildPublicCollectionPage(
           )
           .orderBy(asc(collections.name))
       : [];
+
+  // The pill counts include each child's own subtree, so they agree with the
+  // grid the visitor gets after clicking through.
+  const nestedMeta = await getCollectionSubtreeMeta(
+    nestedRows.map((row) => row.id),
+  );
+  const nested = nestedRows.map((row) => ({
+    ...row,
+    bookmarkCount: nestedMeta.get(row.id)?.bookmarkCount ?? 0,
+  }));
 
   return {
     collection: col,
@@ -278,9 +285,6 @@ export const publicRouter = new Elysia({ prefix: "/u" })
           username: users.username,
           sharedBy: users.name,
           publishedAt: collections.publishedAt,
-          bookmarkCount: collectionBookmarkCount(collections.id).as(
-            "bookmark_count",
-          ),
         })
         .from(collections)
         .innerJoin(users, eq(collections.userId, users.id))
@@ -295,8 +299,16 @@ export const publicRouter = new Elysia({ prefix: "/u" })
         .innerJoin(users, eq(collections.userId, users.id))
         .where(where);
 
+      // Counts and covers span each collection's whole subtree, matching the
+      // page a card links to rather than only its direct members.
+      const meta = await getCollectionSubtreeMeta(rows.map((row) => row.id));
+
       return {
-        data: rows,
+        data: rows.map((row) => ({
+          ...row,
+          bookmarkCount: meta.get(row.id)?.bookmarkCount ?? 0,
+          covers: meta.get(row.id)?.covers ?? [],
+        })),
         pagination: createPaginationMeta(page, limit, Number(count)),
       };
     },
@@ -336,9 +348,6 @@ export const publicRouter = new Elysia({ prefix: "/u" })
             color: collections.color,
             slug: collections.slug,
             publishedAt: collections.publishedAt,
-            bookmarkCount: collectionBookmarkCount(collections.id).as(
-              "bookmark_count",
-            ),
           })
           .from(collections)
           .where(publicFilter)
@@ -370,6 +379,15 @@ export const publicRouter = new Elysia({ prefix: "/u" })
           ),
       ]);
 
+      const collectionMeta = await getCollectionSubtreeMeta(
+        rows.map((row) => row.id),
+      );
+      const collectionsWithCovers = rows.map((row) => ({
+        ...row,
+        bookmarkCount: collectionMeta.get(row.id)?.bookmarkCount ?? 0,
+        covers: collectionMeta.get(row.id)?.covers ?? [],
+      }));
+
       const payload = {
         profile: {
           username: profile.username,
@@ -385,7 +403,7 @@ export const publicRouter = new Elysia({ prefix: "/u" })
           },
         },
         collections: {
-          data: rows,
+          data: collectionsWithCovers,
           pagination: createPaginationMeta(
             page,
             limit,

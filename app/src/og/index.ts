@@ -4,7 +4,7 @@ import { db } from "../db";
 import { collections, user as users } from "../db/schema";
 import { NotFoundError } from "../error";
 import { rateLimitGuard } from "../utils/rate-limit";
-import { collectionBookmarkCount } from "../utils/collections";
+import { getCollectionSubtreeMeta } from "../utils/collections";
 import { usernameEq } from "../utils/user-identity";
 import { renderOgCard } from "./render";
 
@@ -76,8 +76,6 @@ export const ogRouter = new Elysia({ prefix: "/og" })
           description: collections.description,
           owner: users.username,
           ownerName: users.name,
-          bookmarkCount:
-            collectionBookmarkCount(collections.id).as("bookmark_count"),
         })
         .from(collections)
         .innerJoin(users, eq(collections.userId, users.id))
@@ -86,11 +84,13 @@ export const ogRouter = new Elysia({ prefix: "/og" })
 
       if (!row) throw new NotFoundError("collection not found");
 
+      // Same subtree-aware count as the page the card previews.
+      const meta = await getCollectionSubtreeMeta([row.id]);
       const bytes = await renderOgCard({
         title: row.name,
         eyebrow: row.owner ? `@${row.owner}` : row.ownerName,
         subtitle: row.description ?? undefined,
-        meta: plural(row.bookmarkCount ?? 0, "bookmark"),
+        meta: plural(meta.get(row.id)?.bookmarkCount ?? 0, "bookmark"),
       });
       return png(bytes);
     },

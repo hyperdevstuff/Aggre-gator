@@ -13,7 +13,7 @@ import { and, eq, ilike, inArray, or, sql, desc } from "drizzle-orm";
 import { GoneError, NotFoundError } from "../error";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { rateLimitGuard } from "../utils/rate-limit";
-import { collectionBookmarkCount } from "../utils/collections";
+import { getCollectionSubtreeMeta } from "../utils/collections";
 import { isCrawler } from "../utils/crawler";
 import { renderCrawlerDocument } from "../utils/html";
 import { env } from "../env";
@@ -79,6 +79,7 @@ export const shareRouter = new Elysia({ prefix: "/share" })
       const rows = await db
         .select({
           code: sharedCollections.shareCode,
+          id: collections.id,
           name: collections.name,
           description: collections.description,
           icon: collections.icon,
@@ -87,9 +88,6 @@ export const shareRouter = new Elysia({ prefix: "/share" })
           username: user.username,
           sharedBy: user.name,
           sharedAt: collections.publishedAt,
-          bookmarkCount: collectionBookmarkCount(collections.id).as(
-            "bookmark_count",
-          ),
         })
         .from(collections)
         .leftJoin(
@@ -108,8 +106,14 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         .innerJoin(user, eq(collections.userId, user.id))
         .where(where);
 
+      const meta = await getCollectionSubtreeMeta(rows.map((row) => row.id));
+
       return {
-        data: rows,
+        data: rows.map((row) => ({
+          ...row,
+          bookmarkCount: meta.get(row.id)?.bookmarkCount ?? 0,
+          covers: meta.get(row.id)?.covers ?? [],
+        })),
         pagination: createPaginationMeta(page, limit, Number(count)),
       };
     },
@@ -181,7 +185,7 @@ export const shareRouter = new Elysia({ prefix: "/share" })
       );
 
       // get nested collections info (excluding the root one)
-      const nestedCollections =
+      const nestedRows =
         allCollectionIds.length > 1
           ? await db
               .select({
@@ -189,9 +193,6 @@ export const shareRouter = new Elysia({ prefix: "/share" })
                 name: collections.name,
                 icon: collections.icon,
                 color: collections.color,
-                bookmarkCount: collectionBookmarkCount(collections.id).as(
-                  "bookmark_count",
-                ),
               })
               .from(collections)
               .where(
@@ -201,6 +202,17 @@ export const shareRouter = new Elysia({ prefix: "/share" })
                 ),
               )
           : [];
+
+      // This page lists every descendant regardless of visibility, so the pill
+      // counts follow the same rule rather than pruning private children.
+      const nestedMeta = await getCollectionSubtreeMeta(
+        nestedRows.map((row) => row.id),
+        { includePrivateDescendants: true },
+      );
+      const nestedCollections = nestedRows.map((row) => ({
+        ...row,
+        bookmarkCount: nestedMeta.get(row.id)?.bookmarkCount ?? 0,
+      }));
 
       // paginate bookmarks across all collections
       const { page, limit, offset } = normalizePagination({

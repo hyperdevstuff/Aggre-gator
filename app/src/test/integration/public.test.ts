@@ -157,6 +157,25 @@ describe("GET /u/:username (public profile)", () => {
     // The distinct count is the point: a naive join would report 2.
     expect(body.profile.stats.publicBookmarks).toBe(1);
   });
+
+  test("collection cards carry covers and the subtree count", async () => {
+    const f = await setup("profcover");
+    const col = await f.newCollection({ name: "Covered Collection" });
+    await f.publish(col.id, { visibility: "public" });
+    const stamp = Date.now();
+    await f.newBookmark({
+      url: `https://example.com/only-${stamp}`,
+      title: "Only one",
+      cover: `https://cdn.example.com/only-${stamp}.png`,
+      collectionIds: [col.id],
+    });
+
+    const { body } = await json(`/u/${f.username}`);
+    const row = body.collections.data.find((c: any) => c.id === col.id);
+    expect(row).toBeTruthy();
+    expect(row.bookmarkCount).toBe(1);
+    expect(row.covers).toEqual([`https://cdn.example.com/only-${stamp}.png`]);
+  });
 });
 
 describe("GET /u/:username/:slug (public collection)", () => {
@@ -409,6 +428,92 @@ describe("GET /u/explore", () => {
     const row = body.data.find((r: any) => r.name === "Readable");
     expect(row.username).toBe(f.username);
     expect(row.slug).toBe("readable");
+  });
+
+  test("counts and covers span non-private sub-collections", async () => {
+    const f = await setup("subtree");
+    const parent = await f.newCollection({ name: "Parent Shelf" });
+    const child = await f.newCollection({
+      name: "Child Shelf",
+      parentId: parent.id,
+    });
+    await f.publish(parent.id, { visibility: "public" });
+    // Unlisted, not public: the child contributes to the parent's count and
+    // covers without being enumerated in Explore itself.
+    await f.publish(child.id, { visibility: "unlisted" });
+
+    const stamp = Date.now();
+    await f.newBookmark({
+      url: `https://example.com/p-${stamp}`,
+      title: "In parent",
+      cover: `https://cdn.example.com/p-${stamp}.png`,
+      collectionIds: [parent.id],
+    });
+    await f.newBookmark({
+      url: `https://example.com/c1-${stamp}`,
+      title: "Child one",
+      cover: `https://cdn.example.com/c1-${stamp}.png`,
+      collectionIds: [child.id],
+    });
+    await f.newBookmark({
+      url: `https://example.com/c2-${stamp}`,
+      title: "Child two",
+      cover: `https://cdn.example.com/c2-${stamp}.png`,
+      collectionIds: [child.id],
+    });
+
+    const { body } = await json("/u/explore?limit=100");
+    const row = body.data.find((r: any) => r.id === parent.id);
+    expect(row).toBeTruthy();
+    // The parent's own bookmark plus the child's two — the count is the subtree.
+    expect(row.bookmarkCount).toBe(3);
+    expect(row.covers).toHaveLength(3);
+    expect(row.covers).toContain(`https://cdn.example.com/c1-${stamp}.png`);
+    // The unlisted child is not itself listed.
+    expect(body.data.some((r: any) => r.id === child.id)).toBe(false);
+  });
+
+  test("covers stop at four; archived and private-child bookmarks do not count", async () => {
+    const f = await setup("cap");
+    const parent = await f.newCollection({ name: "Cap Parent" });
+    const privateChild = await f.newCollection({
+      name: "Cap Private Child",
+      parentId: parent.id,
+    });
+    await f.publish(parent.id, { visibility: "public" });
+
+    const stamp = Date.now();
+    const createdIds: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const res = await f.newBookmark({
+        url: `https://example.com/cap-${i}-${stamp}`,
+        title: `Cap ${i}`,
+        cover: `https://cdn.example.com/cap-${i}-${stamp}.png`,
+        collectionIds: [parent.id],
+      });
+      createdIds.push(res.body.id);
+    }
+    // Sits in a private child: must not contribute to the public parent.
+    await f.newBookmark({
+      url: `https://example.com/hidden-${stamp}`,
+      title: "Hidden",
+      cover: `https://cdn.example.com/hidden-${stamp}.png`,
+      collectionIds: [privateChild.id],
+    });
+    const archived = await authJson(
+      f.cookie,
+      `/bookmarks/${createdIds[0]}/archive`,
+      { method: "POST" },
+    );
+    expect(archived.status).toBe(200);
+
+    const { body } = await json("/u/explore?limit=100");
+    const row = body.data.find((r: any) => r.id === parent.id);
+    expect(row.bookmarkCount).toBe(5); // 6 minus the archived one
+    expect(row.covers).toHaveLength(4); // capped
+    expect(row.covers).not.toContain(
+      `https://cdn.example.com/hidden-${stamp}.png`,
+    );
   });
 
   test("honours ?q=", async () => {

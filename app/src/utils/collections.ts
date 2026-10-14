@@ -134,3 +134,80 @@ export function collectionBookmarkCount(
     WHERE ${collectionItems.collectionId} = ${collectionIdSql}
   )::int`;
 }
+
+export type CollectionSubtreeMeta = {
+  /** Non-archived bookmarks across the whole subtree, counted once each. */
+  bookmarkCount: number;
+  /** Up to 4 distinct cover images from those bookmarks. */
+  covers: string[];
+};
+
+type SubtreeMetaRow = {
+  root_id: string;
+  bookmark_count: number | string;
+  covers: string[] | null;
+};
+
+/**
+ * Bookmark count and cover thumbnails for several collections at once, counted
+ * across each collection's entire subtree rather than only its direct members.
+ *
+ * This is the public-facing count: it matches what a visitor actually sees on
+ * the readable page (`buildPublicCollectionPage`), which lists bookmarks from
+ * the subtree of *non-private* descendants and hides archived ones. The direct
+ * `collectionBookmarkCount` above is still used for the owner's dashboard.
+ *
+ * One query for the whole page — the recursive CTE closes over every root at
+ * once, so a 24-card listing is one round trip, not 24.
+ */
+export async function getCollectionSubtreeMeta(
+  rootIds: string[],
+  opts: { includePrivateDescendants?: boolean } = {},
+): Promise<Map<string, CollectionSubtreeMeta>> {
+  const map = new Map<string, CollectionSubtreeMeta>();
+  if (rootIds.length === 0) return map;
+
+  // Bind each id separately; never interpolate user-controlled values.
+  const idList = sql.join(
+    rootIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
+  // A private child must not contribute to a public parent's count, matching
+  // the listing. The share-code page lists every descendant, so it opts out.
+  const descendantFilter = opts.includePrivateDescendants
+    ? sql``
+    : sql`AND c.visibility <> 'private'`;
+
+  const result = (await db.execute(sql`
+    WITH RECURSIVE tree AS (
+      SELECT id, id AS root_id FROM collections WHERE id IN (${idList})
+      UNION ALL
+      SELECT c.id, t.root_id
+      FROM collections c
+      JOIN tree t ON c.parent_id = t.id
+      WHERE true ${descendantFilter}
+    )
+    SELECT t.root_id AS root_id,
+      count(DISTINCT ci.bookmark_id) FILTER (WHERE b.archived_at IS NULL)::int AS bookmark_count,
+      (array_agg(DISTINCT b.cover) FILTER (
+        WHERE b.cover IS NOT NULL AND b.archived_at IS NULL
+      ))[1:4] AS covers
+    FROM tree t
+    LEFT JOIN collection_items ci ON ci.collection_id = t.id
+    LEFT JOIN bookmarks b ON b.id = ci.bookmark_id
+    GROUP BY t.root_id
+  `)) as { rows?: SubtreeMetaRow[] } | SubtreeMetaRow[];
+
+  const rows = Array.isArray(result) ? result : (result.rows ?? []);
+  for (const row of rows) {
+    map.set(row.root_id, {
+      bookmarkCount: Number(row.bookmark_count ?? 0),
+      covers: row.covers ?? [],
+    });
+  }
+  // Every requested id resolves, even when the query returns nothing for it.
+  for (const id of rootIds) {
+    if (!map.has(id)) map.set(id, { bookmarkCount: 0, covers: [] });
+  }
+  return map;
+}

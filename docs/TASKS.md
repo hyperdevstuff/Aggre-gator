@@ -20,7 +20,7 @@ Where each section below sits in the roadmap:
 | [1](ROADMAP.md#phase-1--hardening--done-2026-10-07) | Hardening: SSRF, scrape, stats, rate limits, share payload | ✅ done |
 | [2](ROADMAP.md#phase-2--data-model-migration--done-2026-10-07) | Data model: `collection_items`, `archived_at`, visibility, user identity | ✅ done (2026-10-07) |
 | [3](ROADMAP.md#phase-3--public-layer--done-2026-10-12) | Public layer: profiles, readable URLs, crawler HTML, OG images | ✅ done (2026-10-12) |
-| [4](ROADMAP.md#phase-4--explore-v2) | Explore v2: image mosaics, masonry, ranking, full-text search | ❌ not started |
+| [4](ROADMAP.md#phase-4--explore-v2) | Explore v2: image mosaics, masonry, ranking, full-text search | 🟡 4a done (mosaic covers, masonry, sub-collection count); ranking/FTS/tags remain |
 | [5](ROADMAP.md#phase-5--social-loop) | Social loop: save, fork, follow, view counts | ❌ not started |
 | [6](ROADMAP.md#phase-6--monetization) | Monetization: `user.plan`, limits at the API layer | ❌ not started |
 
@@ -148,15 +148,15 @@ Where each section below sits in the roadmap:
 | ✅ | **OG images at 1200×630** (phase 3) — `satori` + `@resvg/resvg-wasm`, served from the API (`/og/collection/:id.png`, `/og/profile/:username.png`), `public, max-age=86400, stale-while-revalidate=43200`. Fonts vendored as TrueType in `app/assets/fonts/` because satori cannot read the woff2 files. `X-Robots-Tag: noindex` on the crawler HTML: this is a link-preview surface, not an SEO one |
 | ✅ | **nginx crawler routing** — `client/nginx.conf` maps `User-Agent` to `$aggregator_is_crawler` and proxies `/u/`, `/share/` to the API *only* for crawlers; browsers fall through to `try_files` and never touch the API. Unconditional proxying would deadlock, since the redirect target is the same path nginx just proxied. `nginx -t` runs in the image build, because that `if`/`proxy_pass` combination is version-sensitive |
 | ✅ | Favicon (`favicon.svg`), theme-color, description and title in `index.html` |
-| ❌ | `GET /share/explore` count ignores sub-collections (`share/index.ts`) |
-| ❌ | Image-first presentation: 4-image mosaic covers + masonry on public pages |
+| ✅ | Sub-collection count fixed (phase 4a) — `getCollectionSubtreeMeta()` counts a collection's whole subtree (non-private descendants, non-archived, each bookmark once) for Explore, the public profile, the collection pages' nested pills and the OG card, so a card and the page it links to can no longer disagree |
+| ✅ | Image-first presentation (phase 4a): `CollectionMosaic` renders up to 4 covers from a collection's subtree; CSS-column masonry on Explore, the public profile and the public collection page |
 
 ### Explore / Social
 
 | Status | Task |
 |--------|------|
-| ✅ | Basic directory: newest-first, text cards, `?q=` via `ILIKE` |
-| ❌ | Categories/tags on the directory; ranking by saves, views, recency (phase 4) |
+| ✅ | Basic directory: newest-first, mosaic cards (phase 4a), `?q=` via `ILIKE` |
+| 🟡 | Categories/tags on the directory, ranking by saves/views: tag **facets** and full-text search are phase 4b; real saves/views ranking waits for the phase-5 tables. Mosaic covers, masonry and the subtree count landed in phase 4a |
 | ❌ | Postgres full-text search to replace `ILIKE` (phase 4) |
 | ❌ | Save a single link / fork a shared collection; follow a curator; view counts (phase 5) |
 | ❌ | `links` table (shared preview + save count) + `normalizeUrl()` — deferred to phase 5, see `docs/decisions/001-links-table.md`. Keep the existing per-user `bookmarks_user_url_unique` as-is until then |
@@ -256,6 +256,39 @@ Decisions worth remembering:
   with the page.
 - **nginx routes by User-Agent.** Unconditional proxying deadlocks, because the
   API's redirect target is the same path nginx just proxied.
+
+## Phase 4a shipped — Explore visuals + count (2026-10-14)
+
+The public directory now looks like a browse surface, and its counts agree with
+the pages they link to.
+
+| Piece | Where |
+|---|---|
+| Subtree count + cover query | `getCollectionSubtreeMeta()` — `app/src/utils/collections.ts` |
+| Wired into the public surfaces | `app/src/public/index.ts` (Explore, profile, nested pills), `app/src/share/index.ts`, `app/src/og/index.ts` |
+| Mosaic component | `client/src/components/public/collection-mosaic.tsx` |
+| Masonry | CSS columns on `client/src/routes/explore.tsx`, `client/src/routes/u.$username.tsx`, `client/src/components/public/public-collection-view.tsx` |
+
+Decisions worth remembering:
+
+- **No migration.** Covers and subtree counts are computed per request with one
+  recursive CTE for the whole page (≤24 roots), not per card.
+- **Count semantics match the public page**: subtree of *non-private*
+  descendants, archived excluded, each bookmark counted once. The share-code
+  page lists every descendant, so its nested pills pass
+  `includePrivateDescendants: true` to follow its own listing.
+- **The owner's dashboard counts are unchanged** — `collectionBookmarkCount()`
+  (direct members) is still used there.
+- **Masonry uses CSS columns**, so visual order is column-major; DOM order is
+  unchanged. Acceptable for a directory.
+- **Also fixed a phase-3 SPA routing bug:** `u.$username.tsx` (the profile) had a
+  child route but rendered no `<Outlet />`, so every `/u/:username/:slug` URL
+  mounted the *profile* and the readable collection page never rendered (the
+  API tests passed; nothing exercised the SPA route). It is now a layout with
+  `<Outlet/>`, the profile moved to `u.$username.index.tsx`, and the collection
+  is a sibling — verified in a real browser.
+- **Still open in phase 4:** tag facets, full-text search, and ranking (its
+  saves/views signals are phase-5 tables, so ranking stays recency + count).
 
 ## 3. Fixed on 2026-10-07 (hardening pass)
 
