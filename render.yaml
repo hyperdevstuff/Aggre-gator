@@ -1,0 +1,30 @@
+# Render blueprint — deploys the whole stack as one free web service.
+#   Render dashboard → New → Blueprint → pick this repo; or `render blueprint launch`.
+#
+# The Postgres database is Neon's free tier, not Render's (Render free
+# databases are deleted after 30 days — docs/DEPLOY.md). Create the Neon
+# project first, then paste its pooled connection string when the dashboard
+# asks for DATABASE_URL (marked sync: false below).
+#
+# Free-plan caveat: the service sleeps after ~15 minutes without traffic and
+# takes about a minute to wake. CLIENT_URL / BETTER_AUTH_URL are derived from
+# Render's RENDER_EXTERNAL_URL at runtime (app/src/env.ts), so the default
+# *.onrender.com hostname needs no configuration; when you attach a custom
+# domain, set CLIENT_URL + BETTER_AUTH_URL to it explicitly.
+services:
+  - type: web
+    name: aggregator
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false

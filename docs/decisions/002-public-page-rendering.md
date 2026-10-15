@@ -129,6 +129,28 @@ touches the edge, and it exists because the edge is what serves the public URLs.
 The API is already a long-running Bun server with a health check; it just gains a
 route that does some rendering.
 
+## Addendum (2026-10-15): the edge moved into the API
+
+The first real deployment (Render free tier + Neon, `docs/DEPLOY.md`) has no
+nginx: a static-only host cannot do User-Agent routing, so the single-service
+image (`Dockerfile`) has the API serve the built SPA instead, and the edge
+logic from `client/nginx.conf` folds into `app/src/utils/client-spa.ts`:
+
+- Crawlers still get the rendered documents from the same handlers, unchanged.
+- Browsers are separated from the app's own `fetch()` calls by
+  **navigation markers** (`Sec-Fetch-Mode: navigate`, or an `Accept` header
+  advertising `text/html` for older browsers) rather than by URL routing: the
+  API and the pages share paths, so a navigation to `/u/alice` gets the SPA
+  shell while `fetch("/u/alice")` still gets JSON. The nginx design needed the
+  two to live on different layers; in one process the request itself says
+  which one it wants.
+- The nginx path remains as the self-hosted alternative. Note for anyone
+  reviving it: `try_files` in the `^/(u|share)/` location returns `index.html`
+  to the SPA's own data fetches on those paths — the edge design assumed the
+  SPA never fetched `/u/*` or `/share/*`, which stopped being true when the
+  explore directory shipped. The single-process mode does not have this bug:
+  fetches carry no navigation markers and always reach the API.
+
 ## Consequences
 
 - Link previews work, which is the whole point of phase 3 for a sharing product.

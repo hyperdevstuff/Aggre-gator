@@ -25,6 +25,13 @@ export type Env = {
    * per-client limits.
    */
   TRUST_PROXY: boolean;
+  /**
+   * Directory containing the built SPA (client/dist). When set, the API serves
+   * the SPA itself and the public pages fall back to the app shell instead of
+   * JSON for browsers — the single-process deployment, no nginx tier
+   * (docs/DEPLOY.md). Unset keeps the classic split (nginx in front).
+   */
+  CLIENT_DIST_DIR: string | undefined;
 };
 
 const isHttps = (url: string) => {
@@ -61,10 +68,15 @@ function validate(): Env {
     }
   }
 
-  const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL;
+  // Render (and PaaSes generally) expose the service's public https URL; when
+  // the SPA is served by this same process, the API's public origin IS the
+  // client origin, so both URLs derive from it. Explicit env still wins.
+  const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL?.replace(/\/$/, "");
+
+  const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || RENDER_EXTERNAL_URL;
   if (!BETTER_AUTH_URL) problems.push(`BETTER_AUTH_URL is missing. ${hint}`);
 
-  const CLIENT_URL = process.env.CLIENT_URL;
+  const CLIENT_URL = process.env.CLIENT_URL || RENDER_EXTERNAL_URL;
   if (!CLIENT_URL) {
     problems.push(`CLIENT_URL is missing — it must exactly match the Vite origin (CORS + trustedOrigins). ${hint}`);
   }
@@ -121,6 +133,7 @@ function validate(): Env {
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
     TRUST_PROXY,
+    CLIENT_DIST_DIR: process.env.CLIENT_DIST_DIR || undefined,
   };
 }
 

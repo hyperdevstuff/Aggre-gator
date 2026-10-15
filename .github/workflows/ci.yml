@@ -61,3 +61,5 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build -f app/Dockerfile -t aggre-gator-api .
       - run: docker build -f client/Dockerfile --build-arg VITE_API_URL=http://localhost:3001 -t aggre-gator-web .
+      # The single-service image that deploys to Render (docs/DEPLOY.md).
+      - run: docker build -t aggre-gator .

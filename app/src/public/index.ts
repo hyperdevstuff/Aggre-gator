@@ -19,6 +19,11 @@ import { ftsCondition } from "../utils/full-text-search";
 import { usernameEq } from "../utils/user-identity";
 import { isCrawler } from "../utils/crawler";
 import { renderCrawlerDocument } from "../utils/html";
+import {
+  spaEnabled,
+  spaIndexResponse,
+  wantsHtmlDocument,
+} from "../utils/client-spa";
 import { env } from "../env";
 
 /** Absolute URL on the public origin, where the SPA and the pages live. */
@@ -250,7 +255,12 @@ export const publicRouter = new Elysia({ prefix: "/u" })
   // Registered before `/:username` so `explore` is never swallowed by the param.
   .get(
     "/explore",
-    async ({ query }) => {
+    async ({ query, request }) => {
+      // A navigation to /u/explore is the SPA directory page, not a data
+      // query — serve the shell and skip the facet work entirely.
+      if (spaEnabled() && wantsHtmlDocument(request)) {
+        return spaIndexResponse();
+      }
       const { page, limit, offset } = normalizePagination({
         page: query.page,
         limit: query.limit,
@@ -439,6 +449,11 @@ export const publicRouter = new Elysia({ prefix: "/u" })
         );
       }
 
+      // Single-process deployment: a navigation to a profile URL gets the app
+      // shell; the app's own queries still receive the JSON payload.
+      if (spaEnabled() && wantsHtmlDocument(request)) {
+        return spaIndexResponse();
+      }
       return payload;
     },
     {
@@ -515,6 +530,11 @@ export const publicRouter = new Elysia({ prefix: "/u" })
         );
       }
 
+      // Single-process deployment: same shell-for-navigations split as the
+      // profile page above.
+      if (spaEnabled() && wantsHtmlDocument(request)) {
+        return spaIndexResponse();
+      }
       return result;
     },
     {

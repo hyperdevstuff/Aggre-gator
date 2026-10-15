@@ -17,6 +17,11 @@ import { getCollectionSubtreeMeta } from "../utils/collections";
 import { buildExploreResponse, tagInSubtree } from "../utils/explore";
 import { ftsCondition } from "../utils/full-text-search";
 import { isCrawler } from "../utils/crawler";
+import {
+  spaEnabled,
+  spaIndexResponse,
+  wantsHtmlDocument,
+} from "../utils/client-spa";
 import { renderCrawlerDocument } from "../utils/html";
 import { env } from "../env";
 
@@ -56,7 +61,12 @@ export const shareRouter = new Elysia({ prefix: "/share" })
   // this route and will replace it.
   .get(
     "/explore",
-    async ({ query }) => {
+    async ({ query, request }) => {
+      // A navigation to /share/explore is the SPA directory page, not a data
+      // query — serve the shell and skip the facet work entirely.
+      if (spaEnabled() && wantsHtmlDocument(request)) {
+        return spaIndexResponse();
+      }
       const { page, limit, offset } = normalizePagination({
         page: query.page,
         limit: query.limit,
@@ -337,6 +347,13 @@ export const shareRouter = new Elysia({ prefix: "/share" })
             },
           },
         );
+      }
+
+      // In the single-process deployment the API serves the SPA: a navigation
+      // to the share page gets the app shell, while the app's own queries
+      // (no navigation markers) still receive the JSON payload.
+      if (spaEnabled() && wantsHtmlDocument(request)) {
+        return spaIndexResponse();
       }
 
       return payload;

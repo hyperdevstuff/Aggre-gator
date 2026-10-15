@@ -94,6 +94,7 @@ Where each section below sits in the roadmap:
 | 🟡 | Rate-limit counters are per process — a multi-replica deploy needs a shared store (Postgres/Redis) before the limits mean anything |
 | ❌ | Request logging / monitoring |
 | ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20. `app/Dockerfile` now also copies `app/assets/fonts` (the OG renderer needs them), and `client/Dockerfile` runs `nginx -t` so a broken crawler-routing config fails the image build rather than the deploy |
+| ✅ | **Hosted on Render (free) + Neon Postgres (free), 2026-10-15.** Root `Dockerfile` = one image: the API serves the built SPA (`CLIENT_DIST_DIR`), runs migrations on boot, and replaces the nginx tier entirely — see `docs/DEPLOY.md`. Navigation-vs-fetch detection (`app/src/utils/client-spa.ts`) lets the API and the pages share URLs (`Sec-Fetch-Mode: navigate` / `Accept: text/html` → SPA shell, anything else → JSON). The nginx split stays as the self-hosted alternative |
 | 🟡 | OG rendering adds ~8 MB to the API bundle (satori + resvg WASM, loaded lazily on first request). Fine at current scale; worth revisiting if the API image size becomes a constraint |
 
 ---

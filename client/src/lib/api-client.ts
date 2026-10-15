@@ -29,11 +29,16 @@ export type ExploreParams = {
 };
 
 /**
- * Must match the proxy target in `vite.config.ts` and the API's `PORT` default
- * (3001). Defaulting to 3000 was wrong: a checkout without `VITE_API_URL` set
- * would silently talk to whatever else happened to be on 3000.
+ * Empty string means same-origin (the API serves the SPA in the single-process
+ * deployment — see docs/DEPLOY.md); fetches then go to `/bookmarks` etc.
+ * Anything else must match the proxy target in `vite.config.ts` and the API's
+ * `PORT` default (3001). Defaulting to 3000 was wrong: a checkout without
+ * `VITE_API_URL` set would silently talk to whatever else happened to be on 3000.
  */
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(
+  /\/$/,
+  "",
+);
 
 export class ApiError extends Error {
   constructor(

@@ -25,6 +25,10 @@ ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 WORKDIR /srv/app
+# Healthcheck. The program is single-quoted on purpose: shell form runs
+# /bin/sh -c, and the JS template literal's backticks inside double quotes
+# get command-substituted by sh — the check then fails on a healthy server
+# (verified: exit 1 live, exit 1 dead). Single quotes pass it to bun intact.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD bun -e "if (!await fetch(`http://localhost:${process.env.PORT || 3001}/health`).then((r) => r.ok).catch(() => false)) process.exit(1)"
+  CMD bun -e 'if (!await fetch(`http://localhost:${process.env.PORT || 3001}/health`).then((r) => r.ok).catch(() => false)) process.exit(1)'
 CMD ["bun", "src/index.ts"]
