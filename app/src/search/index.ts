@@ -1,8 +1,9 @@
 import { Elysia, t } from "elysia";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { bookmarks, collections, tags } from "../db/schema";
 import { betterAuthPlugin } from "../utils/auth";
-import { and, eq, sql } from "drizzle-orm";
+import { ftsCondition } from "../utils/full-text-search";
 
 export const searchRouter = new Elysia({ prefix: "/search" })
     .use(betterAuthPlugin)
@@ -10,8 +11,12 @@ export const searchRouter = new Elysia({ prefix: "/search" })
         "/",
         async ({ query: { q }, user }) => {
             const userId = user.id;
-            const searchPattern = `%${q}%`;
 
+            // Full-text over generated `search_vector` columns (bookmarks:
+            // title + description + domain; collections: name + description)
+            // and an expression index on tag names. Word matches plus a
+            // prefix arm, so "zepp" finds "Zeppelin" — but mid-word
+            // substrings the old ILIKE matched no longer do.
             const [bookmarksResults, collectionsResults, tagsResults] =
                 await Promise.all([
                     db.select({
@@ -25,9 +30,7 @@ export const searchRouter = new Elysia({ prefix: "/search" })
                         .where(
                             and(
                                 eq(bookmarks.userId, userId),
-                                sql`(${bookmarks.title} ILIKE ${searchPattern}
-                             OR ${bookmarks.url} ILIKE ${searchPattern}
-                             OR ${bookmarks.description} ILIKE ${searchPattern})`,
+                                ftsCondition(sql`bookmarks.search_vector`, q),
                             ),
                         )
                         .limit(10),
@@ -40,8 +43,7 @@ export const searchRouter = new Elysia({ prefix: "/search" })
                         .where(
                             and(
                                 eq(collections.userId, userId),
-                                sql`(${collections.name} ILIKE ${searchPattern}
-                             OR ${collections.description} ILIKE ${searchPattern})`,
+                                ftsCondition(sql`collections.search_vector`, q),
                             ),
                         )
                         .limit(5),
@@ -54,7 +56,7 @@ export const searchRouter = new Elysia({ prefix: "/search" })
                         .where(
                             and(
                                 eq(tags.userId, userId),
-                                sql`(${tags.name} ILIKE ${searchPattern})`,
+                                ftsCondition(sql`to_tsvector('english', ${tags.name})`, q),
                             ),
                         )
                         .limit(5),

@@ -41,7 +41,7 @@ The private product is done. The public product does not exist yet.
 | Public profile `/u/:username` | ✅ | Phase 3 |
 | Public / unlisted / private | ✅ | Phase 3. `visibility` is enforced; Explore lists `public` only, so a code is genuinely link-only |
 | Readable public URLs | ✅ | Phase 3. Slug derived from the name on publish, editable, unique per owner |
-| Explore worth browsing | 🟡 | Phase 4a landed: 4-image mosaic covers + masonry on the public pages, and the count now includes sub-collections. Still newest-first, no ranking, no image search |
+| Explore worth browsing | ✅ | Phase 4. Mosaic covers + masonry, subtree counts, full-text search, tag facets, `sort=new/top`. Ranking signals beyond bookmark count (saves, views) are phase 5 |
 | Save someone else's link / collection | ❌ | Not built. This is the Pinterest loop — the many-to-many storage it needs landed in phase 2 |
 | Follow / like / view counts | ❌ | No tables (phase 5) |
 | Image-first masonry layout | ✅ | Phase 4a. 4-image mosaic covers built from each collection's subtree + CSS-column masonry on the public pages |
@@ -225,7 +225,7 @@ bookmarks must keep their real collection, which is the whole point of 3.2.
 Not carried into this phase: email verification (still open), Explore ranking and
 mosaics (phase 4), the Explore sub-collection count bug (phase 4).
 
-### Phase 4 — Explore v2
+### Phase 4 — Explore v2 ✅ done (2026-10-14)
 
 **4a ✅ done (2026-10-14) — the visual pass and the count.**
 
@@ -244,13 +244,20 @@ mosaics (phase 4), the Explore sub-collection count bug (phase 4).
   instead of the collection. The profile is now an index route under a layout —
   the readable collection page actually renders, verified in a browser.
 
-**4b — still to do.**
+**4b ✅ done (2026-10-14) — facets, search, ranking.**
 
-- Tags and categories on the directory. *Decided:* "categories" means reusing
-  the tags already on public bookmarks as filter **facets** — no new taxonomy.
-- Postgres full-text search to replace `ILIKE`.
-- Ranking. *Blocked on phase 5 for its best signals:* "saves" and "views" are
-  phase-5 tables, so ranking is recency + subtree bookmark count until then.
+- Tag facets: the tags already on public bookmarks surface as filter chips.
+  "Categories" was never a real model — the decision was to reuse tags as
+  facets, and that is what shipped. Membership is subtree-aware, matching the
+  counts; the chips are computed without the active tag so they stay stable.
+- Postgres full-text search: `ILIKE` is gone from the directory and `/search`,
+  replaced by generated `search_vector` columns + GIN indexes (migration
+  `0011`, hand-written, outside `schema.ts` like 0007/0008/0010). Matching is
+  whole words plus a word prefix — a deliberate behavior change, tested.
+- Ranking: `sort=new` (default, unchanged) and `sort=top` (subtree bookmark
+  count, recency as tiebreak). The honest part of this bullet — saves and
+  views — has no tables yet, so it rides with phase 5; the count is the proxy
+  until then.
 
 ### Phase 5 — Social loop
 

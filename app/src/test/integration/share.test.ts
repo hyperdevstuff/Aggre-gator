@@ -122,6 +122,80 @@ describe("public share api", () => {
   });
 });
 
+describe("GET /share/explore facets, tag filter and sort", () => {
+  let userId: string;
+  let cookie: string;
+  let alphaId: string;
+  let betaId: string;
+
+  const json = async (path: string, init?: RequestInit) => {
+    const res = await app.handle(new Request(`http://localhost${path}`, init));
+    return { status: res.status, body: await res.json() };
+  };
+
+  beforeAll(async () => {
+    const testUser = await createTestUser();
+    userId = testUser.user.id;
+    cookie = await getSessionCookie(testUser.email, testUser.password);
+
+    const post = (path: string, body?: unknown) =>
+      json(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: cookie },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+    const patch = (path: string, body: unknown) =>
+      json(path, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: cookie },
+        body: JSON.stringify(body),
+      });
+
+    alphaId = (await post("/collections", { name: "Legacy Alpha" })).body.id;
+    betaId = (await post("/collections", { name: "Legacy Beta" })).body.id;
+    await patch(`/collections/${alphaId}`, { visibility: "public" });
+    await patch(`/collections/${betaId}`, { visibility: "public" });
+    const stamp = Date.now();
+    await post("/bookmarks", {
+      url: `https://example.com/la-${stamp}`,
+      title: "LA",
+      tags: ["legacytag"],
+      collectionIds: [alphaId],
+    });
+    await post("/bookmarks", {
+      url: `https://example.com/lb-${stamp}`,
+      title: "LB",
+      tags: ["legacytag"],
+      collectionIds: [betaId],
+    });
+  });
+
+  afterAll(async () => {
+    await cleanupTestUser(userId);
+  });
+
+  test("mirrors /u/explore: facets, tag filter and sort=top", async () => {
+    const base = await json("/share/explore?limit=100");
+    expect(base.body.facets.some((f: any) => f.tag === "legacytag")).toBe(true);
+
+    const byTag = await json("/share/explore?tag=legacytag&limit=100");
+    const names = byTag.body.data.map((r: any) => r.name);
+    expect(names).toContain("Legacy Alpha");
+    expect(names).toContain("Legacy Beta");
+    expect(byTag.body.facets.some((f: any) => f.tag === "legacytag")).toBe(true);
+
+    const top = await json("/share/explore?sort=top&limit=100");
+    const alpha = top.body.data.find((r: any) => r.name === "Legacy Alpha");
+    expect(alpha.bookmarkCount).toBe(1);
+
+    // Unknown sorts are rejected (400 per the error plugin), exactly like the
+    // successor route.
+    const bad = await json("/share/explore?sort=oldest&limit=100");
+    expect(bad.status).toBe(400);
+  });
+});
+
 describe("GET /user/stats", () => {
   let userId: string;
   let cookie: string;

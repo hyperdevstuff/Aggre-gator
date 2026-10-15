@@ -99,6 +99,13 @@ Frontend/design work should follow (when available): `frontend-design`, `shadcn`
   `collectionIds: string[]` and writes accept `collectionIds` (default filing is Unsorted).
   The `GET /bookmarks?collectionId=` filter stays singular — it means "filed in this one collection".
 - Scraping metadata is best-effort: 404s/dead URLs fall back to hostname and log a single-line warning.
+- **Search on the public directory and `/search` is full-text (word + prefix), not substring** —
+  `q=zepp` finds "Zeppelin", `q=eppeli` does not. Phase 4b replaced ILIKE there
+  (generated `search_vector` columns + GIN, migration `0011`); the dashboard
+  bookmark filter still uses ILIKE. `/u/explore` and `/share/explore` also take
+  `tag=` (subtree-aware facet filter) and `sort=new|top`, and return `facets`.
+  The dashboard's subtree counts/covers and the facet machinery share
+  `getCollectionSubtreeMeta` / `app/src/utils/explore.ts`.
 - **Never `fetch` a user-supplied URL directly.** Run it through
   `app/src/utils/url-guard.ts` (`assertSafeToFetch`) — it resolves the host and refuses
   anything non-public, and redirects are followed by hand so every hop is re-checked.

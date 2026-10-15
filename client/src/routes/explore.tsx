@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 
 const searchSchema = z.object({
   q: z.string().optional(),
+  tag: z.string().optional(),
+  sort: z.enum(["new", "top"]).optional().default("new"),
   page: z.number().int().positive().optional().default(1),
 });
 
@@ -30,6 +32,8 @@ function ExplorePage() {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = usePublicExplore({
     q: search.q,
+    tag: search.tag,
+    sort: search.sort,
     page: search.page,
     limit: 24,
   });
@@ -38,6 +42,8 @@ function ExplorePage() {
     navigate({ to: "/explore", search: { ...search, ...patch, page: 1 } });
 
   const shares = data?.data ?? [];
+  const facets = data?.facets ?? [];
+  const hasFilter = Boolean(search.q || search.tag);
 
   return (
     <div className="min-h-svh bg-background">
@@ -63,6 +69,52 @@ function ExplorePage() {
             label="Search collections"
             showShortcut={false}
           />
+        </div>
+
+        <div
+          className="mt-5 flex flex-wrap items-center gap-2"
+          role="group"
+          aria-label="Filter and sort collections"
+        >
+          <div
+            className="flex items-center gap-0.5 rounded-lg border border-border p-0.5"
+            role="group"
+            aria-label="Sort collections"
+          >
+            <SortOption
+              label="Newest"
+              active={search.sort !== "top"}
+              onClick={() => update({ sort: undefined })}
+            />
+            <SortOption
+              label="Top"
+              active={search.sort === "top"}
+              onClick={() => update({ sort: "top" })}
+            />
+          </div>
+
+          {facets.map((facet) => {
+            const active = search.tag === facet.tag;
+            return (
+              <button
+                key={facet.tag}
+                type="button"
+                aria-pressed={active}
+                onClick={() => update({ tag: active ? undefined : facet.tag })}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs transition-colors",
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                #{facet.tag}
+                <span className="ml-1.5 tabular-nums opacity-70">
+                  {facet.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {isLoading ? (
@@ -92,12 +144,14 @@ function ExplorePage() {
           <div className="mt-10 flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-20 text-center">
             <Globe className="size-6 text-muted-foreground/50" />
             <p className="text-sm font-medium">
-              {search.q ? "No matches" : "Nothing published yet"}
+              {hasFilter ? "No matches" : "Nothing published yet"}
             </p>
             <p className="max-w-sm text-sm text-muted-foreground">
-              {search.q
-                ? `No collections match “${search.q}”.`
-                : "No one has published a collection yet. Yours could be the first."}
+              {search.tag
+                ? `Nothing tagged “${search.tag}”${search.q ? ` for “${search.q}”` : ""}.`
+                : search.q
+                  ? `No collections match “${search.q}”.`
+                  : "No one has published a collection yet. Yours could be the first."}
             </p>
           </div>
         ) : (
@@ -185,5 +239,32 @@ function ExploreCard({ share }: { share: PublicExploreEntry }) {
         </p>
       </div>
     </Link>
+  );
+}
+
+/** One half of the Newest/Top segmented toggle. */
+function SortOption({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+      )}
+    >
+      {label}
+    </button>
   );
 }

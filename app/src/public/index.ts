@@ -9,11 +9,13 @@ import {
   tags,
   user as users,
 } from "../db/schema";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { NotFoundError } from "../error";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { rateLimitGuard } from "../utils/rate-limit";
 import { getCollectionSubtreeMeta } from "../utils/collections";
+import { buildExploreResponse, tagInSubtree } from "../utils/explore";
+import { ftsCondition } from "../utils/full-text-search";
 import { usernameEq } from "../utils/user-identity";
 import { isCrawler } from "../utils/crawler";
 import { renderCrawlerDocument } from "../utils/html";
@@ -253,12 +255,15 @@ export const publicRouter = new Elysia({ prefix: "/u" })
         page: query.page,
         limit: query.limit,
       });
+      const sort = query.sort ?? "new";
       const search = query.q?.trim();
+      const tag = query.tag?.trim() || undefined;
+
+      // Full-text over the generated `search_vector` (name + description):
+      // whole words via websearch, partial words via the prefix arm, so "zepp"
+      // still finds "Zeppelin Notes".
       const searchFilter = search
-        ? or(
-            ilike(collections.name, `%${search}%`),
-            ilike(collections.description, `%${search}%`),
-          )
+        ? ftsCondition(sql`collections.search_vector`, search)
         : undefined;
 
       // `visibility = 'public'` is the only listing condition. An unlisted
@@ -267,31 +272,31 @@ export const publicRouter = new Elysia({ prefix: "/u" })
       // `publishedAt is not null` as well as `visibility = 'public'`: the two are
       // kept in sync on write, and the non-null test keeps rows that never
       // finished publishing out of an index ordered by `published_at`.
-      const where = and(
+      const candidateWhere = and(
         eq(collections.visibility, "public"),
         eq(collections.isSystem, false),
         sql`${collections.publishedAt} is not null`,
         searchFilter,
-      );
+      )!;
+      // The tag filter narrows the listing but not the facets, so the chips a
+      // visitor sees do not shuffle once one is pressed.
+      const where = tag ? and(candidateWhere, tagInSubtree(tag)) : candidateWhere;
 
-      const rows = await db
-        .select({
-          id: collections.id,
-          name: collections.name,
-          description: collections.description,
-          icon: collections.icon,
-          color: collections.color,
-          slug: collections.slug,
-          username: users.username,
-          sharedBy: users.name,
-          publishedAt: collections.publishedAt,
-        })
-        .from(collections)
-        .innerJoin(users, eq(collections.userId, users.id))
-        .where(where)
-        .orderBy(desc(collections.publishedAt))
-        .limit(limit)
-        .offset(offset);
+      const selectRows = () =>
+        db
+          .select({
+            id: collections.id,
+            name: collections.name,
+            description: collections.description,
+            icon: collections.icon,
+            color: collections.color,
+            slug: collections.slug,
+            username: users.username,
+            sharedBy: users.name,
+            publishedAt: collections.publishedAt,
+          })
+          .from(collections)
+          .innerJoin(users, eq(collections.userId, users.id));
 
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)` })
@@ -299,18 +304,17 @@ export const publicRouter = new Elysia({ prefix: "/u" })
         .innerJoin(users, eq(collections.userId, users.id))
         .where(where);
 
-      // Counts and covers span each collection's whole subtree, matching the
-      // page a card links to rather than only its direct members.
-      const meta = await getCollectionSubtreeMeta(rows.map((row) => row.id));
-
-      return {
-        data: rows.map((row) => ({
-          ...row,
-          bookmarkCount: meta.get(row.id)?.bookmarkCount ?? 0,
-          covers: meta.get(row.id)?.covers ?? [],
-        })),
-        pagination: createPaginationMeta(page, limit, Number(count)),
-      };
+      return await buildExploreResponse({
+        sort,
+        page,
+        limit,
+        offset,
+        total: Number(count),
+        candidateWhere,
+        publishedAtOf: (row) => row.publishedAt,
+        fetchPage: () => selectRows().where(where).orderBy(desc(collections.publishedAt)).limit(limit).offset(offset),
+        fetchAllCandidates: () => selectRows().where(where).orderBy(desc(collections.publishedAt)),
+      });
     },
     {
       beforeHandle: rateLimitGuard({ name: "public:explore", limit: 60, perUser: false }),
@@ -318,6 +322,10 @@ export const publicRouter = new Elysia({ prefix: "/u" })
         page: t.Optional(t.Numeric({ minimum: 1 })),
         limit: t.Optional(t.Numeric({ minimum: 1 })),
         q: t.Optional(t.String({ maxLength: 100 })),
+        // No minLength: `?tag=` (a cleared chip) must fall through to
+        // "ignored" in the handler, not fail validation.
+        tag: t.Optional(t.String({ maxLength: 100 })),
+        sort: t.Optional(t.Union([t.Literal("new"), t.Literal("top")])),
       }),
     },
   )

@@ -9,11 +9,13 @@ import {
   tags,
   user,
 } from "../db/schema";
-import { and, eq, ilike, inArray, or, sql, desc } from "drizzle-orm";
+import { and, eq, inArray, sql, desc } from "drizzle-orm";
 import { GoneError, NotFoundError } from "../error";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { rateLimitGuard } from "../utils/rate-limit";
 import { getCollectionSubtreeMeta } from "../utils/collections";
+import { buildExploreResponse, tagInSubtree } from "../utils/explore";
+import { ftsCondition } from "../utils/full-text-search";
 import { isCrawler } from "../utils/crawler";
 import { renderCrawlerDocument } from "../utils/html";
 import { env } from "../env";
@@ -59,46 +61,44 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         page: query.page,
         limit: query.limit,
       });
-
+      const sort = query.sort ?? "new";
       const search = query.q?.trim();
+      const tag = query.tag?.trim() || undefined;
+
+      // Full-text over the generated `search_vector`, mirroring `/u/explore`.
       const searchFilter = search
-        ? or(
-            ilike(collections.name, `%${search}%`),
-            ilike(collections.description, `%${search}%`),
-          )
+        ? ftsCondition(sql`collections.search_vector`, search)
         : undefined;
 
       // System collections (Unsorted / Archived) are never publishable content.
-      const where = and(
+      const candidateWhere = and(
         eq(collections.visibility, "public"),
         sql`${collections.publishedAt} is not null`,
         eq(collections.isSystem, false),
         searchFilter,
-      );
+      )!;
+      const where = tag ? and(candidateWhere, tagInSubtree(tag)) : candidateWhere;
 
-      const rows = await db
-        .select({
-          code: sharedCollections.shareCode,
-          id: collections.id,
-          name: collections.name,
-          description: collections.description,
-          icon: collections.icon,
-          color: collections.color,
-          slug: collections.slug,
-          username: user.username,
-          sharedBy: user.name,
-          sharedAt: collections.publishedAt,
-        })
-        .from(collections)
-        .leftJoin(
-          sharedCollections,
-          eq(sharedCollections.collectionId, collections.id),
-        )
-        .innerJoin(user, eq(collections.userId, user.id))
-        .where(where)
-        .orderBy(desc(collections.publishedAt))
-        .limit(limit)
-        .offset(offset);
+      const selectRows = () =>
+        db
+          .select({
+            code: sharedCollections.shareCode,
+            id: collections.id,
+            name: collections.name,
+            description: collections.description,
+            icon: collections.icon,
+            color: collections.color,
+            slug: collections.slug,
+            username: user.username,
+            sharedBy: user.name,
+            sharedAt: collections.publishedAt,
+          })
+          .from(collections)
+          .leftJoin(
+            sharedCollections,
+            eq(sharedCollections.collectionId, collections.id),
+          )
+          .innerJoin(user, eq(collections.userId, user.id));
 
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)` })
@@ -106,16 +106,17 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         .innerJoin(user, eq(collections.userId, user.id))
         .where(where);
 
-      const meta = await getCollectionSubtreeMeta(rows.map((row) => row.id));
-
-      return {
-        data: rows.map((row) => ({
-          ...row,
-          bookmarkCount: meta.get(row.id)?.bookmarkCount ?? 0,
-          covers: meta.get(row.id)?.covers ?? [],
-        })),
-        pagination: createPaginationMeta(page, limit, Number(count)),
-      };
+      return await buildExploreResponse({
+        sort,
+        page,
+        limit,
+        offset,
+        total: Number(count),
+        candidateWhere,
+        publishedAtOf: (row) => row.sharedAt,
+        fetchPage: () => selectRows().where(where).orderBy(desc(collections.publishedAt)).limit(limit).offset(offset),
+        fetchAllCandidates: () => selectRows().where(where).orderBy(desc(collections.publishedAt)),
+      });
     },
     {
       // Anonymous, unlisted and enumerable: cap it so the directory cannot be
@@ -129,6 +130,10 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         page: t.Optional(t.Numeric({ minimum: 1 })),
         limit: t.Optional(t.Numeric({ minimum: 1 })),
         q: t.Optional(t.String({ maxLength: 100 })),
+        // No minLength: `?tag=` (a cleared chip) must fall through to
+        // "ignored" in the handler, not fail validation.
+        tag: t.Optional(t.String({ maxLength: 100 })),
+        sort: t.Optional(t.Union([t.Literal("new"), t.Literal("top")])),
       }),
     },
   )

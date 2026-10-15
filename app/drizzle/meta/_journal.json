@@ -78,6 +78,13 @@
       "when": 1791472000000,
       "tag": "0010_public-identity-backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792007000000,
+      "tag": "0011_explore-full-text-search",
+      "breakpoints": true
     }
   ]
 }

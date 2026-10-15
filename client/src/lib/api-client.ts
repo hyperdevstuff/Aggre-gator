@@ -16,8 +16,17 @@ import type {
   ExploreShareResponse,
   PublicProfile,
   PublicCollectionPage,
-  PublicExploreEntry,
+  PublicExploreResponse,
 } from "@/types";
+
+/** Shared filter params for the two Explore directory endpoints. */
+export type ExploreParams = {
+  page?: number;
+  limit?: number;
+  q?: string;
+  tag?: string;
+  sort?: "new" | "top";
+};
 
 /**
  * Must match the proxy target in `vite.config.ts` and the API's `PORT` default
@@ -234,11 +243,13 @@ export const shareApi = {
     return fetcher<PublicShareResponse>(`/share/${code}?${query}`);
   },
 
-  explore: (params?: { page?: number; limit?: number; q?: string }) => {
+  explore: (params?: ExploreParams) => {
     const query = new URLSearchParams();
     if (params?.page) query.set("page", String(params.page));
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.q) query.set("q", params.q);
+    if (params?.tag) query.set("tag", params.tag);
+    if (params?.sort) query.set("sort", params.sort);
     return fetcher<ExploreShareResponse>(`/share/explore?${query}`);
   },
 };
@@ -264,14 +275,14 @@ export const publicApi = {
     return fetcher<PublicCollectionPage>(`/u/${username}/${slug}?${query}`);
   },
 
-  explore: (params?: { page?: number; limit?: number; q?: string }) => {
+  explore: (params?: ExploreParams) => {
     const query = new URLSearchParams();
     if (params?.page) query.set("page", String(params.page));
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.q) query.set("q", params.q);
-    return fetcher<PaginatedResponse<PublicExploreEntry>>(
-      `/u/explore?${query}`,
-    );
+    if (params?.tag) query.set("tag", params.tag);
+    if (params?.sort) query.set("sort", params.sort);
+    return fetcher<PublicExploreResponse>(`/u/explore?${query}`);
   },
 };
 

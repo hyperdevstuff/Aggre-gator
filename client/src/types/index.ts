@@ -186,7 +186,21 @@ export type ExploreShare = {
   covers: string[];
 };
 
-export type ExploreShareResponse = PaginatedResponse<ExploreShare>;
+export type ExploreShareResponse = PaginatedResponse<ExploreShare> & {
+  /** Most-used tags across the candidate set, for the filter chips. */
+  facets: PublicExploreFacet[];
+};
+
+/** One tag facet on the public directory: name plus distinct-collection count. */
+export type PublicExploreFacet = {
+  tag: string;
+  count: number;
+};
+
+export type PublicExploreResponse = PaginatedResponse<PublicExploreEntry> & {
+  /** Most-used tags across the candidate set, for the filter chips. */
+  facets: PublicExploreFacet[];
+};
 
 /** A collection as it appears on a public profile or in the public directory. */
 export type PublicCollection = {

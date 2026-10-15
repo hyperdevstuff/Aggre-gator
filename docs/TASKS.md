@@ -20,7 +20,7 @@ Where each section below sits in the roadmap:
 | [1](ROADMAP.md#phase-1--hardening--done-2026-10-07) | Hardening: SSRF, scrape, stats, rate limits, share payload | ✅ done |
 | [2](ROADMAP.md#phase-2--data-model-migration--done-2026-10-07) | Data model: `collection_items`, `archived_at`, visibility, user identity | ✅ done (2026-10-07) |
 | [3](ROADMAP.md#phase-3--public-layer--done-2026-10-12) | Public layer: profiles, readable URLs, crawler HTML, OG images | ✅ done (2026-10-12) |
-| [4](ROADMAP.md#phase-4--explore-v2) | Explore v2: image mosaics, masonry, ranking, full-text search | 🟡 4a done (mosaic covers, masonry, sub-collection count); ranking/FTS/tags remain |
+| [4](ROADMAP.md#phase-4--explore-v2--done-2026-10-14) | Explore v2: image mosaics, masonry, ranking, full-text search | ✅ done (2026-10-14); the real ranking signals (saves, views) arrive with phase 5 |
 | [5](ROADMAP.md#phase-5--social-loop) | Social loop: save, fork, follow, view counts | ❌ not started |
 | [6](ROADMAP.md#phase-6--monetization) | Monetization: `user.plan`, limits at the API layer | ❌ not started |
 
@@ -155,9 +155,9 @@ Where each section below sits in the roadmap:
 
 | Status | Task |
 |--------|------|
-| ✅ | Basic directory: newest-first, mosaic cards (phase 4a), `?q=` via `ILIKE` |
-| 🟡 | Categories/tags on the directory, ranking by saves/views: tag **facets** and full-text search are phase 4b; real saves/views ranking waits for the phase-5 tables. Mosaic covers, masonry and the subtree count landed in phase 4a |
-| ❌ | Postgres full-text search to replace `ILIKE` (phase 4) |
+| ✅ | Basic directory: newest-first (or `sort=top` by subtree count), mosaic cards, full-text `?q=`, tag facets + `?tag=` filter (phase 4) |
+| ✅ | Postgres full-text search replaces `ILIKE` on the public directory and `/search` (phase 4b) — word + prefix matching; mid-word substrings no longer match, which is a deliberate behavior change |
+| 🟡 | Ranking: `new`/`top` today; the real signals (saves, views) are phase-5 tables |
 | ❌ | Save a single link / fork a shared collection; follow a curator; view counts (phase 5) |
 | ❌ | `links` table (shared preview + save count) + `normalizeUrl()` — deferred to phase 5, see `docs/decisions/001-links-table.md`. Keep the existing per-user `bookmarks_user_url_unique` as-is until then |
 | ❌ | Moderation + reporting — required once content is public |
@@ -289,6 +289,40 @@ Decisions worth remembering:
   is a sibling — verified in a real browser.
 - **Still open in phase 4:** tag facets, full-text search, and ranking (its
   saves/views signals are phase-5 tables, so ranking stays recency + count).
+
+## Phase 4b shipped — facets, full-text search, ranking (2026-10-14)
+
+Explore is now a directory worth browsing: filter by tag, search by word or
+prefix, sort by popularity.
+
+| Piece | Where |
+|---|---|
+| FTS columns + GIN indexes | `app/drizzle/0011_explore-full-text-search.sql` (no `schema.ts` change, consistent with hand-written migrations) |
+| `ftsCondition()` | `app/src/utils/full-text-search.ts` |
+| Facets + tag filter + response assembly | `app/src/utils/explore.ts` (`tagInSubtree`, `getPublicTagFacets`, `buildExploreResponse`) |
+| Wired into the directory | `app/src/public/index.ts` (`/u/explore`), `app/src/share/index.ts` (legacy parity), `app/src/search/index.ts` |
+| Chips + Newest/Top toggle | `client/src/routes/explore.tsx` |
+
+Decisions worth remembering:
+
+- **Search semantics changed on purpose.** `ILIKE '%q%'` is gone from the
+  public directory and `/search`: matching is now whole words plus a word
+  prefix (`zepp` → `Zeppelin`), via `websearch_to_tsquery` + a sanitized
+  `:*` arm. `q=eppeli` no longer matches `Zeppelin`. The dashboard bookmark
+  filter keeps ILIKE — out of scope.
+- **Facets come from the candidate set, not the filtered one.** The chips are
+  computed *without* the active tag so pressing one does not reshuffle them.
+- **Tag membership is subtree-aware**, exactly like the counts: a collection
+  "has" a tag when a non-archived bookmark in its non-private subtree carries
+  it.
+- **`sort=top` sorts in the app**, not with a LATERAL per row: fetch all
+  candidates, enrich through the same batched `getCollectionSubtreeMeta` the
+  cards display, sort, slice. The ranking number and the displayed number are
+  the same value by construction.
+- **Validation errors are 400 here, not 422** — the global error plugin maps
+  `VALIDATION` deliberately (`app/src/error.ts`). An unknown `sort` returns 400.
+- **`?tag=` (empty) is ignored, not a 422** — the schema has no `minLength`,
+  per Elysia/TypeBox strictness confirmed against the docs.
 
 ## 3. Fixed on 2026-10-07 (hardening pass)
 

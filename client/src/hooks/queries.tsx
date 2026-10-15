@@ -1,4 +1,5 @@
 import { api } from "@/lib/api-client";
+import type { ExploreParams } from "@/lib/api-client";
 import type { BookmarkFilter, SortOption } from "@/types";
 import {
   queryOptions,
@@ -99,22 +100,15 @@ export const usePublicShare = (
   params?: { page?: number; limit?: number },
 ) => useQuery(publicShareQueryOptions(code, params));
 
-export const exploreQueryOptions = (params?: {
-  page?: number;
-  limit?: number;
-  q?: string;
-}) =>
+export const exploreQueryOptions = (params?: ExploreParams) =>
   queryOptions({
     queryKey: ["share-explore", params],
     queryFn: () => api.share.explore(params),
     staleTime: 1000 * 60,
   });
 
-export const useExplore = (params?: {
-  page?: number;
-  limit?: number;
-  q?: string;
-}) => useQuery(exploreQueryOptions(params));
+export const useExplore = (params?: ExploreParams) =>
+  useQuery(exploreQueryOptions(params));
 
 // === PUBLIC PROFILES (anonymous) ===
 
@@ -152,19 +146,12 @@ export const usePublicCollection = (
   params?: { page?: number; limit?: number },
 ) => useQuery(publicCollectionQueryOptions(username, slug, params));
 
-export const publicExploreQueryOptions = (params?: {
-  page?: number;
-  limit?: number;
-  q?: string;
-}) =>
+export const publicExploreQueryOptions = (params?: ExploreParams) =>
   queryOptions({
     queryKey: ["public-explore", params],
     queryFn: () => api.public.explore(params),
     staleTime: 1000 * 60,
   });
 
-export const usePublicExplore = (params?: {
-  page?: number;
-  limit?: number;
-  q?: string;
-}) => useQuery(publicExploreQueryOptions(params));
+export const usePublicExplore = (params?: ExploreParams) =>
+  useQuery(publicExploreQueryOptions(params));

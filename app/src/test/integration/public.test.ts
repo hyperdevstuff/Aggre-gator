@@ -516,6 +516,147 @@ describe("GET /u/explore", () => {
     );
   });
 
+  test("search matches by word and by prefix, not mid-word", async () => {
+    const f = await setup("fts");
+    const col = await f.newCollection({ name: "Zeppelin Notes" });
+    await f.publish(col.id, { visibility: "public" });
+
+    const full = await json("/u/explore?q=zeppelin&limit=100");
+    expect(full.body.data.some((r: any) => r.name === "Zeppelin Notes")).toBe(
+      true,
+    );
+    const prefix = await json("/u/explore?q=zepp&limit=100");
+    expect(prefix.body.data.some((r: any) => r.name === "Zeppelin Notes")).toBe(
+      true,
+    );
+    // The substring ILIKE used to match; word + prefix search must not.
+    const midWord = await json("/u/explore?q=eppeli&limit=100");
+    expect(midWord.body.data.some((r: any) => r.name === "Zeppelin Notes")).toBe(
+      false,
+    );
+  });
+
+  test("returns tag facets and filters by them", async () => {
+    const f = await setup("facet");
+    const alpha = await f.newCollection({ name: "Facet Alpha" });
+    const beta = await f.newCollection({ name: "Facet Beta" });
+    await f.publish(alpha.id, { visibility: "public" });
+    await f.publish(beta.id, { visibility: "public" });
+
+    const stamp = Date.now();
+    await f.newBookmark({
+      url: `https://example.com/fa-${stamp}`,
+      title: "FA",
+      tags: ["Design"],
+      collectionIds: [alpha.id],
+    });
+    await f.newBookmark({
+      url: `https://example.com/fb-${stamp}`,
+      title: "FB",
+      tags: ["design"],
+      collectionIds: [beta.id],
+    });
+    await f.newBookmark({
+      url: `https://example.com/fc-${stamp}`,
+      title: "FC",
+      tags: ["cooking"],
+      collectionIds: [beta.id],
+    });
+    // A private collection's tags must never reach the public facets.
+    const hidden = await f.newCollection({ name: "Facet Hidden" });
+    await f.newBookmark({
+      url: `https://example.com/fd-${stamp}`,
+      title: "FD",
+      tags: ["secretingredient"],
+      collectionIds: [hidden.id],
+    });
+
+    const { body } = await json("/u/explore?limit=100");
+    const tagNames = body.facets.map((x: any) => x.tag);
+    expect(tagNames).toContain("design");
+    expect(tagNames).toContain("cooking");
+    expect(tagNames).not.toContain("secretingredient");
+    // Case-folded, counted per distinct collection.
+    const design = body.facets.find((x: any) => x.tag === "design");
+    expect(design.count).toBe(2);
+
+    const byTag = await json("/u/explore?tag=design&limit=100");
+    const tagged = byTag.body.data.map((r: any) => r.name);
+    expect(tagged).toContain("Facet Alpha");
+    expect(tagged).toContain("Facet Beta");
+    // The chips ignore the active tag filter.
+    expect(byTag.body.facets.find((x: any) => x.tag === "design").count).toBe(2);
+
+    const cooking = await json("/u/explore?tag=cooking&limit=100");
+    const cookingNames = cooking.body.data.map((r: any) => r.name);
+    expect(cookingNames).toContain("Facet Beta");
+    expect(cookingNames).not.toContain("Facet Alpha");
+
+    const none = await json("/u/explore?tag=nosuchtag123&limit=100");
+    expect(none.body.data.some((r: any) => r.username === f.username)).toBe(
+      false,
+    );
+  });
+
+  test("the tag filter looks through sub-collections", async () => {
+    const f = await setup("tagtree");
+    const parent = await f.newCollection({ name: "Tag Parent" });
+    const child = await f.newCollection({
+      name: "Tag Child",
+      parentId: parent.id,
+    });
+    await f.publish(parent.id, { visibility: "public" });
+    await f.publish(child.id, { visibility: "unlisted" });
+    const stamp = Date.now();
+    await f.newBookmark({
+      url: `https://example.com/tt-${stamp}`,
+      title: "Tagged in child",
+      tags: ["woodworking"],
+      collectionIds: [child.id],
+    });
+
+    const { body } = await json("/u/explore?tag=woodworking&limit=100");
+    expect(body.data.some((r: any) => r.id === parent.id)).toBe(true);
+  });
+
+  test("sort=top orders by subtree bookmark count", async () => {
+    const f = await setup("rank");
+    const small = await f.newCollection({ name: "Rank Small" });
+    const big = await f.newCollection({ name: "Rank Big" });
+    await f.publish(small.id, { visibility: "public" });
+    await f.publish(big.id, { visibility: "public" });
+    const stamp = Date.now();
+    for (let i = 0; i < 3; i++) {
+      await f.newBookmark({
+        url: `https://example.com/rb${i}-${stamp}`,
+        title: `RB${i}`,
+        collectionIds: [big.id],
+      });
+    }
+    await f.newBookmark({
+      url: `https://example.com/rs-${stamp}`,
+      title: "RS",
+      collectionIds: [small.id],
+    });
+
+    const position = (body: any, name: string) =>
+      body.data.findIndex((r: any) => r.name === name);
+
+    const top = await json("/u/explore?sort=top&limit=100");
+    expect(position(top.body, "Rank Big")).toBeLessThan(
+      position(top.body, "Rank Small"),
+    );
+    // The number on the card is the number it was ranked by.
+    expect(
+      top.body.data.find((r: any) => r.name === "Rank Big").bookmarkCount,
+    ).toBe(3);
+
+    // An unknown sort is a validation error (400 per the repo's error
+    // plugin), not a silent fallback.
+    const bad = await json("/u/explore?sort=oldest&limit=100");
+    expect(bad.status).toBe(400);
+  });
+
   test("honours ?q=", async () => {
     const f = await setup("searchable");
     const col = await f.newCollection({ name: "Zeppelin Notes" });
