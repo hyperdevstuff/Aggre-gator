@@ -13,6 +13,9 @@ import { shareRouter } from "./share";
 import { publicRouter } from "./public";
 import { ogRouter } from "./og";
 import { errorPlugin } from "./error";
+import { requestLogger } from "./utils/request-log";
+import { registerJobHandlers, runOnce, startWorker } from "./utils/jobs";
+import { enrichMetadata } from "./utils/enrichment";
 import { globalRateLimit } from "./utils/rate-limit";
 import {
   spaAssetResponse,
@@ -24,6 +27,12 @@ import {
 const UNLIMITED_PATHS = ["/health", "/api/version", "/openapi", "/api/auth"];
 
 export const app = new Elysia()
+  // The logger is registered FIRST, before any route, because Elysia applies a
+  // plugin's hooks only to routes declared after it — `.use()` order is
+  // registration order. Declaring `/health` above the logger would leave the
+  // single most useful request during a Render incident (the one telling you
+  // whether the service is alive) as the only one with no request-id.
+  .use(requestLogger)
   .get("/health", () => ({
     status: "ok",
     timestamp: Date.now(),
@@ -44,6 +53,7 @@ export const app = new Elysia()
     }),
   )
   .use(errorPlugin)
+  // (requestLogger is registered at the very top of the chain, above /health.)
   // Safety net for everything without a route-specific limit. High enough that
   // no normal client ever sees it, low enough to cap a runaway script.
   .use(
@@ -102,9 +112,28 @@ app
   .use(publicRouter)
   .use(ogRouter);
 
-// Tests import `app` and drive it through `app.handle()`; Bun evaluates each test
-// file's module graph separately, so binding a port here would make the second
-// file fail with EADDRINUSE.
+// Background work. Registered before the listen call, and not started at all
+// under NODE_ENV=test — tests drive `runOnce()` directly, so a polling loop
+// would race their assertions.
 if (env.NODE_ENV !== "test") {
+  registerJobHandlers({ "enrich-metadata": enrichMetadata });
+  const worker = startWorker();
+
+  // Run once at boot, before the first poll. A service that was asleep (Render
+  // free tier) or redeployed comes back holding a queue of jobs that are all
+  // already due; waiting up to IDLE_POLL_MS to start them is needless latency
+  // on the first wave.
+  void runOnce();
+
+  // Render sends SIGTERM on deploy and gives the container a grace period. Stop
+  // claiming and let the in-flight batch finish, otherwise a deploy abandons
+  // jobs mid-flight — which is the exact failure this queue exists to remove.
+  const shutdown = async () => {
+    await worker?.stop();
+    process.exit(0);
+  };
+  process.once("SIGTERM", () => void shutdown());
+  process.once("SIGINT", () => void shutdown());
+
   app.listen(env.PORT);
 }

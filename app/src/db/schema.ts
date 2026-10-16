@@ -5,6 +5,7 @@ import {
   timestamp,
   boolean,
   integer,
+  jsonb,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
@@ -261,6 +262,49 @@ export const sharedCollections = pgTable(
       "shared_collections_collection_user_idx",
     ).on(table.collectionId, table.userId),
     userIdx: index("shared_collections_user_idx").on(table.userId),
+  }),
+);
+
+/**
+ * A unit of deferred background work.
+ *
+ * The queue is Postgres itself: a worker claims a row with
+ * `FOR UPDATE SKIP LOCKED`, so two workers can never hold the same job and a
+ * crashed worker's rows simply become claimable again once `locked_at` passes.
+ * That is why there is no separate broker to run (see ADR-003).
+ */
+export const jobs = pgTable(
+  "jobs",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    /** Handler key — see `handlers` in `src/utils/jobs.ts`. */
+    type: text("type").notNull(),
+    /** Handler arguments. Validated by the handler, not by the queue. */
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    /** `pending` and `active` are the only claimable/trackable states. */
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    /**
+     * Earliest time this job may run. Backoff is written here rather than
+     * slept on, so a failing job costs one row and no open timer.
+     */
+    runAt: timestamp("run_at").notNull().defaultNow(),
+    /** Set while a worker holds the row; the crash-recovery lease. */
+    lockedAt: timestamp("locked_at"),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => ({
+    // The claim query is `WHERE status = 'pending' AND run_at <= now()` ordered
+    // by run_at — this index is that query's whole cost model.
+    claimableIdx: index("jobs_claimable_idx").on(table.status, table.runAt),
   }),
 );
 
