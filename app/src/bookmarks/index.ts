@@ -10,18 +10,22 @@ import {
   resolveCreateCollections,
   setBookmarkCollections,
 } from "../utils/collections";
-import scrapeMetadata from "../utils/metadata";
+import { enqueue } from "../utils/jobs";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { rateLimitGuard } from "../utils/rate-limit";
 import { bookmarksIdRouter } from "./$id";
 import { bookmarksBulkRouter } from "./bulk";
 
 /**
- * Fill in scraped metadata for a freshly created bookmark, after the response
- * has been sent. One fetch, no retry loop: a URL that is down when the user
- * saves it keeps its hostname title, and `PATCH /bookmarks/:id` remains the way
- * to fix a title by hand. A durable queue (BullMQ / pg-boss) is the follow-up
- * if scraping ever becomes a hard requirement rather than a nicety.
+ * Queue the metadata enrichment for a freshly created bookmark.
+ *
+ * Was an in-process `setTimeout(..., 0).unref()` fire-and-forget, which lost
+ * the work whenever the process went away mid-flight — a Render free-tier sleep
+ * or a deploy. It is now a row in `jobs`, so the worker picks it up whenever it
+ * next runs, including after a restart. See `utils/jobs.ts` and ADR-003.
+ *
+ * The `keep` values are carried in the payload rather than re-read here, so a
+ * value the user supplied in this same request still wins after the retry.
  */
 function scheduleEnrichment({
   id,
@@ -34,33 +38,20 @@ function scheduleEnrichment({
   placeholderTitle: string;
   keep: { description: string | null; cover: string | null };
 }) {
-  const timer = setTimeout(() => {
-    void (async () => {
-      try {
-        const meta = await scrapeMetadata(url);
-        await db
-          .update(bookmarks)
-          .set({
-            title: meta.title,
-            description: keep.description ?? meta.description,
-            cover: keep.cover ?? meta.image,
-          })
-          // Only overwrite while the row still holds the placeholder, so a
-          // user edit that raced this fetch survives.
-          .where(
-            and(eq(bookmarks.id, id), eq(bookmarks.title, placeholderTitle)),
-          );
-      } catch (error) {
-        console.error(
-          `[bookmarks] metadata enrichment failed for ${id}: ${
-            error instanceof Error ? error.message : error
-          }`,
-        );
-      }
-    })();
-  }, 0);
-  // Background work must never be a reason to keep the process alive.
-  timer.unref?.();
+  void enqueue("enrich-metadata", {
+    bookmarkId: id,
+    url,
+    placeholderTitle,
+    keep,
+  }).catch((error) => {
+    // The bookmark is already saved and the response already sent; losing the
+    // enrichment is recoverable by hand, so this must not throw.
+    console.error(
+      `[bookmarks] could not enqueue enrichment for ${id}: ${
+        error instanceof Error ? error.message : error
+      }`,
+    );
+  });
 }
 
 export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })

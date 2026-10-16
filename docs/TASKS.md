@@ -22,6 +22,9 @@ Where each section below sits in the roadmap:
 | [3](ROADMAP.md#phase-3--public-layer--done-2026-10-12) | Public layer: profiles, readable URLs, crawler HTML, OG images | ✅ done (2026-10-12) |
 | [4](ROADMAP.md#phase-4--explore-v2--done-2026-10-14) | Explore v2: image mosaics, masonry, ranking, full-text search | ✅ done (2026-10-14); the real ranking signals (saves, views) arrive with phase 5 |
 | [5](ROADMAP.md#phase-5--social-loop) | Social loop: save, fork, follow, view counts | ❌ not started |
+
+Wave 0 of `docs/MARATHON.md` is landing on the backend track: `be-01` durable
+jobs is done; `be-02` (request logging) and `be-03` (enrichment fixes) follow.
 | [6](ROADMAP.md#phase-6--monetization) | Monetization: `user.plan`, limits at the API layer | ❌ not started |
 
 ---
@@ -87,11 +90,12 @@ Where each section below sits in the roadmap:
 |--------|------|
 | ✅ | Drizzle schema with relations + indexes, 10 migrations (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3) |
 | ✅ | Isolated test database (`aggregator_test`) via `docker compose` |
-| ✅ | `bun test` → **190 passing / 0 failing** across 22 files (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation and OG rendering) |
+| ✅ | `bun test` → **222 passing / 0 failing** across 24 files (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation, OG rendering and the job queue) |
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |
 | ✅ | Rate limiting: fixed-window, in-process (`app/src/utils/rate-limit.ts`). Global 1000/min per client in `onRequest` (so it caps unauthenticated floods *before* the session lookup), plus per-route 120/min on `POST /bookmarks`, 20/min on bulk, 60/min on `/share/explore`, 120/min on `/share/:code`. Health/version/OpenAPI/auth are exempt. 429 carries `Retry-After` |
 | ✅ | Client IP for limits comes from the socket; `x-forwarded-for` / `cf-connecting-ip` are only trusted when `TRUST_PROXY=true` (new env var, documented in `app/.env.example`) so a directly exposed API can't be dodged by spoofing a header |
 | 🟡 | Rate-limit counters are per process — a multi-replica deploy needs a shared store (Postgres/Redis) before the limits mean anything |
+| ✅ | **Durable background jobs** (wave 0, `be-01`) — `jobs` table + worker in `app/src/utils/jobs.ts`, migration `0012_jobs.sql`, no new dependency. Claims with `FOR UPDATE SKIP LOCKED`, exponential backoff stored in `run_at` (not slept on), a `locked_at` lease that reclaims a crashed worker's jobs, and a 24h purge of settled rows. `POST /bookmarks` enrichment is queued instead of `setTimeout(…, 0).unref()`, which was losing the work whenever the Render free tier slept or a deploy landed mid-flight. Graceful `SIGTERM` drain. See [ADR-003](decisions/003-durable-jobs.md) for why this is hand-rolled rather than pg-boss |
 | ❌ | Request logging / monitoring |
 | ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20. `app/Dockerfile` now also copies `app/assets/fonts` (the OG renderer needs them), and `client/Dockerfile` runs `nginx -t` so a broken crawler-routing config fails the image build rather than the deploy |
 | ✅ | **Hosted on Render (free) + Neon Postgres (free), 2026-10-15.** Root `Dockerfile` = one image: the API serves the built SPA (`CLIENT_DIST_DIR`), runs migrations on boot, and replaces the nginx tier entirely — see `docs/DEPLOY.md`. Navigation-vs-fetch detection (`app/src/utils/client-spa.ts`) lets the API and the pages share URLs (`Sec-Fetch-Mode: navigate` / `Accept: text/html` → SPA shell, anything else → JSON). The nginx split stays as the self-hosted alternative |
@@ -367,7 +371,7 @@ Decisions worth remembering:
 | 🟡 | No email verification, so any signup can reach a profile page. It does not gate *publishing* — nothing is listed until an owner marks a collection public — but spam accounts can still appear on `/u/:username` and in `/og/profile/…` |
 | 🟡 | Crawler HTML is keyed off a User-Agent allowlist. A preview service we do not recognise degrades to an empty card rather than breaking anything — the documented failure mode in ADR-002 |
 | 🟡 | OG cards have no cache-busting revision, so renaming a collection leaves a stale card in a platform's cache until `stale-while-revalidate` (12h) elapses. The URL shape takes a revision suffix if that ever matters |
-| 🟡 | Metadata scraping is still in-process fire-and-forget. A URL saved with no title keeps its hostname until the background fetch lands (~5s timeout, single attempt); the client polls briefly to pick it up. A durable queue is the follow-up if this becomes load-bearing |
+| 🟡 | Metadata enrichment is durable but still **not retried at the scrape layer**: the job queue now retries a thrown error, but `scrapeMetadata` treats a dead host as a success (it falls back to the hostname), so a URL that 404s at save time keeps its hostname and no retry is attempted. `be-03` fixes the three measured causes — a single 5s-timeout attempt, no `og:image` fallback when `metascraper-image` returns nothing, and the `if (!body.title)` skip that prevents a hand-titled bookmark from ever getting a cover |
 | ✅ | ~~`DELETE /collections/:id` orphaned bookmarks to `collectionId = null` (invisible + un-re-addable)~~ fixed in #22: default delete re-homes to Unsorted, `?deleteBookmarks=true` destroys, parents with children blocked (409), legacy NULLs backfilled + listing is NULL-safe |
 | 🟡 | `bunfig.toml` disables **all** dependency lifecycle scripts — a future dependency that genuinely needs a postinstall (sharp, esbuild) will need this revisited |
 

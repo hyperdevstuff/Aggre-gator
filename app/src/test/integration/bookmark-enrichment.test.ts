@@ -1,23 +1,22 @@
 import { describe, test, expect, afterEach, mock, spyOn } from "bun:test";
 import { app } from "../../index";
 import { setHostResolver, resetHostResolver } from "../../utils/url-guard";
+import { registerJobHandlers, runOnce } from "../../utils/jobs";
+import { enrichMetadata } from "../../utils/enrichment";
 import { createTestUser, getSessionCookie, cleanupTestUser } from "./setup";
 
-/** Poll until the background enrichment has landed (or give up). */
-async function waitForTitle(bookmarkId: string, cookie: string, timeoutMs = 3000) {
-  const deadline = Date.now() + timeoutMs;
-  let title = "";
-  while (Date.now() < deadline) {
-    const res = await app.handle(
-      new Request(`http://localhost/bookmarks/${bookmarkId}`, {
-        headers: { Cookie: cookie },
-      }),
-    );
-    title = (await res.json()).title;
-    if (title !== "example.com") return title;
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  return title;
+// The worker does not start under NODE_ENV=test (see src/index.ts), so the
+// queue is driven one tick at a time. That is strictly better than the polling
+// and `setTimeout` sleeps this file used to need against the old in-process
+// fire-and-forget path: enrichment now happens at a point we choose.
+registerJobHandlers({ "enrich-metadata": enrichMetadata });
+
+async function getBookmark(id: string, cookie: string) {
+  return await (
+    await app.handle(
+      new Request(`http://localhost/bookmarks/${id}`, { headers: { Cookie: cookie } }),
+    )
+  ).json();
 }
 
 describe("POST /bookmarks metadata enrichment", () => {
@@ -55,36 +54,24 @@ describe("POST /bookmarks metadata enrichment", () => {
     expect(created.title).toBe("example.com");
     expect(fetches).toBe(0);
 
-    const title = await waitForTitle(created.id, cookie);
-    expect(title).toBe("Enriched Page");
+    const result = await runOnce();
+    expect(result).toEqual({ processed: 1, failed: 0 });
+    expect(fetches).toBe(1);
 
-    const detail = await (
-      await app.handle(
-        new Request(`http://localhost/bookmarks/${created.id}`, {
-          headers: { Cookie: cookie },
-        }),
-      )
-    ).json();
+    const detail = await getBookmark(created.id, cookie);
+    expect(detail.title).toBe("Enriched Page");
     expect(detail.description).toBe("scraped description");
     expect(detail.cover).toBe("https://example.com/cover.jpg");
-    // One fetch, not two.
-    expect(fetches).toBe(1);
 
     await cleanupTestUser(testUser.user.id);
   });
 
-  test("does not overwrite a title the user edited while the fetch was in flight", async () => {
+  test("does not overwrite a title the user edited while the job was queued", async () => {
     const testUser = await createTestUser();
     const cookie = await getSessionCookie(testUser.email, testUser.password);
     setHostResolver(async () => ["93.184.216.34"]);
-    let release: (() => void) | undefined;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    spyOn(global, "fetch").mockImplementation((async () => {
-      await gate;
-      return new Response(`<html><head><title>Scraped Title</title></head></html>`);
-    }) as unknown as typeof fetch);
+    spyOn(global, "fetch").mockImplementation((async () =>
+      new Response(`<html><head><title>Scraped Title</title></head></html>`)) as unknown as typeof fetch);
 
     const created = await (
       await app.handle(
@@ -96,6 +83,8 @@ describe("POST /bookmarks metadata enrichment", () => {
       )
     ).json();
 
+    // The user edits while the job sits in the queue — the race the placeholder
+    // guard exists for, and the reason the guard moved with the payload.
     const patched = await app.handle(
       new Request(`http://localhost/bookmarks/${created.id}`, {
         method: "PATCH",
@@ -105,16 +94,9 @@ describe("POST /bookmarks metadata enrichment", () => {
     );
     expect(patched.status).toBe(200);
 
-    release?.();
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await runOnce();
 
-    const detail = await (
-      await app.handle(
-        new Request(`http://localhost/bookmarks/${created.id}`, {
-          headers: { Cookie: cookie },
-        }),
-      )
-    ).json();
+    const detail = await getBookmark(created.id, cookie);
     expect(detail.title).toBe("My Own Title");
 
     await cleanupTestUser(testUser.user.id);
@@ -136,17 +118,52 @@ describe("POST /bookmarks metadata enrichment", () => {
       )
     ).json();
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await runOnce();
 
+    // The SSRF guard refuses before any socket is opened, and the scrape falls
+    // back to the hostname — a dead URL is a success here, not a retry.
     expect(fetchSpy).not.toHaveBeenCalled();
-    const detail = await (
+    const detail = await getBookmark(created.id, cookie);
+    expect(detail.title).toBe("internal.svc");
+
+    await cleanupTestUser(testUser.user.id);
+  });
+
+  test("a user-supplied title and cover survive enrichment", async () => {
+    const testUser = await createTestUser();
+    const cookie = await getSessionCookie(testUser.email, testUser.password);
+    setHostResolver(async () => ["93.184.216.34"]);
+    spyOn(global, "fetch").mockImplementation((async () =>
+      new Response(
+        `<html><head><title>Scraped Title</title>
+         <meta property="og:description" content="scraped description">
+         <meta property="og:image" content="https://example.com/scraped.jpg">
+         </head></html>`,
+      )) as unknown as typeof fetch);
+
+    const created = await (
       await app.handle(
-        new Request(`http://localhost/bookmarks/${created.id}`, {
-          headers: { Cookie: cookie },
+        new Request("http://localhost/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({
+            url: "https://example.com/kept",
+            title: "My Title",
+            description: "My Description",
+            cover: "https://example.com/mine.jpg",
+          }),
         }),
       )
     ).json();
-    expect(detail.title).toBe("internal.svc");
+
+    await runOnce();
+
+    const detail = await getBookmark(created.id, cookie);
+    // `keep` travels in the payload, so the user's values still win after the
+    // job waited in the queue — this is why it is not re-read at claim time.
+    expect(detail.title).toBe("My Title");
+    expect(detail.description).toBe("My Description");
+    expect(detail.cover).toBe("https://example.com/mine.jpg");
 
     await cleanupTestUser(testUser.user.id);
   });
