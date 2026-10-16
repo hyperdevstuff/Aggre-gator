@@ -13,6 +13,7 @@ import { shareRouter } from "./share";
 import { publicRouter } from "./public";
 import { ogRouter } from "./og";
 import { errorPlugin } from "./error";
+import { requestLogger } from "./utils/request-log";
 import { registerJobHandlers, runOnce, startWorker } from "./utils/jobs";
 import { enrichMetadata } from "./utils/enrichment";
 import { globalRateLimit } from "./utils/rate-limit";
@@ -26,6 +27,12 @@ import {
 const UNLIMITED_PATHS = ["/health", "/api/version", "/openapi", "/api/auth"];
 
 export const app = new Elysia()
+  // The logger is registered FIRST, before any route, because Elysia applies a
+  // plugin's hooks only to routes declared after it — `.use()` order is
+  // registration order. Declaring `/health` above the logger would leave the
+  // single most useful request during a Render incident (the one telling you
+  // whether the service is alive) as the only one with no request-id.
+  .use(requestLogger)
   .get("/health", () => ({
     status: "ok",
     timestamp: Date.now(),
@@ -46,6 +53,7 @@ export const app = new Elysia()
     }),
   )
   .use(errorPlugin)
+  // (requestLogger is registered at the very top of the chain, above /health.)
   // Safety net for everything without a route-specific limit. High enough that
   // no normal client ever sees it, low enough to cap a runaway script.
   .use(
