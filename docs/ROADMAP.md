@@ -129,7 +129,10 @@ Everything below shipped, with tests:
   (refs written during render, an inline `aspectRatio`) are fixed, and CI no longer
   runs lint with `continue-on-error`. 16 `react-refresh` warnings remain and are expected.
 
-Still open: a real mail provider + email verification, and request logging.
+Still open: a real mail provider + email verification. Request logging and the
+durable job queue landed in `docs/MARATHON.md` wave 0 (`be-01`, `be-02`) — see
+that file for what is being worked on now, and `decisions/003-durable-jobs.md`
+for why the queue is hand-rolled.
 
 ### Phase 2 — Data model migration ✅ done (2026-10-07)
 
@@ -309,6 +312,11 @@ rejected and why, which is the part you would otherwise re-litigate:
 |---|---|---|
 | [001](decisions/001-links-table.md) | The `links` table is deferred to phase 5, not phase 2 | Phase 5, and what `normalizeUrl()` must do |
 | [002](decisions/002-public-page-rendering.md) | Crawler-served HTML from the API, not TanStack Start | Phase 3, and `app/Dockerfile` |
+| [003](decisions/003-durable-jobs.md) | Background jobs are rows in our own Postgres, not pg-boss | Wave 0, and every later wave that queues work |
+
+**Where the work actually is:** this file is direction, not a to-do list. The
+live issue tracks — six backend waves and two frontend steps, with ownership
+rules and the definition of done — are in [`MARATHON.md`](MARATHON.md).
 
 ---
 

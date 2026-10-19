@@ -38,8 +38,15 @@ and the naming rules.
 | Backend track | `…/opencode/worktree/8815c6/agg-be` | `feat/be-marathon` |
 | Frontend track | `…/opencode/worktree/8815c6/agg-fe` | `feat/fe-marathon` |
 
-All three sit on `478984f`. An opencode session lives in one worktree at a
-time; move with `session_move`.
+`main` is now at `2084b46` (`be-01` + `be-02`, PR #23). An opencode session
+lives in one worktree at a time; move with `session_move`.
+
+**A new worktree starts bare** — `node_modules`, `.env.local` and
+`.env.test.local` are all gitignored and do not travel with it. Copy them from
+the primary checkout rather than running `bun install`: the deps are installed
+per-workspace (no symlinks to re-link), and `bun install` would rewrite the
+shared `bun.lock` that rule 3 protects. Then `bun run db:up` and
+`bun run db:migrate:test`.
 
 ---
 
@@ -50,10 +57,16 @@ directory**.
 
 | Track | Owns | Must never touch |
 |---|---|---|
-| `agg-be` | `app/**`, `app/drizzle/**` | `client/**` |
+| `agg-be` | `app/**`, `app/drizzle/**`, `docs/TASKS.md`, `docs/decisions/**` | `client/**` |
 | `agg-fe` | `client/**` | `app/**`, `app/drizzle/**` |
-| Backend | `docs/TASKS.md` | — |
 | Shared, read-only for both | `shared/**`, root `package.json`, `bun.lock` | — |
+| Shared, either may edit (low risk) | `docs/MARATHON.md` | — |
+
+**`docs/decisions/` is now assigned to the backend.** It was previously
+unowned, which `be-01` exposed: the queue decision needed writing down and the
+table had no answer. If `agg-fe` starts writing design ADRs, renumber before
+committing rather than after — ADR numbers are the only thing here that can
+collide silently.
 
 **Conflicts we are avoiding, and why:**
 
@@ -86,13 +99,86 @@ Ownership: `app/**`, `app/drizzle/**`. Every wave ends green.
 
 ### Wave 0 — Foundations *(everything else is unsafe without these)*
 
-| ID | Issue |
+| ID | Status | Issue |
+|---|---|---|
+| `be-01` | ✅ **done** | **Durable background jobs.** Postgres-backed queue, no new infra — Neon is already paid for. Replaces the detached `setTimeout(…, 0).unref()` that lost enrichment work on every Render sleep and deploy. Adds a `jobs` table, a worker, an `enqueue()` helper, retry with backoff, graceful shutdown. Every later wave queues here instead of fire-and-forget. |
+| `be-02` | ✅ **done** | **Request logging + request-id.** Structured JSON logs, `x-request-id` propagation, timings. `TASKS.md` listed this as ❌. Without it we debug production blind — which is how the enrichment bug cost an hour. |
+| `be-03` | ⏳ **next** | **Fix flaky metadata enrichment** *(needs `be-01`)*. See the corrected diagnosis below — the original one was wrong in its second cause. |
+
+#### `be-01` — what actually shipped
+
+Hand-rolled, **not pg-boss**. `ADR-003` records why: pg-boss manages ~10 tables
+in its own `pgboss` schema, which would split schema ownership away from this
+repo's hand-written committed migrations, and it ships cron/priority/singleton
+features no roadmap job uses. The one primitive needed is a single
+`FOR UPDATE SKIP LOCKED` query.
+
+- `app/src/utils/jobs.ts` — claim, retry with backoff, `locked_at` crash lease,
+  24h purge of settled rows
+- `app/src/utils/enrichment.ts` — the one handler, kept out of the queue module
+  so the queue stays generic
+- Migration `0012_jobs`, ADR-003, 17 unit tests
+
+**Two things it changed that later waves inherit.** The worker does *not* start
+under `NODE_ENV=test`; tests drive `runOnce()` directly, which is why the
+enrichment tests dropped their `setTimeout` polling and timing races. And a
+test failure during `be-01` exposed that the queue had **no retention sweep** —
+one row per bookmark save, forever — so settled rows are now purged.
+
+#### `be-03` — corrected diagnosis (do not start from the original spec)
+
+The measured symptom stands: 4 of 7 saves lost title *and* cover, and some runs
+returned a title with no image. But **the second cause in the original spec is
+wrong**, and building it as written would have wasted the time:
+
+| Original claim | What is actually true |
 |---|---|
-| `be-01` | **Durable background jobs (pg-boss).** Postgres-backed queue, no new infra — Neon is already paid for. Replaces the detached `setTimeout(…, 0).unref()` in `app/src/bookmarks/index.ts:37`. Adds a `jobs` table, a worker, an `enqueue()` helper, retry with backoff, graceful shutdown. Every later wave queues here instead of fire-and-forget. |
-| `be-02` | **Request logging + request-id.** Structured JSON logs, `x-request-id` propagation, timings. `TASKS.md` lists this as ❌. Without it we debug production blind — which is how the enrichment bug cost an hour. |
-| `be-03` | **Fix flaky metadata enrichment** *(needs `be-01`)*. Measured on the live deploy: 4 of 7 saves lost title *and* cover; some runs returned a title with no image. Three causes: single 5s-timeout attempt with no retry; `metascraper-image` returns nothing on some pages (needs an `og:image` regex fallback); and `if (!body.title)` skips enrichment entirely, so a hand-titled bookmark can never get a cover. |
+| *"`metascraper-image` returns nothing on some pages (needs an `og:image` regex fallback)"* | **Wrong.** Tested against single quotes, unquoted attrs, uppercase `OG:`, protocol-relative URLs, JSON-LD, `og:image` inside `<body>`, and odd title whitespace — metascraper handled **all** of them. The real cause is the **512KB body cap**: `<title>` sits early in `<head>`, `og:image` often much later, so the cap truncates precisely between them. Reproduced: `title:"Real Title", image:null`. **A regex fallback reading the same truncated HTML would find nothing.** |
+
+The other two causes are confirmed as written: a single 5s attempt with no
+retry, and `if (!body.title)` at `app/src/bookmarks/index.ts:109` skipping
+enrichment entirely so a hand-titled bookmark can never get a cover.
+
+**Planned fix:** extract `<head>` preferentially so metadata wins even when a
+page front-loads megabytes of inline script — keeping 512KB as a real DoS
+ceiling rather than raising it. Always enqueue, and let the handler decide
+per-field so the placeholder guard still protects a user's title.
+
+**Still open:** our scraper sends `User-Agent: BookmarkBot/1.0`, and
+`crawler.ts` treats *any* UA containing `bot` as a link-preview crawler. Many
+sites serve bot UAs a stripped page, which would produce missing titles *and*
+covers together — a plausible second contributor to the 4-of-7 rate that cannot
+be confirmed without live traffic. Worth watching on the live deploy before
+changing it.
+
+#### Framework notes worth carrying forward
+
+`app/src/utils/ELYSIA-NOTES.md` — two Elysia behaviours that silently broke
+`be-02` and will bite `agg-fe` too:
+
+1. **`.use()` order is registration order.** A plugin's hooks only cover routes
+   registered *after* it. The logger is now the first `.use()` in
+   `src/index.ts`, above `/health`.
+2. **`.error({ Class })` handlers beat any `onError`.** So `errorPlugin`'s
+   registered `ApiError` subclasses bypassed the logger's `onError` entirely —
+   success paths logged, every 401/404/409 did not. If you add a class to
+   `.error({...})`, it needs the `attachRequestId` + `logRequest` pair too.
+
+Also fixed in passing: `ApiError.toResponse()` builds a fresh `Response` and
+discarded `set.headers`, so any header a plugin attached was dropped on error
+responses (`Retry-After` survived only by being set on the `Response` itself).
+
+#### Baseline
+
+**248 passing / 0 failing across 26 files** (was 203/23 when Wave 0 started).
+typecheck and lint clean, build clean. The 20 lint warnings are all
+pre-existing `react-refresh` ones in `client/` — not ours, and `agg-fe`'s.
 
 ### Wave 1 — Email (Reloop) — *provider purchase pending*
+
+> **Unblocked and ready to start:** `be-05`, `be-06`, `be-07`. None need the
+> domain — they need `be-04`'s mailer, which is a no-op in dev/test. Only
+> `be-04`'s *send-test* is blocked.
 
 | ID | Issue |
 |---|---|
@@ -199,7 +285,17 @@ From `DESIGN.md`, and each one exists because it was measured:
 - `https://aggre-gator.onrender.com` — single Render web service, root
   `Dockerfile`, free tier + Neon Postgres.
 - The service **sleeps after ~15 min idle** and takes ~1 min to wake. This is
-  why fire-and-forget work gets lost (`be-03`).
+  why fire-and-forget work gets lost (`be-03`) — and why the durable queue
+  (`be-01`) is a *fix*, not an optimisation: jobs accumulate while asleep and
+  run on wake. A sleeping worker is the failure mode working.
+- **Structured logs are live** (`be-02`): one JSON line per request on stdout,
+  `x-request-id` on every response. Two deliberate omissions — query strings and
+  emails are never logged, because share codes and reset tokens travel in URLs.
+  Monitoring/alerting on top of this is still ❌ in `TASKS.md`; log lines are
+  the prerequisite, not the feature.
+- **Migration `0012_jobs.sql` must exist before this deploys.** Render runs
+  migrations on boot, so it is automatic — but a `jobs`-less database logs a
+  `42P01` on every boot rather than failing loudly.
 - `CLIENT_URL` / `BETTER_AUTH_URL` must both be
   `https://aggre-gator.onrender.com`, exact string match, no trailing slash —
   better-auth compares the origin with `===`.

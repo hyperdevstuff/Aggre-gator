@@ -1,6 +1,7 @@
 # Aggregator — Status Tracker
 
-> Last audited: **2026-10-07**
+> Last audited: **2026-10-19** (migration count, the `be-03` cause list and the
+> phase-map table corrected; Wave 0 recorded). Earlier audit: 2026-10-07.
 > Plan/phases: [`docs/ROADMAP.md`](ROADMAP.md) · Thesis: [`docs/SPEC.md`](SPEC.md) ·
 > Setup/commands: top-level `README.md`.
 > Open work items are also tracked as GitHub issues.
@@ -22,10 +23,14 @@ Where each section below sits in the roadmap:
 | [3](ROADMAP.md#phase-3--public-layer--done-2026-10-12) | Public layer: profiles, readable URLs, crawler HTML, OG images | ✅ done (2026-10-12) |
 | [4](ROADMAP.md#phase-4--explore-v2--done-2026-10-14) | Explore v2: image mosaics, masonry, ranking, full-text search | ✅ done (2026-10-14); the real ranking signals (saves, views) arrive with phase 5 |
 | [5](ROADMAP.md#phase-5--social-loop) | Social loop: save, fork, follow, view counts | ❌ not started |
-
-Wave 0 of `docs/MARATHON.md` is landing on the backend track: `be-01` (durable
-jobs) and `be-02` (request logging) are done; `be-03` (enrichment fixes) follows.
 | [6](ROADMAP.md#phase-6--monetization) | Monetization: `user.plan`, limits at the API layer | ❌ not started |
+
+> **Execution has moved to the issue tracks in [`MARATHON.md`](MARATHON.md)** —
+> six backend waves (`be-*`) and two frontend steps (`fe-*`). Wave 0 landed:
+> `be-01` (durable jobs) and `be-02` (request logging) are **done and merged**;
+> `be-03` (enrichment fixes) is next — see the
+> [corrected diagnosis](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec),
+> where the second cause in the original spec turned out to be wrong.
 
 ---
 
@@ -43,7 +48,7 @@ jobs) and `be-02` (request logging) are done; `be-03` (enrichment fixes) follows
 | ✅ | Forgot/reset password (reset link printed to console — needs a real mail provider) |
 | ✅ | `GET /user/me`, `GET /user/stats` (independent counts), `PATCH /user/profile` |
 | ❌ | Email verification flow — spam accounts can still reach a profile page; it gates who may *publish*, not who may exist |
-| ❌ | Real email provider (Resend/similar) for password reset |
+| ❌ | Real email provider (**Reloop**) for password reset — `MAIL_PROVIDER=none\|reloop`. Wave 1 in [MARATHON.md](MARATHON.md#wave-1--email-reloop--provider-purchase-pending) |
 | ✅ | `username` / `bio` / `avatar` / `plan` on `user` (phase 2). `PATCH /user/profile` validates + stores them (reserved words, case-insensitive-unique index). `plan` is server-managed and **not** client-writable |
 | ✅ | **better-auth `username()` plugin** (phase 3) — owns normalisation and uniqueness at the auth layer, so no hand-rolled check can be bypassed by calling the auth API directly. `displayUsername: false` (we already have `name`), `validationOrder: "post-normalization"` so "Alice" → `alice` rather than being rejected. No schema change: our nullable column + `user_username_unique` expression index already satisfy it |
 | ✅ | Auto-assigned usernames — every signup gets one in a `create.before` hook (so the sign-up response carries it, not `null`), derived from the display name with numbered fallbacks and a random last resort. Migration `0010` backfilled existing accounts and normalised every stored value to lower-case, which the plugin's exact-match availability lookup requires |
@@ -88,7 +93,7 @@ jobs) and `be-02` (request logging) are done; `be-03` (enrichment fixes) follows
 
 | Status | Task |
 |--------|------|
-| ✅ | Drizzle schema with relations + indexes, 10 migrations (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3) |
+| ✅ | Drizzle schema with relations + indexes, **13 migrations** (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3, `0011` is phase 4b full-text search, `0012` is wave-0 `jobs`) |
 | ✅ | Isolated test database (`aggregator_test`) via `docker compose` |
 | ✅ | `bun test` → **248 passing / 0 failing** across 26 files (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation, OG rendering and the job queue) |
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |
@@ -372,7 +377,7 @@ Decisions worth remembering:
 | 🟡 | No email verification, so any signup can reach a profile page. It does not gate *publishing* — nothing is listed until an owner marks a collection public — but spam accounts can still appear on `/u/:username` and in `/og/profile/…` |
 | 🟡 | Crawler HTML is keyed off a User-Agent allowlist. A preview service we do not recognise degrades to an empty card rather than breaking anything — the documented failure mode in ADR-002 |
 | 🟡 | OG cards have no cache-busting revision, so renaming a collection leaves a stale card in a platform's cache until `stale-while-revalidate` (12h) elapses. The URL shape takes a revision suffix if that ever matters |
-| 🟡 | Metadata enrichment is durable but still **not retried at the scrape layer**: the job queue now retries a thrown error, but `scrapeMetadata` treats a dead host as a success (it falls back to the hostname), so a URL that 404s at save time keeps its hostname and no retry is attempted. `be-03` fixes the three measured causes — a single 5s-timeout attempt, no `og:image` fallback when `metascraper-image` returns nothing, and the `if (!body.title)` skip that prevents a hand-titled bookmark from ever getting a cover |
+| 🟡 | Metadata enrichment is durable but still **not retried at the scrape layer**: the job queue now retries a thrown error, but `scrapeMetadata` treats a dead host as a success (it falls back to the hostname), so a URL that 404s at save time keeps its hostname and no retry is attempted. `be-03` fixes the three measured causes: a single 5s-timeout attempt with no retry; the **512 KB body cap** truncating between `<title>` and `og:image` (the original spec blamed `metascraper-image`, which was measured wrong — it handles every awkward HTML shape tested, and a regex fallback would read the same truncated HTML); and the `if (!body.title)` skip at `app/src/bookmarks/index.ts:109` that prevents a hand-titled bookmark from ever getting a cover. See [MARATHON.md](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec) |
 | ✅ | ~~`DELETE /collections/:id` orphaned bookmarks to `collectionId = null` (invisible + un-re-addable)~~ fixed in #22: default delete re-homes to Unsorted, `?deleteBookmarks=true` destroys, parents with children blocked (409), legacy NULLs backfilled + listing is NULL-safe |
 | 🟡 | `bunfig.toml` disables **all** dependency lifecycle scripts — a future dependency that genuinely needs a postinstall (sharp, esbuild) will need this revisited |
 
