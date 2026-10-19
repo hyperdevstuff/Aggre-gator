@@ -216,16 +216,24 @@ export const auth = betterAuth({
  * nothing is listed anywhere until an owner publishes, so the spam problem the
  * rule exists for is entirely downstream of publication.
  *
- * It is also unconditional, unlike `requireEmailVerification`. Refusing to
- * publish is recoverable and is the actual defence, so it stays on even with
- * `MAIL_PROVIDER=none` — otherwise a deployment with mail off would quietly have
- * no gate at all, and `be-08` is a human task that has not happened yet.
+ * It is armed by `ENFORCE_EMAIL_VERIFICATION`, which **defaults to mail being
+ * configured** rather than being always on. The gate can only be passed by
+ * clicking a link we send, so arming it while `MAIL_PROVIDER=none` would refuse
+ * publishing to everyone permanently — an outage, not a control. Turning mail on
+ * arms it; the test suite sets the flag explicitly so the refusal path stays
+ * provable without a provider. The rule lives in
+ * `resolveEnforceEmailVerification` in `env.ts`, with a test on it.
+ *
+ * Note this is a *narrower* switch than `requireEmailVerification` above, which
+ * stays tied to a real provider: refusing to publish is recoverable (verify,
+ * then publish), whereas refusing to sign in is not.
  *
  * The flag is read off the session's user, which better-auth re-reads from the
  * database on every request, so a user who verifies mid-session is unblocked
  * without signing in again.
  */
 export function requireVerifiedPublisher(user: { emailVerified?: unknown }) {
+  if (!env.ENFORCE_EMAIL_VERIFICATION) return;
   if (user.emailVerified !== true) {
     throw new EmailVerificationRequiredError();
   }

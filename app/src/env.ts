@@ -31,6 +31,13 @@ export type Env = {
   /** `hello@aggregator.com` or `Aggregator <hello@aggregator.com>`. */
   RELOOP_FROM: string | undefined;
   /**
+   * Whether an unverified account is refused at the publish routes (`be-07`).
+   *
+   * Derived from `MAIL_PROVIDER` unless set explicitly — see
+   * `resolveEnforceEmailVerification`.
+   */
+  ENFORCE_EMAIL_VERIFICATION: boolean;
+  /**
    * Trust `x-forwarded-for` / `cf-connecting-ip` for per-client rate limiting.
    * Only enable when the API genuinely sits behind a proxy/CDN that overwrites
    * those headers — otherwise a caller can spoof an IP and walk around the
@@ -53,6 +60,28 @@ const isHttps = (url: string) => {
     return false;
   }
 };
+
+/**
+ * Default rule for `ENFORCE_EMAIL_VERIFICATION`: **enforcement follows mail
+ * being configured.**
+ *
+ * The gate can only be passed by clicking a link we send, so arming it while
+ * `MAIL_PROVIDER=none` does not stop spam — it stops everyone, permanently, and
+ * with no way to appeal. That is why the default is not a plain `true`, and why
+ * turning mail on (`be-08`) arms the gate with it.
+ *
+ * Extracted and exported rather than inlined so the rule itself has a test: the
+ * suite runs with the override set, so the derived-from-mail path would
+ * otherwise never execute.
+ */
+export function resolveEnforceEmailVerification(
+  raw: string | undefined,
+  mailProvider: Env["MAIL_PROVIDER"],
+): boolean {
+  const value = (raw ?? "").trim().toLowerCase();
+  if (!value) return mailProvider !== "none";
+  return ["1", "true", "yes", "on"].includes(value);
+}
 
 function validate(): Env {
   const problems: string[] = [];
@@ -141,6 +170,28 @@ function validate(): Env {
     if (!RELOOP_FROM) problems.push("MAIL_PROVIDER=reloop needs RELOOP_FROM (a verified sender address).");
   }
 
+  // The publish gate (`be-07`). Defaults to "armed once mail is configured",
+  // because a gate nobody can pass is an outage rather than a security control:
+  // with `MAIL_PROVIDER=none` the verification link can never be delivered, so
+  // enforcing verification would refuse publishing to every account with no way
+  // out. Set it explicitly to `true` to arm the gate before a provider exists
+  // (the test suite does exactly that, which is what makes the refusal path
+  // provable without sending mail), or to `false` to allow unverified publishing
+  // with mail on.
+  const rawEnforceVerification = (process.env.ENFORCE_EMAIL_VERIFICATION ?? "").trim().toLowerCase();
+  if (
+    rawEnforceVerification &&
+    !["1", "true", "yes", "on", "0", "false", "no", "off"].includes(rawEnforceVerification)
+  ) {
+    problems.push(
+      `ENFORCE_EMAIL_VERIFICATION=${JSON.stringify(process.env.ENFORCE_EMAIL_VERIFICATION)} is not a boolean — use true or false.`,
+    );
+  }
+  const ENFORCE_EMAIL_VERIFICATION = resolveEnforceEmailVerification(
+    process.env.ENFORCE_EMAIL_VERIFICATION,
+    MAIL_PROVIDER,
+  );
+
   if (NODE_ENV === "production") {
     // Secure session cookies + CORS are only meaningful over https.
     if (BETTER_AUTH_URL && !isHttps(BETTER_AUTH_URL)) {
@@ -170,6 +221,7 @@ function validate(): Env {
     MAIL_PROVIDER,
     RELOOP_API_KEY,
     RELOOP_FROM,
+    ENFORCE_EMAIL_VERIFICATION,
     TRUST_PROXY,
     CLIENT_DIST_DIR: process.env.CLIENT_DIST_DIR || undefined,
   };
