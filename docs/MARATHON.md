@@ -103,7 +103,7 @@ Ownership: `app/**`, `app/drizzle/**`. Every wave ends green.
 |---|---|---|
 | `be-01` | ✅ **done** | **Durable background jobs.** Postgres-backed queue, no new infra — Neon is already paid for. Replaces the detached `setTimeout(…, 0).unref()` that lost enrichment work on every Render sleep and deploy. Adds a `jobs` table, a worker, an `enqueue()` helper, retry with backoff, graceful shutdown. Every later wave queues here instead of fire-and-forget. |
 | `be-02` | ✅ **done** | **Request logging + request-id.** Structured JSON logs, `x-request-id` propagation, timings. `TASKS.md` listed this as ❌. Without it we debug production blind — which is how the enrichment bug cost an hour. |
-| `be-03` | ⏳ **next** | **Fix flaky metadata enrichment** *(needs `be-01`)*. See the corrected diagnosis below — the original one was wrong in its second cause. |
+| `be-03` | ✅ **done** | **Fix flaky metadata enrichment** *(needs `be-01`)*. See the corrected diagnosis below — the original one was wrong in its second cause — and the shipped notes under it. |
 
 #### `be-01` — what actually shipped
 
@@ -151,6 +151,33 @@ covers together — a plausible second contributor to the 4-of-7 rate that canno
 be confirmed without live traffic. Worth watching on the live deploy before
 changing it.
 
+#### `be-03` — what actually shipped
+
+- `app/src/utils/metadata.ts` — `TransientScrapeError` for timeouts, dropped
+  connections, 429 and 5xx, so the queue backs off and retries them; a 404, a
+  refused URL and a redirect loop still fall back to the hostname.
+  `<script>`/`<style>` bodies are now stripped **before** the cap is applied,
+  against a 2MB read budget. The 512KB parser budget is unchanged.
+- `app/src/utils/enrichment.ts` — writes back only the fields the caller left
+  empty, each behind its own guard, so a hand-titled bookmark gains a cover
+  without gaining someone else's title.
+- `app/src/bookmarks/index.ts` — queues whenever a field is missing rather than
+  only when the title is; `keep` in the payload is now per-field booleans.
+
+The planned "extract `<head>` preferentially" turned out to be unnecessary once
+script/style bodies are dropped: without its inline bundle the head is small, so
+the 512KB ceiling is a real ceiling again instead of a cut-off point. A single
+regexp is the right tool here — a streaming state machine would buy nothing but
+chances to corrupt the extraction.
+
+Writing the hand-titled test exposed a fourth defect that was not in either
+diagnosis: `scheduleEnrichment` called `enqueue()` and did not await it, so the
+response could outlive the job row — the same silent loss the queue was built to
+prevent. It is awaited now, one indexed insert on the request path.
+
+Each of the three fixes has a test that was run against the un-fixed code and
+confirmed to fail.
+
 #### Framework notes worth carrying forward
 
 `app/src/utils/ELYSIA-NOTES.md` — two Elysia behaviours that silently broke
@@ -170,9 +197,10 @@ responses (`Retry-After` survived only by being set on the `Response` itself).
 
 #### Baseline
 
-**248 passing / 0 failing across 26 files** (was 203/23 when Wave 0 started).
-typecheck and lint clean, build clean. The 20 lint warnings are all
-pre-existing `react-refresh` ones in `client/` — not ours, and `agg-fe`'s.
+**253 passing / 0 failing across 26 files** (was 203/23 when Wave 0 started, 248
+after `be-01`/`be-02`). typecheck and lint clean, build clean. The 20 lint
+warnings are all pre-existing `react-refresh` ones in `client/` — not ours, and
+`agg-fe`'s.
 
 ### Wave 1 — Email (Reloop) — *provider purchase pending*
 

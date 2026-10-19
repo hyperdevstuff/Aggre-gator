@@ -1,7 +1,8 @@
 # Aggregator — Status Tracker
 
-> Last audited: **2026-10-19** (migration count, the `be-03` cause list and the
-> phase-map table corrected; Wave 0 recorded). Earlier audit: 2026-10-07.
+> Last audited: **2026-10-19** (Wave 0 complete — `be-03` done; migration count,
+> the `be-03` cause list and the phase-map table corrected). Earlier audit:
+> 2026-10-07.
 > Plan/phases: [`docs/ROADMAP.md`](ROADMAP.md) · Thesis: [`docs/SPEC.md`](SPEC.md) ·
 > Setup/commands: top-level `README.md`.
 > Open work items are also tracked as GitHub issues.
@@ -27,10 +28,10 @@ Where each section below sits in the roadmap:
 
 > **Execution has moved to the issue tracks in [`MARATHON.md`](MARATHON.md)** —
 > six backend waves (`be-*`) and two frontend steps (`fe-*`). Wave 0 landed:
-> `be-01` (durable jobs) and `be-02` (request logging) are **done and merged**;
-> `be-03` (enrichment fixes) is next — see the
-> [corrected diagnosis](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec),
-> where the second cause in the original spec turned out to be wrong.
+> `be-01` (durable jobs), `be-02` (request logging) and `be-03` (enrichment
+> fixes) are **done**; Wave 1 (email) is next. The `be-03`
+> [corrected diagnosis](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec)
+> is the one to read — the second cause in the original spec was measured wrong.
 
 ---
 
@@ -95,7 +96,7 @@ Where each section below sits in the roadmap:
 |--------|------|
 | ✅ | Drizzle schema with relations + indexes, **13 migrations** (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3, `0011` is phase 4b full-text search, `0012` is wave-0 `jobs`) |
 | ✅ | Isolated test database (`aggregator_test`) via `docker compose` |
-| ✅ | `bun test` → **248 passing / 0 failing** across 26 files (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation, OG rendering and the job queue) |
+| ✅ | `bun test` → **253 passing / 0 failing** across 26 files (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation, OG rendering, the job queue and metadata scraping) |
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |
 | ✅ | Rate limiting: fixed-window, in-process (`app/src/utils/rate-limit.ts`). Global 1000/min per client in `onRequest` (so it caps unauthenticated floods *before* the session lookup), plus per-route 120/min on `POST /bookmarks`, 20/min on bulk, 60/min on `/share/explore`, 120/min on `/share/:code`. Health/version/OpenAPI/auth are exempt. 429 carries `Retry-After` |
 | ✅ | Client IP for limits comes from the socket; `x-forwarded-for` / `cf-connecting-ip` are only trusted when `TRUST_PROXY=true` (new env var, documented in `app/.env.example`) so a directly exposed API can't be dodged by spoofing a header |
@@ -377,7 +378,7 @@ Decisions worth remembering:
 | 🟡 | No email verification, so any signup can reach a profile page. It does not gate *publishing* — nothing is listed until an owner marks a collection public — but spam accounts can still appear on `/u/:username` and in `/og/profile/…` |
 | 🟡 | Crawler HTML is keyed off a User-Agent allowlist. A preview service we do not recognise degrades to an empty card rather than breaking anything — the documented failure mode in ADR-002 |
 | 🟡 | OG cards have no cache-busting revision, so renaming a collection leaves a stale card in a platform's cache until `stale-while-revalidate` (12h) elapses. The URL shape takes a revision suffix if that ever matters |
-| 🟡 | Metadata enrichment is durable but still **not retried at the scrape layer**: the job queue now retries a thrown error, but `scrapeMetadata` treats a dead host as a success (it falls back to the hostname), so a URL that 404s at save time keeps its hostname and no retry is attempted. `be-03` fixes the three measured causes: a single 5s-timeout attempt with no retry; the **512 KB body cap** truncating between `<title>` and `og:image` (the original spec blamed `metascraper-image`, which was measured wrong — it handles every awkward HTML shape tested, and a regex fallback would read the same truncated HTML); and the `if (!body.title)` skip at `app/src/bookmarks/index.ts:109` that prevents a hand-titled bookmark from ever getting a cover. See [MARATHON.md](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec) |
+| ✅ | Metadata enrichment retries the failures worth retrying and no longer loses covers. `scrapeMetadata` throws `TransientScrapeError` for timeouts, dropped connections, 429 and 5xx so the queue backs off and retries; 404s, refused URLs and redirect loops still fall back to the hostname. Script/style bodies are dropped before the 512 KB cap is applied, so a page whose inline bundle pushed `<meta og:image>` past the cap no longer loses its cover while keeping its title. Enrichment now queues whenever any field is missing, not only when the title is — a hand-titled bookmark can finally get a cover — and the handler writes back only the fields the caller left empty, each behind its own guard. See [MARATHON.md](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec) |
 | ✅ | ~~`DELETE /collections/:id` orphaned bookmarks to `collectionId = null` (invisible + un-re-addable)~~ fixed in #22: default delete re-homes to Unsorted, `?deleteBookmarks=true` destroys, parents with children blocked (409), legacy NULLs backfilled + listing is NULL-safe |
 | 🟡 | `bunfig.toml` disables **all** dependency lifecycle scripts — a future dependency that genuinely needs a postinstall (sharp, esbuild) will need this revisited |
 
