@@ -16,3 +16,9 @@ logs/
 
 # dependencies (never commit)
 node_modules/
+
+# local env files (never commit — real values live here, see docs/DEPLOY.md).
+# `.env.example` is NOT matched by these patterns and stays tracked on purpose.
+.env
+.env.local
+.env.*.local
