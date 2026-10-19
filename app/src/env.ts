@@ -19,6 +19,18 @@ export type Env = {
   GOOGLE_CLIENT_ID: string | undefined;
   GOOGLE_CLIENT_SECRET: string | undefined;
   /**
+   * Which transport `utils/mail.ts` speaks through.
+   *
+   * `none` is the default and is a genuine no-op: nothing is sent and no socket
+   * is opened, which is what keeps the test suite off the network and what keeps
+   * us from mailing from an unverified domain before `be-08` lands. `reloop`
+   * requires `RELOOP_API_KEY` + `RELOOP_FROM` below.
+   */
+  MAIL_PROVIDER: "none" | "reloop";
+  RELOOP_API_KEY: string | undefined;
+  /** `hello@aggregator.com` or `Aggregator <hello@aggregator.com>`. */
+  RELOOP_FROM: string | undefined;
+  /**
    * Trust `x-forwarded-for` / `cf-connecting-ip` for per-client rate limiting.
    * Only enable when the API genuinely sits behind a proxy/CDN that overwrites
    * those headers — otherwise a caller can spoof an IP and walk around the
@@ -106,6 +118,29 @@ function validate(): Env {
     problems.push("Google OAuth needs both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (or neither).");
   }
 
+  // Mail. `MAIL_PROVIDER` defaults to `none` — an unconfigured app must still
+  // boot, or every local run and every test would need a provider account.
+  // Selecting `reloop` without credentials, though, is a misconfiguration that
+  // would fail silently at the first password reset, so it is fatal here.
+  const rawMailProvider = (process.env.MAIL_PROVIDER ?? "").trim().toLowerCase();
+  let MAIL_PROVIDER: Env["MAIL_PROVIDER"] = "none";
+  if (rawMailProvider) {
+    if (rawMailProvider === "none" || rawMailProvider === "reloop") {
+      MAIL_PROVIDER = rawMailProvider;
+    } else {
+      problems.push(
+        `MAIL_PROVIDER=${JSON.stringify(process.env.MAIL_PROVIDER)} is not one of none|reloop.`,
+      );
+    }
+  }
+
+  const RELOOP_API_KEY = process.env.RELOOP_API_KEY || undefined;
+  const RELOOP_FROM = process.env.RELOOP_FROM || undefined;
+  if (MAIL_PROVIDER === "reloop") {
+    if (!RELOOP_API_KEY) problems.push("MAIL_PROVIDER=reloop needs RELOOP_API_KEY.");
+    if (!RELOOP_FROM) problems.push("MAIL_PROVIDER=reloop needs RELOOP_FROM (a verified sender address).");
+  }
+
   if (NODE_ENV === "production") {
     // Secure session cookies + CORS are only meaningful over https.
     if (BETTER_AUTH_URL && !isHttps(BETTER_AUTH_URL)) {
@@ -132,6 +167,9 @@ function validate(): Env {
     CLIENT_URL: CLIENT_URL!,
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
+    MAIL_PROVIDER,
+    RELOOP_API_KEY,
+    RELOOP_FROM,
     TRUST_PROXY,
     CLIENT_DIST_DIR: process.env.CLIENT_DIST_DIR || undefined,
   };
