@@ -13,7 +13,7 @@ import { db } from "../../db";
 import { user } from "../../db/schema";
 import { auth } from "../../utils/auth";
 import { mailEnabled, setMailTransport, type Mail } from "../../utils/mail";
-import { createTestUser, getSessionCookie, cleanupTestUser } from "./setup";
+import { getSessionCookie, cleanupTestUser } from "./setup";
 
 let sent: Mail[];
 let created: string[];
@@ -171,10 +171,14 @@ describe("auth config", () => {
     expect(auth.options.emailAndPassword?.requireEmailVerification).toBe(false);
   });
 
-  test("sendOnSignUp follows enforcement rather than being pinned", async () => {
-    // Left unset on purpose so it tracks `requireEmailVerification`: with no
-    // provider, a sign-up mails nothing and locks nobody out.
-    expect(auth.options.emailVerification?.sendOnSignUp).toBeUndefined();
+  test("sendOnSignUp is not pinned, so it keeps tracking enforcement", () => {
+    // Left out of the config on purpose so better-auth defaults it to
+    // `requireEmailVerification`: with no provider, a sign-up mails nothing and
+    // locks nobody out. Asserting the key is *absent* rather than `undefined` is
+    // what actually pins that decision — an explicit `undefined` would read the
+    // same to a test and behave the same to better-auth, but only one of them
+    // survives someone reordering the object.
+    expect("sendOnSignUp" in (auth.options.emailVerification ?? {})).toBe(false);
     expect(sent).toHaveLength(0);
   });
 });

@@ -10,6 +10,15 @@ class ApiError extends Error {
     public status: number,
     public message: string,
     public details?: unknown,
+    /**
+     * Stable machine-readable code, emitted as `code` alongside `error`.
+     *
+     * Added because some failures are states rather than mistakes: the client
+     * has to react differently to "verify your email and retry" than to "that
+     * slug is taken", and it cannot do that by pattern-matching prose. Additive,
+     * so every existing consumer of `{ error }` keeps working untouched.
+     */
+    public code?: string,
   ) {
     super(message);
   }
@@ -18,6 +27,7 @@ class ApiError extends Error {
     return new Response(
       JSON.stringify({
         error: this.message,
+        ...(this.code ? { code: this.code } : {}),
         ...(this.details !== undefined ? { details: this.details } : {}),
       }),
       {
@@ -47,8 +57,29 @@ export class ConflictError extends ApiError {
 }
 
 export class ForbiddenError extends ApiError {
-  constructor(message = "Forbidden") {
-    super(403, message);
+  constructor(message = "Forbidden", details?: unknown, code?: string) {
+    super(403, message, details, code);
+  }
+}
+
+/**
+ * The account is real, signed in, and fully usable — it just may not *publish*
+ * yet. `be-07`, and the reason this is a 403 rather than a 401: nothing about
+ * the session is wrong, and re-authenticating does not help.
+ *
+ * `details` carries what the client needs to act rather than to display: the
+ * current flag, and the endpoint that sends a fresh link.
+ */
+export class EmailVerificationRequiredError extends ForbiddenError {
+  constructor() {
+    super(
+      "Verify your email address to publish.",
+      {
+        emailVerified: false,
+        resendVerificationUrl: "/api/auth/send-verification-email",
+      },
+      "EMAIL_NOT_VERIFIED",
+    );
   }
 }
 
@@ -81,6 +112,11 @@ export class InternalError extends ApiError {
 }
 
 export const errorPlugin = new Elysia({ name: "error-handler" })
+  // Deliberately *not* exhaustive. A new `ApiError` subclass only needs to be
+  // listed here if it needs different handling; otherwise the `instanceof
+  // ApiError` branch of `onError` below produces the same response, attaches the
+  // request id and logs it — which is exactly what ELYSIA-NOTES warns a per-class
+  // handler silently skips. `EmailVerificationRequiredError` relies on that.
   .error({
     UnauthorizedError,
     NotFoundError,

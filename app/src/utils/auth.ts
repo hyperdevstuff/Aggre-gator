@@ -5,7 +5,7 @@ import { db } from "../db/index";
 import * as schema from "../db/schema";
 import { env } from "../env";
 import Elysia from "elysia";
-import { InternalError, UnauthorizedError } from "../error";
+import { EmailVerificationRequiredError, InternalError, UnauthorizedError } from "../error";
 import { validateUsername } from "./username";
 import { findAvailableUsername } from "./user-identity";
 import { sendPasswordResetEmail, sendVerificationEmail as mailVerificationEmail, mailEnabled } from "./mail";
@@ -201,6 +201,35 @@ export const auth = betterAuth({
     },
   },
 });
+
+/**
+ * Gate for the one thing an unverified account may not do: put its content in
+ * front of somebody else. `be-07`.
+ *
+ * This is deliberately *not* the same rule as `requireEmailVerification` in the
+ * config above, and the difference is the whole point of the issue. TASKS.md is
+ * explicit — verification gates **who may publish**, not who may exist. An
+ * unverified user signs in, saves bookmarks, builds collections and organises
+ * them; only the write that makes a collection readable by an anonymous visitor
+ * is refused. Locking an account out of its own data until it clicks a link is
+ * how a verification flow turns into a support burden, and it buys nothing:
+ * nothing is listed anywhere until an owner publishes, so the spam problem the
+ * rule exists for is entirely downstream of publication.
+ *
+ * It is also unconditional, unlike `requireEmailVerification`. Refusing to
+ * publish is recoverable and is the actual defence, so it stays on even with
+ * `MAIL_PROVIDER=none` — otherwise a deployment with mail off would quietly have
+ * no gate at all, and `be-08` is a human task that has not happened yet.
+ *
+ * The flag is read off the session's user, which better-auth re-reads from the
+ * database on every request, so a user who verifies mid-session is unblocked
+ * without signing in again.
+ */
+export function requireVerifiedPublisher(user: { emailVerified?: unknown }) {
+  if (user.emailVerified !== true) {
+    throw new EmailVerificationRequiredError();
+  }
+}
 
 /**
  * Route prefixes that are public by design and must answer anonymous requests:
