@@ -8,6 +8,7 @@ import Elysia from "elysia";
 import { InternalError, UnauthorizedError } from "../error";
 import { validateUsername } from "./username";
 import { findAvailableUsername } from "./user-identity";
+import { sendPasswordResetEmail } from "./mail";
 
 const isProduction = env.NODE_ENV === "production";
 
@@ -17,11 +18,13 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   emailAndPassword: {
     enabled: true,
-    sendResetPassword: async ({ user, url, token }) => {
-      // TODO: replace with real email provider (Resend, unosend) for production
-      console.log(`\n🔑 Password reset requested for ${user.email}`);
-      console.log(`   Reset URL: ${url}`);
-      console.log(`   Token: ${token}\n`);
+    sendResetPassword: async ({ user, url }) => {
+      // The mailer never throws and never logs: a provider outage must not turn
+      // a completed "check your inbox" into a 500, and `be-02` established that
+      // emails and reset tokens stay out of the logs. What happens instead is a
+      // lost email — the endpoint still answers the same generic message, so an
+      // attacker learns nothing about whether the address exists either way.
+      await sendPasswordResetEmail({ to: user.email, url, name: user.name });
     },
   },
   trustedOrigins: [env.CLIENT_URL],
