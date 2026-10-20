@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aggregator — orientation</title>
+<style>
+:root{
+  --bg: oklch(0.16 0.008 215);
+  --card: oklch(0.205 0.010 215);
+  --pop: oklch(0.245 0.011 215);
+  --overlay: oklch(0.285 0.012 215);
+  --fg: oklch(0.965 0.004 215);
+  --muted: oklch(0.70 0.012 215);
+  --meta: oklch(0.74 0.013 215);
+  --clay: oklch(0.78 0.14 32);
+  --clay-ink: oklch(0.16 0.008 215);
+  --ok: oklch(0.72 0.17 155);
+  --warn: oklch(0.80 0.13 85);
+  --bad: oklch(0.70 0.17 25);
+  --border: oklch(1 0 0 / 9%);
+  --border-strong: oklch(1 0 0 / 16%);
+  --raise: inset 0 1px 0 oklch(1 0 0 / 6%);
+  --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:14px;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Geist Mono", Menlo, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", "Geist", Roboto, sans-serif;
+  --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+html[data-theme="light"]{
+  --bg: oklch(0.975 0.003 215);
+  --card: #fff;
+  --pop: #fff;
+  --overlay: oklch(0.99 0.002 215);
+  --fg: oklch(0.20 0.012 215);
+  --muted: oklch(0.28 0.014 215);
+  --meta: oklch(0.42 0.012 215);
+  --clay: oklch(0.42 0.19 28);
+  --clay-ink: #fff;
+  --ok: oklch(0.48 0.14 155);
+  --warn: oklch(0.50 0.12 75);
+  --bad: oklch(0.50 0.18 25);
+  --border: oklch(0.20 0.012 215 / 12%);
+  --border-strong: oklch(0.20 0.012 215 / 20%);
+  --raise: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 20px -6px rgb(0 0 0 / 0.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:88px}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font:14px/1.58 var(--sans);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+h1,h2,h3,h4{font-family:var(--serif); font-weight:400; margin:0}
+a{color:inherit}
+code,kbd,.mono{font-family:var(--mono)}
+code{
+  font-size:0.86em; background:var(--overlay); border:1px solid var(--border);
+  padding:1px 5px; border-radius:var(--r-xs); white-space:nowrap;
+}
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:0.09em;
+  text-transform:uppercase; color:var(--meta);
+}
+.lede{font-size:16px; line-height:1.58; color:var(--muted); max-width:68ch}
+.small{font-size:12.5px; color:var(--meta)}
+
+/* ── layout ───────────────────────────────────────────── */
+.shell{display:grid; grid-template-columns:264px minmax(0,1fr); gap:0; max-width:1400px; margin:0 auto}
+nav.rail{
+  position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+  border-right:1px solid var(--border); padding:26px 20px 40px;
+  display:flex; flex-direction:column; gap:22px;
+}
+.brand{display:flex; align-items:center; gap:10px}
+.mark{width:26px; height:26px; flex:0 0 auto}
+.brand b{font-family:var(--serif); font-weight:400; font-size:19px; letter-spacing:0.01em}
+nav.rail ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px}
+nav.rail button{
+  all:unset; cursor:pointer; display:flex; align-items:center; gap:9px;
+  padding:7px 9px; border-radius:var(--r-sm); color:var(--muted);
+  font-size:13.5px; width:100%;
+  transition:background 120ms var(--ease), color 120ms var(--ease);
+}
+nav.rail button:hover{background:oklch(1 0 0 / 5%); color:var(--fg)}
+nav.rail button .ind{width:2px; height:15px; border-radius:2px; background:transparent; flex:0 0 auto}
+nav.rail button[aria-current="true"]{color:var(--fg); background:oklch(1 0 0 / 5%)}
+nav.rail button[aria-current="true"] .ind{background:var(--clay)}
+nav.rail button:active{transform:scale(0.97)}
+.railfoot{margin-top:auto; display:flex; flex-direction:column; gap:12px}
+.prog{display:flex; flex-direction:column; gap:7px}
+.bar{height:4px; border-radius:99px; background:var(--overlay); overflow:hidden}
+.bar>i{display:block; height:100%; background:var(--clay); width:0%; transition:width 260ms var(--ease)}
+main{padding:0 clamp(20px,4vw,56px) 120px; min-width:0}
+section{padding:64px 0 8px; border-top:1px solid var(--border)}
+section:first-of-type{border-top:0}
+
+/* ── hero ─────────────────────────────────────────────── */
+.hero{padding:72px 0 40px; border-top:0}
+.hero h1{font-size:clamp(34px,4.4vw,52px); line-height:1.04; letter-spacing:-0.028em; max-width:22ch; margin:14px 0 18px}
+.hero h1 em{font-style:italic; color:var(--clay)}
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; margin-top:34px}
+.stat{background:var(--card); padding:14px 16px; box-shadow:var(--raise)}
+.stat b{display:block; font-family:var(--mono); font-size:18px; color:var(--fg); letter-spacing:-0.01em}
+.stat span{font-size:11.5px; color:var(--meta)}
+.banner{
+  margin-top:30px; border:1px solid var(--border); border-left:2px solid var(--clay);
+  background:var(--card); border-radius:var(--r-md); padding:14px 16px; box-shadow:var(--raise);
+  display:flex; gap:12px; align-items:flex-start;
+}
+.banner p{margin:0; color:var(--muted)}
+.banner strong{color:var(--fg); font-weight:600}
+
+/* ── primitives ───────────────────────────────────────── */
+.h2{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:10px}
+.h2 h2{font-size:27px; line-height:1.14; letter-spacing:-0.02em}
+.h2 .n{font-family:var(--mono); font-size:11px; letter-spacing:0.09em; color:var(--meta); text-transform:uppercase}
+.card{background:var(--card); border:1px solid var(--border); border-radius:var(--r-lg); box-shadow:var(--raise)}
+.pad{padding:16px 18px}
+.grid{display:grid; gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.spread{display:flex; gap:10px; align-items:baseline; justify-content:space-between}
+.pill{
+  display:inline-flex; align-items:center; gap:6px; font-family:var(--mono);
+  font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase;
+  padding:3px 8px; border-radius:999px; border:1px solid var(--border-strong); color:var(--meta);
+  white-space:nowrap;
+}
+.pill.ok{color:var(--ok); border-color:color-mix(in oklab, var(--ok) 40%, transparent)}
+.pill.warn{color:var(--warn); border-color:color-mix(in oklab, var(--warn) 40%, transparent)}
+.pill.bad{color:var(--bad); border-color:color-mix(in oklab, var(--bad) 40%, transparent)}
+.pill.next{color:var(--clay); border-color:color-mix(in oklab, var(--clay) 45%, transparent)}
+.chip{
+  all:unset; cursor:pointer; font-size:12.5px; padding:5px 11px; border-radius:999px;
+  border:1px solid var(--border); color:var(--muted); background:transparent;
+  transition:background 120ms var(--ease), color 120ms var(--ease), transform 120ms var(--ease);
+}
+.chip:hover{color:var(--fg); background:oklch(1 0 0 / 4%)}
+.chip[aria-pressed="true"]{background:var(--overlay); color:var(--fg); border-color:var(--border-strong)}
+.chip:active{transform:scale(0.97)}
+.btn{
+  all:unset; cursor:pointer; font-size:13px; padding:7px 12px; border-radius:var(--r-sm);
+  border:1px solid var(--border-strong); color:var(--fg);
+  transition:background 120ms var(--ease), transform 120ms var(--ease);
+}
+.btn:hover{background:oklch(1 0 0 / 6%)}
+.btn:active{transform:scale(0.97)}
+.btn.clay{background:var(--clay); color:var(--clay-ink); border-color:transparent; font-weight:600}
+.btn.clay:hover{background:color-mix(in oklab, var(--clay) 88%, var(--fg))}
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top}
+th{font-family:var(--mono); font-size:10.5px; letter-spacing:0.09em; text-transform:uppercase; color:var(--meta); font-weight:400}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:oklch(1 0 0 / 3%)}
+.wrap{overflow-x:auto}
+details.acc{border:1px solid var(--border); border-radius:var(--r-md); background:var(--card); overflow:hidden}
+details.acc+details.acc{margin-top:8px}
+details.acc>summary{
+  cursor:pointer; padding:13px 16px; list-style:none; display:flex; gap:12px; align-items:center;
+  font-size:14px; transition:background 120ms var(--ease);
+}
+details.acc>summary::-webkit-details-marker{display:none}
+details.acc>summary:hover{background:oklch(1 0 0 / 4%)}
+details.acc>summary .caret{margin-left:auto; color:var(--meta); transition:transform 180ms var(--ease); flex:0 0 auto}
+details.acc[open]>summary .caret{transform:rotate(90deg)}
+details.acc>summary .t{font-family:var(--serif); font-size:16px}
+details.acc .body{padding:0 16px 16px; border-top:1px solid var(--border); color:var(--muted)}
+details.acc .body p{margin:12px 0 0}
+.kv{display:grid; grid-template-columns:104px minmax(0,1fr); gap:8px 14px; margin-top:12px}
+.kv dt{font-family:var(--mono); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--meta); padding-top:2px}
+.kv dd{margin:0; color:var(--fg)}
+.note{border-left:2px solid var(--border-strong); padding-left:14px; color:var(--muted)}
+mark{background:color-mix(in oklab, var(--clay) 22%, transparent); color:var(--fg); border-radius:3px; padding:0 3px}
+.filtered-out{display:none !important}
+
+/* ── doc map tabs ─────────────────────────────────────── */
+.tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px}
+.tabpane{display:none}
+.tabpane.on{display:block; animation:in 180ms var(--ease)}
+@keyframes in{from{opacity:0; transform:translateY(4px) scale(0.995)} to{opacity:1; transform:none}}
+
+/* ── wave explorer ────────────────────────────────────── */
+.wavegrid{display:grid; grid-template-columns:minmax(0,230px) minmax(0,1fr); gap:14px; align-items:start}
+@media (max-width:860px){ .wavegrid{grid-template-columns:1fr} }
+.wavelist{display:flex; flex-direction:column; gap:6px}
+.wavelist button{
+  all:unset; cursor:pointer; padding:10px 12px; border-radius:var(--r-md); border:1px solid var(--border);
+  background:var(--card); display:flex; flex-direction:column; gap:3px; box-shadow:var(--raise);
+  transition:border-color 120ms var(--ease), transform 120ms var(--ease);
+}
+.wavelist button:hover{border-color:var(--border-strong)}
+.wavelist button:active{transform:scale(0.985)}
+.wavelist button[aria-selected="true"]{border-color:color-mix(in oklab, var(--clay) 55%, transparent)}
+.wavelist .wt{font-family:var(--serif); font-size:15px}
+.wavelist .ws{font-family:var(--mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--meta)}
+.isseg{display:flex; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:999px; overflow:hidden; align-self:flex-start}
+.isseg button{all:unset; cursor:pointer; padding:5px 12px; font-size:12.5px; background:var(--card); color:var(--muted)}
+.isseg button[aria-pressed="true"]{background:var(--overlay); color:var(--fg)}
+.islist{display:flex; flex-direction:column}
+.is{display:grid; grid-template-columns:64px minmax(0,1fr) auto; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); align-items:start}
+.is:last-child{border-bottom:0}
+.is .id{font-family:var(--mono); font-size:12px; color:var(--meta); padding-top:1px}
+.is h4{font-family:var(--sans); font-size:13.5px; font-weight:600; margin:0 0 4px}
+.is p{margin:0; color:var(--muted); font-size:13px}
+@media (max-width:640px){ .is{grid-template-columns:1fr; gap:6px} }
+
+/* ── model toggle ─────────────────────────────────────── */
+.toggle2{display:inline-flex; border:1px solid var(--border-strong); border-radius:999px; overflow:hidden}
+.toggle2 button{all:unset; cursor:pointer; padding:6px 14px; font-size:12.5px; color:var(--muted)}
+.toggle2 button[aria-pressed="true"]{background:var(--overlay); color:var(--fg)}
+.diagram{
+  font-family:var(--mono); font-size:12px; line-height:1.75; white-space:pre; overflow-x:auto;
+  background:var(--pop); border:1px solid var(--border); border-radius:var(--r-md);
+  padding:16px 18px; color:var(--muted); margin:0;
+}
+.diagram b{color:var(--fg); font-weight:400}
+.diagram .hot{color:var(--clay)}
+
+/* ── pitfalls ─────────────────────────────────────────── */
+.pit{display:grid; grid-template-columns:22px minmax(0,1fr); gap:12px; padding:13px 0; border-bottom:1px solid var(--border)}
+.pit:last-child{border-bottom:0}
+.cbox{
+  all:unset; cursor:pointer; width:18px; height:18px; margin-top:1px; border-radius:var(--r-xs);
+  border:1px solid var(--border-strong); display:grid; place-items:center; color:transparent;
+  font-size:11px; transition:background 120ms var(--ease), color 120ms var(--ease);
+}
+.cbox:hover{background:oklch(1 0 0 / 6%)}
+.cbox[aria-checked="true"]{background:var(--clay); border-color:transparent; color:var(--clay-ink)}
+.pit.done .pt{text-decoration:line-through; text-decoration-color:var(--border-strong); color:var(--meta)}
+.pt{font-weight:600; display:flex; gap:9px; align-items:baseline; flex-wrap:wrap}
+.pb{color:var(--muted); margin-top:4px}
+.pb code{margin:0 1px}
+.sev{font-family:var(--mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--meta)}
+.sev.high{color:var(--bad)}
+.sev.mid{color:var(--warn)}
+
+/* ── next steps ───────────────────────────────────────── */
+.step{display:grid; grid-template-columns:40px minmax(0,1fr); gap:14px; padding:16px 0; border-bottom:1px solid var(--border)}
+.step:last-child{border-bottom:0}
+.num{
+  font-family:var(--mono); font-size:12px; color:var(--clay); width:34px; height:34px;
+  border:1px solid color-mix(in oklab, var(--clay) 40%, transparent); border-radius:999px;
+  display:grid; place-items:center;
+}
+.step h4{margin:0 0 5px; font-family:var(--serif); font-size:18px}
+.step p{margin:0 0 6px; color:var(--muted)}
+.whybox{margin-top:10px; border-left:2px solid var(--border-strong); padding-left:13px; color:var(--meta); font-size:13px}
+
+footer{border-top:1px solid var(--border); padding:26px 0 60px; color:var(--meta); font-size:12.5px}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  nav.rail{position:static; height:auto; border-right:0; border-bottom:1px solid var(--border)}
+  nav.rail ul{flex-direction:row; flex-wrap:wrap}
+  nav.rail button{width:auto}
+}
+@media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} html{scroll-behavior:auto} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="rail" aria-label="Sections">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 250 250" aria-hidden="true" fill="var(--clay)">
+      <path d="M125 12 232 68v114L125 238 18 182V68Z" opacity=".18"/>
+      <path d="M125 12 232 68l-107 56L18 68Z" opacity=".55"/>
+      <path d="M18 68l107 56v114L18 182Z"/>
+      <path d="M232 68v114l-107 56V124Z" opacity=".34"/>
+    </svg>
+    <b>Aggregator</b>
+  </div>
+
+  <ul id="navlist"></ul>
+
+  <div class="railfoot">
+    <div class="prog">
+      <div class="spread">
+        <span class="eyebrow">Pitfall checklist</span>
+        <span class="eyebrow" id="progtext">0 / 0</span>
+      </div>
+      <div class="bar"><i id="progbar"></i></div>
+    </div>
+    <button class="btn" id="themebtn" type="button">Light mode</button>
+    <div class="small">Verified 20 Oct 2026 against <code>main@fe7ef45</code> plus the three open PRs.</div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ══ HERO ══ -->
+<header class="hero" id="start">
+  <div class="eyebrow">Orientation briefing · for someone who has never opened this repo</div>
+  <h1>A bookmark manager whose real product is the <em>published collection</em>.</h1>
+  <p class="lede">
+    Saving one link is cheap. A good, maintained, <em>ordered</em> set of links is expensive.
+    So the product is “collect once, share the whole thing” — the owner pays, and every viewer
+    gets a polished public page without signing up. The private half is finished. The social and
+    monetization half is the entire remaining job.
+  </p>
+
+  <div class="stats">
+    <div class="stat"><b>fe7ef45</b><span>main, in sync with origin</span></div>
+    <div class="stat"><b>253 → 297</b><span>tests: Wave 0 on main, Wave 1 in review</span></div>
+    <div class="stat"><b>3</b><span>open PRs: #24, #25, #26</span></div>
+    <div class="stat"><b>13</b><span>migrations, 0000–0012</span></div>
+    <div class="stat"><b>11</b><span>database tables</span></div>
+    <div class="stat"><b>26,200</b><span>lines of TS/TSX</span></div>
+  </div>
+
+  <div class="banner">
+    <span class="pill next">read first</span>
+    <p><strong>The single most important thing:</strong> the repo is not mid-refactor and it is not broken.
+    It is a working product that ran out of <em>private</em> features. The plan now is to build the
+    social and monetization half on top of a data model that was deliberately migrated first —
+    phase&nbsp;2 — precisely so that half became possible.</p>
+  </div>
+</header>
+
+<!-- ══ DOC MAP ══ -->
+<section id="map">
+  <div class="h2"><span class="n">01</span><h2>How to read this repo</h2></div>
+  <p class="lede">Six docs, each answering a different question. When you are lost, the fastest fix is
+  picking the right one instead of re-reading the tree.</p>
+
+  <div class="tabs" id="doctabs" role="tablist"></div>
+  <div id="docpanes"></div>
+
+  <div class="card pad" style="margin-top:14px">
+    <div class="eyebrow">The layer cake</div>
+    <p style="margin:10px 0 0; color:var(--muted)">
+      <code>SPEC</code> is what and why. <code>ROADMAP</code> is the order. <code>TASKS</code> is reality.
+      <code>MARATHON</code> is process. <code>decisions/</code> is the rejected options — the part you would
+      otherwise re-litigate six months later.
+    </p>
+  </div>
+</section>
+
+<!-- ══ PRODUCT ══ -->
+<section id="product">
+  <div class="h2"><span class="n">02</span><h2>What the app actually does</h2></div>
+  <p class="lede">Two halves: a private dashboard you work in, and public surfaces you share.</p>
+
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card pad">
+      <div class="spread"><div class="eyebrow">Private · behind a session</div><span class="pill ok">done</span></div>
+      <ul style="margin:12px 0 0; padding-left:18px; color:var(--muted)">
+        <li>Bookmark grid, create/edit dialogs, search, sort, pagination, URL-driven filters</li>
+        <li>Sidebar: system items, 3-level collection tree, tags, drag &amp; drop</li>
+        <li>Bulk select → archive / restore / move / delete</li>
+        <li>Share dialog with a visibility tier (Private / Unlisted / Public) and a slug field</li>
+      </ul>
+    </div>
+    <div class="card pad">
+      <div class="spread"><div class="eyebrow">Public · no account needed</div><span class="pill ok">done</span></div>
+      <ul style="margin:12px 0 0; padding-left:18px; color:var(--muted)">
+        <li><code>/u/:username</code> profile — avatar, bio, published collections</li>
+        <li><code>/u/:username/:slug</code> the readable, shareable collection page</li>
+        <li><code>/share/:code</code> the <em>unlisted</em> random-code link (same payload shape — one React component serves both)</li>
+        <li><code>/explore</code> masonry directory, mosaic covers, tag facets, full-text search, Newest/Top</li>
+        <li><code>/og/*.png</code> 1200×630 link-preview cards via satori + resvg</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card pad" style="margin-top:12px">
+    <div class="eyebrow">Domain rules you must not break</div>
+    <div class="wrap">
+      <table style="margin-top:10px">
+        <thead><tr><th>Rule</th><th>Where it lives</th></tr></thead>
+        <tbody>
+          <tr><td>Collections nest <b>max 3 levels</b> — a product decision, not a technical one</td><td><code>shared/collection-tree.ts</code> (shared by API <em>and</em> UI)</td></tr>
+          <tr><td>A bookmark lives in <b>many</b> collections via <code>collection_items</code></td><td><code>app/src/db/schema.ts</code></td></tr>
+          <tr><td>Archive is a <b>flag</b> (<code>archived_at</code>), never a move to an “Archived” collection</td><td>schema + <code>bookmarks/$id.ts</code></td></tr>
+          <tr><td>Delete requires archive first (409 otherwise)</td><td><code>bookmarks/$id.ts</code>, <code>bulk.ts</code></td></tr>
+          <tr><td>Visibility lives on the <b>collection</b>; a share code is the <em>unlisted</em> mechanism</td><td><code>collections/index.ts</code>, <code>public/index.ts</code></td></tr>
+          <tr><td>Tags attach to <b>bookmarks only</b>, never to collections</td><td><code>SPEC.md §2</code></td></tr>
+          <tr><td>Explore enumerates <code>visibility='public'</code> only — never <code>isActive</code></td><td><code>public/index.ts</code></td></tr>
+          <tr><td>Publishing a parent does <b>not</b> publish private children</td><td><code>public/index.ts</code></td></tr>
+          <tr><td>Never <code>fetch</code> a user URL directly — always through <code>assertSafeToFetch</code></td><td><code>app/src/utils/url-guard.ts</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══ STATE ══ -->
+<section id="state">
+  <div class="h2"><span class="n">03</span><h2>Where things actually are</h2></div>
+  <p class="lede">I verified all of this against the working tree and the three open PRs, not just the docs.</p>
+
+  <div class="card" style="margin-top:18px">
+    <div class="wrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td><code>main</code></td><td><span class="pill ok">in sync</span> <code>fe7ef45</code> — the docs tidy. Wave 0 (<code>be-01</code> + <code>be-02</code>) merged in PR #23; <code>be-03</code> is green on its branch and open as #24.</td></tr>
+          <tr><td>Open PRs</td><td>#24 enrichment (<code>be-03</code>) · #25 Wave 1 email (<code>be-04</code>…<code>be-07</code>) · #26 CI. Each is green on <code>test</code> and <code>verify</code>; #26 is green on all three jobs.</td></tr>
+          <tr><td><code>bun run typecheck</code></td><td><span class="pill ok">clean</span> both packages exit 0 on every branch.</td></tr>
+          <tr><td><code>bun run lint</code></td><td><span class="pill ok">0 errors</span> 20 warnings, all pre-existing <code>react-refresh</code> route-file warnings in <code>client/</code>.</td></tr>
+          <tr><td>Test suite</td><td><span class="pill ok">running</span> <b>253 passing / 0 failing</b> on <code>feat/be-03-enrichment</code> (26 files), <b>297 / 30 files</b> on <code>feat/be-marathon</code>. Docker is up; a <em>fresh</em> worktree still needs the root <code>node_modules</code> copied or <code>drizzle-kit</code> is not found.</td></tr>
+          <tr><td><code>bun</code> binary</td><td><span class="pill warn">not on PATH</span> — lives at <code>~/.bun/bin/bun</code>. Piping a failed run into <code>tail</code> hides its exit code.</td></tr>
+          <tr><td>Worktree <code>agg-be</code></td><td>Wave 1 branch <code>feat/be-marathon</code>, six commits, dependencies in place.</td></tr>
+          <tr><td>Worktree <code>agg-be03</code></td><td><code>feat/be-03-enrichment</code>, two commits, <code>node_modules</code> copied from the root.</td></tr>
+          <tr><td><code>feat/fe-marathon</code></td><td><span class="pill bad">stale + local-only</span> <code>60195a0</code>, never pushed, and 1,416 lines behind main — it has no <code>jobs.ts</code> and no <code>request-log.ts</code>.</td></tr>
+          <tr><td>Root <code>.env</code></td><td><span class="pill ok">fixed</span> untracked and covered by <code>.gitignore:22</code>; the values live in <code>app/.env.local</code>, which is the file the app actually reads.</td></tr>
+          <tr><td>CI <code>images</code></td><td><span class="pill ok">fixed in #26</span> the job had been red on every push, <code>main</code> included, since 2026-10-16. It now builds the client image <em>and</em> finally reaches the single-service deploy image that was skipped behind the failure.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="banner">
+    <span class="pill ok">verified 2026-10-20</span>
+    <p><strong>The docs are current as of this read.</strong> <code>TASKS.md</code> is stamped 2026-10-20, carries
+    the corrected migration count (13) and the repaired phase map; <code>MARATHON.md</code> carries the corrected
+    <code>be-03</code> diagnosis plus the shipped Wave 0 and Wave 1 detail. The one thing still worth checking
+    against git: Wave 1 is <em>in review</em>, not merged — read the PR table above before assuming what
+    <code>main</code> contains.</p>
+  </div>
+</section>
+
+<!-- ══ DATA MODEL ══ -->
+<section id="model">
+  <div class="h2"><span class="n">04</span><h2>The data model, and why phase 2 was the gate</h2></div>
+  <p class="lede">Eleven tables. The pivotal change is that a bookmark no longer lives in exactly one
+  collection — which is what made “save someone else’s link” even expressible.</p>
+
+  <div class="row" style="margin:18px 0 12px">
+    <div class="toggle2" id="modeltoggle">
+      <button type="button" aria-pressed="true" data-v="before">Before phase 2</button>
+      <button type="button" aria-pressed="false" data-v="after">After phase 2</button>
+    </div>
+    <span class="small" id="modelcaption"></span>
+  </div>
+
+  <pre class="diagram" id="modeldiagram"></pre>
+
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card pad">
+      <div class="eyebrow">Why the migration order was weird</div>
+      <p style="margin:10px 0 0; color:var(--muted)">
+        It shipped as <b>schema+backfill → dual-read → <code>archived_at</code> → drop</b>, not
+        (a)(b)(c)(d). Dropping <code>collectionId</code> <em>before</em> archiving moved off the
+        “Archived” collection would have forced a throwaway “archive-via-membership” implementation
+        that step (d) then deletes. Doing (d) first made the drop a pure storage change with no dead code.
+      </p>
+    </div>
+    <div class="card pad">
+      <div class="eyebrow">Blast radius</div>
+      <p style="margin:10px 0 0; color:var(--muted)">
+        <code>collectionId</code> was referenced <b>64 times across 16 files</b> (38 backend bookmarks,
+        15 backend collections, 11 share, 50 frontend). The roadmap calls it “the widest-reaching edit”.
+        Sequencing it so the app is never broken mid-migration is the whole difficulty.
+      </p>
+    </div>
+  </div>
+
+  <details class="acc" style="margin-top:12px">
+    <summary><span class="pill">adr-001</span><span class="t">Why the <code>links</code> table is deferred to phase 5</span><span class="caret">›</span></summary>
+    <div class="body">
+      <p>A <code>links</code> table keyed by normalized URL would give everyone one shared preview and one
+      “saved 1.2k times” count. It was deliberately <b>not</b> built in phase 2, and the reasoning is the
+      best-written part of this repo.</p>
+      <p>A unique <code>url_key</code> forces URL normalization to be <em>correct immediately</em>. Getting it
+      wrong is not cosmetic — it <b>merges two genuinely different pages into one row</b>, and two users save
+      one URL believing they saved two. That is data loss the user cannot undo.</p>
+      <p>The conclusion from Pinterest’s own engineering note is humbling: you cannot do it with a static
+      allowlist, and the safe direction to be wrong in is <b>“keep the parameter”</b> — over-stripping silently
+      merges content, under-stripping merely leaves a duplicate.</p>
+      <dl class="kv">
+        <dt>Phase 5 shape</dt><dd>Write <code>normalizeUrl()</code> pure and unit-tested → index <code>url_key</code> but <b>don’t make it unique</b> → use it for soft “you may already have this” prompts → promote to unique only when save-someone-else’s-link ships.</dd>
+        <dt>Never</dt><dd>Lowercase the path, or strip <code>www</code>. Both are load-bearing on real sites. Storing the normalized URL for <em>navigation</em> is also wrong — always store and link the original.</dd>
+      </dl>
+    </div>
+  </details>
+</section>
+
+<!-- ══ MARATHON ══ -->
+<section id="marathon">
+  <div class="h2"><span class="n">05</span><h2>MARATHON.md, and what the waves are</h2></div>
+  <p class="lede">Three docs, three jobs — and they are not interchangeable.</p>
+
+  <div class="grid g3" style="margin-top:18px">
+    <div class="card pad"><div class="eyebrow">ROADMAP.md</div><p style="margin:8px 0 0; color:var(--muted)"><b>Direction.</b> What and why, six phases, the load-bearing ordering.</p></div>
+    <div class="card pad"><div class="eyebrow">TASKS.md</div><p style="margin:8px 0 0; color:var(--muted)"><b>Per-area status.</b> ✅ / 🟡 / ❌ per feature, plus known bugs.</p></div>
+    <div class="card pad"><div class="eyebrow">MARATHON.md</div><p style="margin:8px 0 0; color:var(--muted)"><b>How we work.</b> Worktrees, ownership, issue IDs, waves, collision rules.</p></div>
+  </div>
+
+  <div class="card pad" style="margin-top:12px">
+    <div class="eyebrow">Why MARATHON exists at all</div>
+    <p style="margin:10px 0 0; color:var(--muted)">Two agents — one backend, one frontend — work
+    <b>in parallel on the same repo</b>. Without ownership rules they collide on things that do not merge cleanly:</p>
+    <div class="wrap">
+      <table style="margin-top:12px">
+        <thead><tr><th>Collision</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>Two agents both generating <code>0012_*</code></td><td>Only <code>agg-be</code> writes migrations. This is “the single most likely merge conflict”.</td></tr>
+          <tr><td>Both want to mark <code>TASKS.md</code> done</td><td>Backend owns it during work; frontend updates once at the end of its branch.</td></tr>
+          <tr><td>Root <code>package.json</code> / <code>bun.lock</code></td><td>Read-only for both. A dependency bump lands as its own PR to <code>main</code> first, then both branches rebase.</td></tr>
+          <tr><td>ADR numbers</td><td>Assigned to the backend. “Renumber before committing rather than after” — they are the only thing here that can collide silently.</td></tr>
+          <tr><td>Merging worktree → worktree</td><td>Never. Only <code>feat/*</code> → <code>main</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card pad">
+      <div class="eyebrow">Contract-first</div>
+      <p style="margin:10px 0 0; color:var(--muted)">The frontend needs endpoints that do not exist —
+      analytics (<code>be-16</code>), plan enforcement (<code>be-19</code>), checkout (<code>be-21</code>),
+      verification status (<code>be-06</code>). So the backend publishes the <b>response shape plus the
+      TypeScript types</b> early and the frontend builds against mocks. Otherwise the frontend stalls for a week.</p>
+    </div>
+    <div class="card pad">
+      <div class="eyebrow">Definition of done, every issue</div>
+      <p style="margin:10px 0 0; color:var(--muted)"><code>typecheck</code> + <code>lint</code> + <code>test</code>
+      pass, <code>TASKS.md</code> updated to match reality, any new API surface has an integration test,
+      and a PR to <code>main</code> is opened — you do not merge main yourself. “Every wave ends green.”</p>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--serif); font-size:20px; margin:34px 0 4px">The waves</h3>
+  <p class="lede" style="margin-bottom:16px">Waves are <b>dependency-ordered batches</b> of backend issues.
+  You do not skip ahead because a later one is more fun — each wave assumes the one before it. (Waves are a
+  backend concept; the frontend has two <em>Steps</em>.)</p>
+
+  <div class="row" style="margin-bottom:14px">
+    <div class="isseg" id="trackseg">
+      <button type="button" aria-pressed="true" data-t="be">Backend · 6 waves</button>
+      <button type="button" aria-pressed="false" data-t="fe">Frontend · 2 steps</button>
+    </div>
+    <span class="small" id="trackhint"></span>
+  </div>
+
+  <div class="wavegrid">
+    <div class="wavelist" id="wavelist" role="tablist" aria-label="Waves"></div>
+    <div class="card pad" id="wavepanel" role="tabpanel"></div>
+  </div>
+</section>
+
+<!-- ══ PITFALLS ══ -->
+<section id="pitfalls">
+  <div class="h2"><span class="n">06</span><h2>Pitfalls</h2></div>
+  <p class="lede">The expensive knowledge. Tick them off as you go — the progress bar in the sidebar
+  persists in this browser. Filter by kind, or type to search.</p>
+
+  <div class="row" style="margin:18px 0 6px">
+    <input id="pitsearch" class="pitsearch" placeholder="Search pitfalls…" style="all:unset; cursor:text; flex:1 1 240px; border:1px solid var(--border); border-radius:var(--r-sm); padding:8px 12px; background:var(--card); color:var(--fg); font:13.5px var(--sans)" aria-label="Search pitfalls" />
+    <div class="row" id="pitfilters"></div>
+    <button class="btn" id="pitreset" type="button">Reset</button>
+  </div>
+
+  <div class="card pad" id="pitlist"></div>
+</section>
+
+<!-- ══ SHORTCOMINGS ══ -->
+<section id="bugs">
+  <div class="h2"><span class="n">07</span><h2>Shortcomings, bugs and errors</h2></div>
+  <p class="lede">The honest list — what is still open, plus the ones fixed recently, because the fix is
+  the knowledge worth keeping.</p>
+
+  <div class="row" id="bugfilters" style="margin:18px 0 12px"></div>
+  <div class="card" id="bugtable"></div>
+</section>
+
+<!-- ══ DECISIONS ══ -->
+<section id="decisions">
+  <div class="h2"><span class="n">08</span><h2>Decisions, and the options that were rejected</h2></div>
+  <p class="lede">Almost every surprising thing in this repo has a written reason. Search for it before
+  “fixing” it. Each row below is a decision, the alternative someone proposed, and why it lost.</p>
+  <div style="margin-top:18px" id="decisionslist"></div>
+</section>
+
+<!-- ══ NEXT ══ -->
+<section id="next">
+  <div class="h2"><span class="n">09</span><h2>What to work on next</h2></div>
+  <p class="lede">Strict priority order, with the reasoning attached. Items 1–3 are cheap and unblock
+  everything else.</p>
+  <div class="card pad" id="nextlist" style="margin-top:18px"></div>
+
+  <div class="card pad" style="margin-top:12px; border-left:2px solid var(--bad)">
+    <div class="eyebrow">Explicitly do not do</div>
+    <p style="margin:10px 0 0; color:var(--muted)">
+      Further polish of the <b>private</b> dashboard (it is good enough; the value is in the public half) ·
+      paid sharing features — passwords, branding, multi-collection pages — <b>before</b> public profiles and
+      Explore have traffic · team workspaces (a different product) · treating the random code as <em>the</em>
+      share link (codes are for unlisted links).
+    </p>
+  </div>
+</section>
+
+<!-- ══ TLDR ══ -->
+<section id="tldr">
+  <div class="h2"><span class="n">10</span><h2>If you only remember five things</h2></div>
+  <div class="card" id="tldrlist" style="margin-top:18px"></div>
+</section>
+
+<footer>
+  <p style="margin:0 0 6px"><b>Aggregator</b> — orientation briefing. Built from a read of the working tree,
+  both worktrees, the docs, the ADRs and the code on 19 Oct 2026; revised on 20 Oct 2026 after
+  Wave 0, Wave 1 and the CI fix moved to review.</p>
+  <p style="margin:0">Doc order to trust: <code>AGENTS.md</code> → <code>ROADMAP.md</code> → <code>SPEC.md</code>
+  → <code>TASKS.md</code> → <code>DESIGN.md</code> → <code>MARATHON.md</code> → <code>decisions/</code>.
+  When two docs disagree, check git — and note that the attached MARATHON is the stale one.</p>
+</footer>
+
+</main>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   Data. All content is grounded in the repo as of fe7ef45 plus PRs #24–#26.
+   ══════════════════════════════════════════════════════════ */
+
+const SECTIONS = [
+  ['start','Start here'],
+  ['map','How to read this repo'],
+  ['product','What the app does'],
+  ['state','Where things actually are'],
+  ['model','The data model'],
+  ['marathon','MARATHON & the waves'],
+  ['pitfalls','Pitfalls'],
+  ['bugs','Shortcomings & bugs'],
+  ['decisions','Decisions'],
+  ['next','What to work on next'],
+  ['tldr','Five things to remember']
+];
+
+const DOCS = [
+  { name:'AGENTS.md', q:'“How do I run this and not break it?”',
+    trust:'Commands, ports, dev-environment facts, frontend conventions, and the API gotchas that have bitten before.',
+    watch:'It is the only place that documents the port pinning and the <code>bunfig.toml</code> script-disable — miss it and you will chase ghosts.' },
+  { name:'docs/ROADMAP.md', q:'“What and why, and in what order?”',
+    trust:'Phase 1–6 plan, the gap analysis, the blast-radius table, and a “keep going / stop” list.',
+    watch:'Section 7 explains why the order is load-bearing: model → public → ranking → social → money. Reordering it is how you rewrite the public surfaces twice.' },
+  { name:'docs/SPEC.md', q:'“What even is this product?”',
+    trust:'Thesis, domain rules (visibility, tags-on-bookmarks-only, the 3-level cap), and the monetization ladder.',
+    watch:'It is a living document and still says “lives in exactly one collection” in places — phase 2 changed that.' },
+  { name:'docs/TASKS.md', q:'“What is actually built?”',
+    trust:'Per-area ✅/🟡/❌ status and the open-bugs table.',
+    watch:'Audited 2026-10-20: 13 migrations, repaired phase map, Wave 0 complete and Wave 1 <em>in review</em> (#25). It is the doc to update when a PR merges — “done” there can mean done on a branch, not yet on <code>main</code>.' },
+  { name:'docs/DESIGN.md', q:'“How does it look and move?”',
+    trust:'Wet-slate tokens, measured contrast ratios, the clay-accent rule, the hairline figures.',
+    watch:'Its canvas link (doop.design) is external and the Doop MCP is not available in this session — the <em>tokens</em> are in the repo, which is what matters for code.' },
+  { name:'docs/MARATHON.md', q:'“How do we work?”',
+    trust:'Worktree layout, ownership table, issue IDs, waves, contract-first, definition of done.',
+    watch:'The corrected <code>be-03</code> diagnosis and the Wave 0 / Wave 1 shipped notes live on the open branches; <code>main</code> lacks them until #24 and #25 merge. Read the section, not just the table.' },
+  { name:'docs/decisions/00N', q:'“Why did we reject the obvious option?”',
+    trust:'ADR-001 the <code>links</code> table, ADR-002 crawler HTML vs SSR, ADR-003 hand-rolled jobs vs pg-boss.',
+    watch:'Read the relevant one <em>before</em> implementing the phase it governs. They record the rejected options, which is the part people re-litigate.' }
+];
+
+const MODEL = {
+  before:`<b>Phase 1 — the private product</b>
+
+  user ──┐
+         ├── <b>bookmarks</b> (url, title, cover, domain, is_favorite, …)
+         │     └── <span class="hot">collection_id  ◄── ONE FK: a bookmark lives in exactly one place</span>
+         ├── collections (name, parent_id  →  3-level cap, is_system)
+         ├── tags ──── bookmark_tags (bookmarks only)
+         └── shared_collections (share_code, is_active)
+
+  <span class="hot">Consequences</span>
+   · “save someone else's link” has nowhere to point
+   · “archived” is a real collection, so archiving MOVES the bookmark
+     and mutates a collection that might be published
+   · collections have no visibility — a share code is the only mechanism`,
+  after:`<b>Phase 2 — many-to-many storage</b>
+
+  user ──┐
+         ├── <b>bookmarks</b> (… , archived_at)          ◄── archive is a FLAG now
+         ├── collections (… , <span class="hot">visibility, published_at, slug</span>)
+         │     parent_id → 3-level cap (unchanged)
+         ├── <span class="hot">collection_items (collection_id, bookmark_id, position, note)</span>
+         │     └── a bookmark in MANY collections, per-collection order & note
+         ├── tags ──── bookmark_tags
+         ├── shared_collections (share_code, is_active)   ◄── the UNLISTED tier
+         └── jobs  ◄── durable queue (Wave 0 / be-01)
+
+  <span class="hot">Deliberately still missing</span>
+   · no <code>links</code> table  → no “saved 1.2k times”, no cross-user dedup
+   · <code>collection_items.position</code> exists but nothing reorders it
+   · <code>user.plan</code> exists but is never read or enforced`
+};
+
+const WAVES = {
+  be: [
+    { id:'be-0', label:'Wave 0', title:'Foundations', sub:'be-01 · be-02 · be-03', state:'3 / 3 done',
+      why:'“Everything else is unsafe without these.” Without a durable queue and request logs you debug production blind and lose work on every sleep and every deploy.',
+      issues:[
+        { id:'be-01', status:'done', title:'Durable background jobs',
+          note:'A <code>jobs</code> table plus a worker in <code>app/src/utils/jobs.ts</code>, migration <code>0012_jobs.sql</code>. Claims with <code>FOR UPDATE SKIP LOCKED</code>, backoff written to <code>run_at</code> (not slept on), a <code>locked_at</code> crash lease, 24h purge of settled rows. Replaces the detached <code>setTimeout(…, 0).unref()</code> that lost the work whenever Render slept.' },
+        { id:'be-02', status:'done', title:'Request logging + request-id',
+          note:'<code>app/src/utils/request-log.ts</code>. One JSON line per request, <code>x-request-id</code> on every response. Deliberately never logs cookies, auth headers, bodies, query strings or emails — share codes and reset tokens travel in URLs.' },
+        { id:'be-03', status:'done', title:'Metadata enrichment — three causes, four fixes',
+          note:'The live deploy measured <b>4 of 7 saves losing both title and cover</b>. Fixed: transient failures (timeouts, dropped connections, 429, 5xx) throw <code>TransientScrapeError</code> so the queue retries, while 404, refused and redirect-loop still fall back to the hostname; <code>&lt;script&gt;</code>/<code>&lt;style&gt;</code> bodies are stripped <em>before</em> the cap, so a front-loaded inline bundle no longer pushes <code>og:image</code> past 512 KB; enrichment queues whenever <em>any</em> field is missing and writes back per field behind its own guard. Writing the test uncovered a fourth defect: <code>scheduleEnrichment</code> did not await <code>enqueue()</code>, so the response could outlive the job row — the same silent loss the queue exists to prevent. Each fix was reverted to confirm its test fails without it.' }
+      ] },
+    { id:'be-1', label:'Wave 1', title:'Email (Reloop)', sub:'be-04 → be-08', state:'4 / 5 done',
+      why:'Password reset used to <code>console.log</code> the link. Verification gates <em>who may publish</em>, not who may exist — and the publish gate arms only once mail is configured, because a gate nobody can pass is an outage, not a control.',
+      issues:[
+        { id:'be-04', status:'done', title:'Mailer module',
+          note:'<code>app/src/utils/mail.ts</code>, provider-agnostic, <b>no-op in dev/test</b> so tests never touch the network. Templates are HTML strings, no build step. <code>MAIL_PROVIDER=none|reloop</code>, <code>RELOOP_API_KEY</code>, <code>RELOOP_FROM</code>. The real contract is <code>POST https://reloop.sh/api/mail/v1/send</code>, <code>x-api-key</code>, <code>from</code> as a single string, <code>html</code>/<code>text</code> top-level — the first implementation invented a different host, <code>Authorization: Bearer</code>, a <code>from</code> object and a nested <code>body</code>, and its tests asserted the invented shape. Verify provider docs before asserting a request shape.' },
+        { id:'be-05', status:'done', title:'Real password reset',
+          note:'Replaces the <code>console.log</code> at <code>app/src/utils/auth.ts</code>. The link now goes through the mailer and is still written to stdout when <code>MAIL_PROVIDER=none</code>, so the flow is usable in dev without a provider.' },
+        { id:'be-06', status:'done', title:'Email verification flow',
+          note:'better-auth <code>emailVerification.sendVerificationEmail</code>; <code>requireEmailVerification</code> is <code>mailEnabled()</code>, so it stays tied to a real provider. <code>user.emailVerified</code> and the <code>verification</code> table already existed — no migration.' },
+        { id:'be-07', status:'done', title:'Verification gates publishing',
+          note:'Gates <code>public</code> <b>and</b> <code>unlisted</code> — a share code, and <code>/u/:username/:slug</code>, serve any non-private collection to anyone with the address, so gating only <code>public</code> would leave a free spam tier. <code>private</code> and every read path stay open. Armed by <code>ENFORCE_EMAIL_VERIFICATION</code>, defaulting to mail being configured; deliberately narrower than the sign-in gate, because refusing to publish is recoverable (verify, then publish) and refusing to sign in is not.' },
+        { id:'be-08', status:'human', title:'Domain + DNS ⚠️ human task',
+          note:'Buy the domain, add it to Reloop, verify DKIM/SPF/DMARC. The agent does the config wiring; the human does the purchase and the DNS records. A <code>RELOOP_API_KEY</code> already exists locally, so the code path is exercised without it — the domain only decides whether real mail lands.' }
+      ] },
+    { id:'be-2', label:'Wave 2', title:'Phase 5 — the social loop', sub:'be-09 → be-14', state:'0 / 6 done',
+      why:'This <em>is</em> roadmap phase 5, and it is the actual product value: the ability to save what other people published. ADR-001 fixes the order — <code>normalizeUrl()</code> first, pure and unit-tested, conservative posture.',
+      issues:[
+        { id:'be-09', status:'todo', title:'normalizeUrl()', note:'Pure, unit-tested, no schema change. Conservative: keep ambiguous params. <b>Do not lowercase the path, do not strip <code>www</code>.</b>' },
+        { id:'be-10', status:'todo', title:'links table', note:'Migration plus a nullable <code>bookmarks.linkId</code>. <code>url_key</code> indexed but <b>not unique</b> — soft near-duplicate hints only.' },
+        { id:'be-11', status:'todo', title:'Save someone else’s link', note:'Creates or reuses a <code>links</code> row and maintains <code>saveCount</code>. Only now does <code>url_key</code> become unique.' },
+        { id:'be-12', status:'todo', title:'Fork a shared collection', note:'Deep copy bookmarks and <code>collection_items</code> positions into the caller’s tree.' },
+        { id:'be-13', status:'todo', title:'Follows', note:'Table plus follow/unfollow and counts. Feeds the profile page that phase 3 deliberately stubbed with no follower row.' },
+        { id:'be-14', status:'todo', title:'View counts', note:'The data source for <em>both</em> analytics and the <code>sort=top</code> upgrade — the honest half of the phase-4 ranking bullet.' }
+      ] },
+    { id:'be-3', label:'Wave 3', title:'Analytics — the paid feature that converts', sub:'be-15 → be-17', state:'0 / 3 done',
+      why:'“Once owners see traffic, they pay to keep it.” This is paid tier #2 in SPEC.md, and <code>be-16</code>’s contract is published early so the frontend is not blocked.',
+      issues:[
+        { id:'be-15', status:'todo', title:'share_views table', note:'Collection/share id, referrer, timestamp, day bucket. <b>No raw IP.</b>' },
+        { id:'be-16', status:'todo', title:'Owner analytics endpoints', note:'Views per day, referrer breakdown, top bookmarks per share. Contract published early for <code>agg-fe</code>.' },
+        { id:'be-17', status:'todo', title:'Real ranking', note:'<code>sort=top</code> switches from the subtree-count proxy to saves + views, with recency as tiebreak.' }
+      ] },
+    { id:'be-4', label:'Wave 4', title:'Monetization (Dodo Payments)', sub:'be-18 → be-22', state:'0 / 5 done',
+      why:'Gates must live at the API layer, never only in the UI. <code>user.plan</code> exists today and is never read or enforced — so there is currently no free-tier limit at all.',
+      issues:[
+        { id:'be-18', status:'human', title:'Custom domain on Render ⚠️ human task', note:'DEPLOY.md flags it: branded checkout and webhook allow-lists need it. Do it early — it is ops work that blocks Dodo.' },
+        { id:'be-19', status:'todo', title:'Plan enforcement at the API layer', note:'A <code>PLANS</code> config plus <code>requirePlan()</code> on share/publish routes. Free tier: N active public links, M bookmarks per public collection.' },
+        { id:'be-20', status:'todo', title:'subscriptions table', note:'Dodo subscription id, status, plan, period end, customer.' },
+        { id:'be-21', status:'todo', title:'Checkout + customer portal', note:'Server creates the Dodo checkout session; the client redirects to <code>checkout_url</code>. Contract published early.' },
+        { id:'be-22', status:'todo', title:'Webhook handler — all 9 events', note:'The distinction that must not be fudged: <code>subscription.failed</code> is <b>terminal → never grant access</b>; <code>subscription.on_hold</code> is <b>recoverable</b> via updatePaymentMethod. Needs signature verification, idempotency and replay safety.' }
+      ] },
+    { id:'be-5', label:'Wave 5', title:'Cross-cutting', sub:'be-23 → be-25', state:'0 / 3 done',
+      why:'Moderation becomes non-optional the moment content is public. The shared rate-limit store is what makes the existing per-process limits mean anything.',
+      issues:[
+        { id:'be-23', status:'todo', title:'Moderation + reporting', note:'Required the moment content is public.' },
+        { id:'be-24', status:'todo', title:'Shared rate-limit store', note:'TASKS.md 🟡: counters are per-process, so a multi-replica deploy has limits that mean nothing.' },
+        { id:'be-25', status:'todo', title:'Admin / moderation surface', note:'Only if <code>be-23</code> needs it.' }
+      ] }
+  ],
+  fe: [
+    { id:'fe-1', label:'Step 1', title:'Design boards in paper-rs', sub:'fe-01 → fe-07', state:'0 / 7 done',
+      why:'Design first, in the local design app — not in code. paper-rs serves MCP only while the app is open; if the tool is unreachable, ask the human to launch it.',
+      issues:[
+        { id:'fe-01', status:'todo', title:'Account page', note:'An <em>overview</em>, not a settings redesign. Six rows: header, stats strip, plan &amp; usage, public presence, recent activity, security. Each row marked <b>live now</b> vs <b>waits on be-06/be-16</b>.' },
+        { id:'fe-02', status:'todo', title:'Dashboard', note:'Grid density, filter+sort bar, empty / loading / error states.' },
+        { id:'fe-03', status:'todo', title:'Bookmark card family', note:'With cover / no cover / <b>broken image</b> / enriching skeleton / selection. The broken-image state is where a failed scrape becomes invisible instead of alarming — <code>be-03</code> makes covers land, but a dead host still falls back to the hostname, so the state is real and must be designed.' },
+        { id:'fe-04', status:'todo', title:'Sidebar', note:'Depth-3 tree, counts, active state, drop target for move, collapse.' },
+        { id:'fe-05', status:'todo', title:'Explore', note:'Masonry, mosaic covers, facet chips, search, empty state.' },
+        { id:'fe-06', status:'todo', title:'Billing + analytics screens', note:'Against the <code>be-16</code> / <code>be-19</code> / <code>be-21</code> contracts.' },
+        { id:'fe-07', status:'todo', title:'Token reference', note:'Wet-slate palette, type scale, motion.' }
+      ] },
+    { id:'fe-2', label:'Step 2', title:'Code, in dependency order', sub:'fe-08 → fe-13', state:'0 / 6 done',
+      why:'Ordered so each step builds on the one before: tokens before cards, cards before dashboard, dashboard before account page.',
+      issues:[
+        { id:'fe-08', status:'todo', title:'Design tokens → card family', note:'Including the broken and loading states.' },
+        { id:'fe-09', status:'todo', title:'Sidebar', note:'A real upgrade from the current name / plan / settings / sign-out menu.' },
+        { id:'fe-10', status:'todo', title:'Dashboard', note:'' },
+        { id:'fe-11', status:'todo', title:'Explore', note:'' },
+        { id:'fe-12', status:'todo', title:'Account page', note:'Live rows first — no empty shells.' },
+        { id:'fe-13', status:'todo', title:'Billing + analytics screens', note:'' }
+      ] }
+  ]
+};
+
+const PITFALLS = [
+  { id:'p-env-1', cat:'env', sev:'high', t:'Docker must be up for anything DB-backed',
+    b:'The dev and test databases live in Docker (<code>aggregator</code> and <code>aggregator_test</code>). Without the daemon every DB-backed test fails with hook timeouts and nothing is verifiable — and a <code>docker build</code> cannot be checked locally either. Run <code>bun run check:db</code> to diagnose, <code>bun run db:up</code> to start it, and do not reuse an earlier green as evidence.' },
+  { id:'p-env-2', cat:'env', sev:'mid', t:'Root <code>.env</code> was tracked — the config still has a cwd trap',
+    b:'Fixed 2026-10-20: <code>.env</code> is untracked and covered by <code>.gitignore</code> (the original was backed up outside the repo), and the values live in <code>app/.env.local</code> — which is ignored and is the file the app reads. The remaining trap: <code>dotenv/config</code> resolves from the process cwd and every script runs with <code>--cwd app</code>, so a file at the repo root is silently never loaded. Put env files where the script runs.' },
+  { id:'p-env-3', cat:'env', sev:'mid', t:'<code>bun</code> is not on <code>PATH</code>',
+    b:'It lives at <code>~/.bun/bin/bun</code>. In a plain shell, <code>bun run …</code> fails with “command not found” — and if you pipe it, the exit code gets masked, so a failed check can look like it passed. Export the PATH or use the absolute path.' },
+  { id:'p-env-4', cat:'env', sev:'mid', t:'Ports are pinned in <code>.env.local</code>, not defaults',
+    b:'API <b>3001</b>, Vite <b>5180</b>. <code>CLIENT_URL</code> in <code>app/.env.local</code> must match the Vite port <em>exactly</em> — CORS and better-auth <code>trustedOrigins</code> both depend on it. <code>client/.env.local</code> is easy to forget and breaks the API proxy.' },
+  { id:'p-env-5', cat:'env', sev:'mid', t:'A new worktree starts bare',
+    b:'<code>node_modules</code>, <code>.env.local</code> and <code>.env.test.local</code> are gitignored and do not travel. MARATHON says to <b>copy them from the primary checkout rather than running <code>bun install</code></b>: deps are installed per-workspace (no symlinks to re-link) and <code>bun install</code> would rewrite the shared <code>bun.lock</code> that the ownership rules protect. <code>agg-fe</code> is bare today and will not run as-is.' },
+  { id:'p-env-6', cat:'env', sev:'mid', t:'<code>bunfig.toml</code> disables all dependency lifecycle scripts',
+    b:'A workaround for <code>re2</code> (a metascraper dep that native-builds and is unused at runtime). Any future dependency that genuinely needs a postinstall — <code>sharp</code>, <code>esbuild</code> — requires revisiting <em>both</em> root and app <code>bunfig.toml</code>.' },
+  { id:'p-env-7', cat:'env', sev:'mid', t:'A fresh worktree has no root <code>node_modules</code>',
+    b:'Bun hoists to <code>node_modules/.bun</code> at the repo root, so a new worktree fails <code>db:migrate</code> with <code>drizzle-kit: command not found</code> even when its own <code>app/node_modules</code> exists. Copy the root <code>node_modules</code> from the primary checkout (628 MB here) rather than running <code>bun install</code>, which rewrites the shared lockfile the ownership rules protect.' },
+
+  { id:'p-code-1', cat:'code', sev:'high', t:'Enrichment used to be skipped whenever the title was set',
+    b:'Fixed in #24 (<code>be-03</code>): <code>POST /bookmarks</code> queued enrichment only when <code>!body.title</code>, so a hand-typed title could never gain a cover. It now queues whenever <em>any</em> of title, description or cover is missing, and the handler writes back per field behind its own guard — so a user-edited title is never overwritten. The shape to keep: decide per field at the point of writing, not per record at the point of enqueueing.' },
+  { id:'p-code-2', cat:'code', sev:'high', t:'The 512 KB cap used to cut between title and cover',
+    b:'Fixed in #24 (<code>be-03</code>): <code>&lt;title&gt;</code> sits early in <code>&lt;head&gt;</code> and <code>og:image</code> often much later, so a front-loaded inline bundle pushed the cover past the cap while the title survived — reproduced as <code>title:"Real Title", image:null</code>. <code>&lt;script&gt;</code>/<code>&lt;style&gt;</code> bodies are now stripped <em>before</em> the cap, against a 2 MB read budget; the 512 KB parser budget is unchanged and is still a real DoS ceiling. No preferential <code>&lt;head&gt;</code> extraction was needed once the bundle was gone.' },
+  { id:'p-code-3', cat:'code', sev:'mid', t:'A scrape failure used to look like a success',
+    b:'Fixed in #24 (<code>be-03</code>): the <code>jobs</code> queue only retries a <em>thrown</em> error, while <code>scrapeMetadata</code> falls back to the hostname for a dead host — so a timeout, dropped connection, 429 or 5xx was recorded as a successful scrape with a hostname title and never retried. Those now throw <code>TransientScrapeError</code> so the queue backs off; 404, refused and redirect-loop still fall back, because retrying them buys nothing.' },
+  { id:'p-code-4', cat:'code', sev:'mid', t:'Rate limits are per-process and silently self-clearing',
+    b:'<code>app/src/utils/rate-limit.ts</code> keeps a <code>Map</code> capped at 10,000 keys — and when it exceeds that, it <b>clears itself</b> rather than growing. Fine in one container; meaningless multi-replica (<code>be-24</code>). Also: the global limiter <em>exempts <code>/api/auth</code></b>, which is why better-auth’s own limiter is pinned separately and is disabled under test.' },
+  { id:'p-code-5', cat:'code', sev:'mid', t:'Outgoing scraper UA contains “bot”',
+    b:'<code>Mozilla/5.0 (compatible; BookmarkBot/1.0)</code>. Many sites serve bot user agents a stripped page — which would produce missing titles <em>and</em> covers together, a plausible second contributor to the 4-of-7 failure rate. Unconfirmable without live traffic; watch it before changing it.' },
+  { id:'p-code-6', cat:'code', sev:'mid', t:'<code>collection_items.position</code> exists but nothing reorders it',
+    b:'The spec promises a collection is “in this order”. The column was built for that feature and no endpoint or UI sets it. Cheapest visible gap in the product.' },
+  { id:'p-code-7', cat:'code', sev:'high', t:'<code>user.plan</code> exists and is never read or enforced',
+    b:'SPEC.md §3.1 specifies free-tier limits (“N active public links, M bookmarks per public collection”) and the column is there — but nothing enforces anything. There is no free-tier limit in the running product today beyond the broad abuse rate limits.' },
+  { id:'p-code-8', cat:'code', sev:'mid', t:'Search behaves differently in two places',
+    b:'The public directory and <code>/search</code> use Postgres full text — whole word plus word prefix. <code>q=zepp</code> finds “Zeppelin”; <code>q=eppeli</code> does not. The <b>dashboard bookmark filter still uses ILIKE</b>. Deliberate, but it surprises people.' },
+  { id:'p-code-9', cat:'code', sev:'mid', t:'Three Elysia behaviours that fail silently',
+    b:'<code>.use()</code> order is registration order — a plugin only covers routes registered after it (this is why the logger is the first <code>.use()</code>, above <code>/health</code>). <code>.error({ Class })</code> handlers beat any <code>onError</code>, so every 401/404/409 bypassed the logger until each branch logged explicitly. And <code>ApiError.toResponse()</code> builds a fresh <code>Response</code>, discarding <code>set.headers</code>. All three are written up in <code>app/src/utils/ELYSIA-NOTES.md</code>.' },
+  { id:'p-code-10', cat:'code', sev:'mid', t:'Registration order in <code>index.ts</code> is load-bearing',
+    b:'The SPA catch-all must come <em>before</em> the routers (its <code>ALL /*</code> would otherwise swallow them); <code>auth.handler</code> must be mounted <em>after</em> the catch-all and <em>before</em> the routers (better-auth’s session derive applies only to routes registered after it — mount it late and sign-up demands a session); and <code>/api/auth</code> is forwarded by hand inside the catch-all. Read the comments before moving a line.' },
+
+  { id:'p-fe-1', cat:'fe', sev:'mid', t:'Base UI uses <code>render</code>, not Radix’s <code>asChild</code>',
+    b:'This is a shadcn port onto Base UI. Pass <code>render={&lt;Link to="…" /&gt;}</code>, not <code>asChild</code>. Leftover <code>asChild</code> props have been swept up twice already.' },
+  { id:'p-fe-2', cat:'fe', sev:'mid', t:'Do not reset dialog state with <code>useEffect</code>',
+    b:'The <code>react-hooks/set-state-in-effect</code> lint rule rejects it and CI is blocking. Pattern: keep the outer component a static shell (title/description) and put form state in an inner form component that mounts on open. This has been fixed more than once — follow the existing dialogs.' },
+  { id:'p-fe-3', cat:'fe', sev:'high', t:'The shadcn lint is mechanical and blocking',
+    b:'<code>shadcn/no-restyle</code>, <code>no-raw-colors</code>, <code>no-arbitrary-values</code>, <code>no-inline-styles</code>, <code>no-unknown-classes</code> and <code>require-static-classes</code> are all <b>errors</b> — deliberately off only inside <code>components/ui/**</code> and <code>components/smoothui/**</code>. Plus: icon-only buttons need <code>aria-label</code>, forms disable fieldsets while pending, errors go through <code>role="alert"</code>, labels via <code>htmlFor</code>.' },
+  { id:'p-fe-4', cat:'fe', sev:'mid', t:'Design rules that are measured, not tasteful opinions',
+    b:'Clay accent on exactly <b>one</b> thing per viewport — if clay is on screen twice, one is wrong. White on clay is 1.7:1, so clay fills take the ground as ink, never white. No drop shadows in dark: depth is surface lightness + a 1px hairline + a 6% white inner top highlight. <b><code>ease-in</code> is banned</b> — it holds still while the eye is watching hardest. Durations 120/180/260; exit always faster than enter; enter from <code>scale(0.95)</code>, never <code>scale(0)</code>.' },
+  { id:'p-fe-5', cat:'fe', sev:'mid', t:'The TanStack route tree is committed on purpose',
+    b:'<code>bun run build</code> typechecks <em>before</em> Vite regenerates the route tree, so a clean clone fails without the committed <code>routeTree.gen.ts</code>. Do not gitignore it.' },
+
+  { id:'p-deploy-1', cat:'deploy', sev:'high', t:'<code>CLIENT_URL</code> and <code>BETTER_AUTH_URL</code> must match the origin exactly',
+    b:'Both must be the public https origin with no trailing slash — better-auth compares origins with <code>===</code>. On Render they derive from <code>RENDER_EXTERNAL_URL</code> unless set explicitly, and once you set one explicitly it stops deriving.' },
+  { id:'p-deploy-2', cat:'deploy', sev:'mid', t:'Free tier sleeps after ~15 min — that is a design input, not an annoyance',
+    b:'The service takes about a minute to wake, and the durable queue is a <b>fix</b> rather than an optimization: jobs accumulate while asleep and run on wake. A sleeping worker is the failure mode working. Neon also scales to zero, so the first query after idle pays a short cold start.' },
+  { id:'p-deploy-3', cat:'deploy', sev:'mid', t:'Migration 0012 must exist before deploy',
+    b:'Render runs migrations on boot, so it is automatic — but a database without the <code>jobs</code> table logs <code>42P01</code> on every boot rather than failing loudly.' },
+  { id:'p-deploy-4', cat:'deploy', sev:'mid', t:'The legacy nginx path has a bug the single-process mode does not',
+    b:'<code>try_files</code> in <code>^/(u|share)/</code> returns <code>index.html</code> to the SPA’s <em>own data fetches</em> on those paths, because the SPA now does fetch <code>/u/*</code> for Explore. The edge design assumed it never did. The single-process mode separates navigation from fetch by request headers instead, so it is immune.' },
+  { id:'p-deploy-5', cat:'deploy', sev:'low', t:'Google OAuth is held',
+    b:'The callback cannot reach a local machine. Email/password is the working path; OAuth activates automatically when the client id and secret are set, but it is not part of the current workflow.' },
+  { id:'p-deploy-6', cat:'deploy', sev:'mid', t:'<code>/etc/hosts</code> is read-only during a Docker build',
+    b:'Stubbing a compose service name there to satisfy <code>nginx -t</code> fails with <code>can’t create /etc/hosts: Read-only file system</code> — BuildKit mounts the file and it is not writable. Validate a <em>copy</em> of the config with the address pointed at loopback, then restore the shipped file in the same layer. Do not move the check to runtime unless you accept a broken config reaching a container. This is also the general lesson: CI is the first honest test of a build change; a local “it should work” is not evidence.' },
+
+  { id:'p-sec-1', cat:'sec', sev:'high', t:'Never fetch a user-supplied URL directly',
+    b:'Always through <code>app/src/utils/url-guard.ts</code> (<code>assertSafeToFetch</code>): http/https only, every resolved address must be public (loopback, RFC1918, link-local, CGNAT, IPv6 ULA and mapped all refused), redirects followed <em>by hand</em> so every hop is re-validated, 512 KB body cap, covers sanitized to absolute http(s). This exists because the API genuinely was reachable at <code>http://127.0.0.1:3001</code> and the cloud metadata address.' },
+  { id:'p-sec-2', cat:'sec', sev:'mid', t:'Client IP trust is opt-in',
+    b:'The IP comes from the socket. <code>x-forwarded-for</code> and <code>cf-connecting-ip</code> are trusted <b>only</b> when <code>TRUST_PROXY=true</code> — otherwise a caller spoofs a header and walks around the per-client limits.' },
+  { id:'p-sec-3', cat:'sec', sev:'mid', t:'Public share payloads are deliberately narrower than owner payloads',
+    b:'<code>note</code> and <code>isFavorite</code> are stripped. <code>private</code> collections return <b>404, not 403</b> — a 403 would confirm the collection exists. Keep it that way: the payload shape is shared between the public profile, the readable URL and the share code, so a “helpful” field addition leaks everywhere at once.' }
+];
+
+const BUGS = [
+  { sev:'fixed', src:'#25', t:'~~Password reset only <code>console.log</code>s the link~~',
+    d:'Reset links now go through the mailer (<code>be-04</code>/<code>be-05</code>): a no-op that prints in dev/test, Reloop in production. Live delivery still waits on <code>be-08</code> (domain + DNS).' },
+  { sev:'fixed', src:'#25', t:'~~No email verification~~',
+    d:'A verification mail is sent (<code>be-06</code>), and an unverified account cannot publish — <code>public</code> <em>or</em> <code>unlisted</code> — or re-activate a share code (<code>be-07</code>). Sign-in and saving are deliberately still allowed.' },
+  { sev:'mid', src:'TASKS.md §5', t:'Crawler detection is a User-Agent allowlist',
+    d:'A preview service we do not recognize degrades to an empty card rather than breaking anything. That is the documented ADR-002 failure mode, but it is a heuristic.' },
+  { sev:'mid', src:'TASKS.md §5', t:'OG cards have no cache-busting revision',
+    d:'Renaming a collection leaves a stale card in a platform’s cache until <code>stale-while-revalidate</code> (12h) elapses. The URL shape takes a revision suffix if it ever matters.' },
+  { sev:'mid', src:'TASKS.md §5', t:'Rate-limit counters are per process',
+    d:'A multi-replica deploy needs a shared store before the limits mean anything. <code>be-24</code>.' },
+  { sev:'fixed', src:'#24', t:'~~Enrichment is durable but not retried at the scrape layer~~',
+    d:'Transient failures now throw <code>TransientScrapeError</code> so the queue backs off; permanent ones still fall back to the hostname. See <code>be-03</code>.' },
+  { sev:'mid', src:'TASKS.md §5', t:'<code>bunfig.toml</code> disables all lifecycle scripts',
+    d:'A future dependency that needs a postinstall — <code>sharp</code>, <code>esbuild</code> — will need the setting revisited in both files.' },
+  { sev:'low', src:'TASKS.md §5', t:'OG rendering adds ~8 MB to the API bundle',
+    d:'satori plus the resvg WASM, loaded lazily on first request. Fine at current scale; worth revisiting if image size becomes a constraint.' },
+  { sev:'low', src:'TASKS.md §5', t:'No monitoring or alerting',
+    d:'Structured JSON logs exist and nothing consumes them — no error-rate alert, no dashboard. The log lines are the prerequisite, not the whole feature.' },
+  { sev:'fixed', src:'docs', t:'~~Docs were stale in two places~~',
+    d:'<code>TASKS.md</code> is stamped 2026-10-20 with 13 migrations and a repaired phase map; <code>MARATHON.md</code> carries the corrected <code>be-03</code> diagnosis and the shipped Wave 0 / Wave 1 detail. The remaining caveat is the reverse of before: the docs now describe work that is <em>in review</em>, so check the PR before assuming it is on <code>main</code>.' },
+  { sev:'fixed', src:'docs', t:'~~The corrected MARATHON was only on a branch~~',
+    d:'The corrected diagnosis and the ownership rule are carried by #24/#25 and land with them. Until then, read the open PR rather than <code>main</code>’s copy.' },
+  { sev:'mid', src:'git', t:'<code>feat/fe-marathon</code> is stale and never pushed',
+    d:'<code>60195a0</code>, and 1,416 lines behind <code>main</code> — it has no <code>jobs.ts</code> and no <code>request-log.ts</code>. Anyone starting frontend work here is building against a repo that predates Wave 0. Rebase onto main first.' },
+  { sev:'fixed', src:'git', t:'~~Root <code>.env</code> was tracked and held live secrets~~',
+    d:'Untracked and ignored; the values moved to <code>app/.env.local</code>, which the app actually reads. The original was backed up outside the repo.' },
+  { sev:'fixed', src:'CI', t:'~~The <code>images</code> job was red on every push since 2026-10-16~~',
+    d:'<code>client/Dockerfile</code>’s <code>nginx -t</code> parsed <code>upstream api:3001</code> — a compose service name that does not exist during a build — so every build died with <code>host not found in upstream</code>, and the deploy image behind it was skipped every run. #26 validates a loopback copy of the config; the job is green and the third image now builds.' },
+  { sev:'mid', src:'product', t:'No moderation or reporting for public content',
+    d:'Required the moment content is public. Currently there is no report path at all. <code>be-23</code>.' },
+  { sev:'mid', src:'product', t:'No free-tier limit is enforced',
+    d:'<code>user.plan</code> is stored and never read. SPEC.md’s “N active public links” is unimplemented, so the monetization ladder has no bottom rung yet. <code>be-19</code>.' },
+  { sev:'low', src:'product', t:'Manual ordering inside a collection does not exist',
+    d:'<code>collection_items.position</code> is there and nothing reorders it, while the spec promises a collection arrives “in this order”.' },
+  { sev:'low', src:'fe', t:'Landing-page debt',
+    d:'<code>ThemeToggle</code> exists and is rendered nowhere. Social proof and a final copy pass are unstarted. <code>fan</code> and <code>rank</code> are placeholder tabs in <code>/landing-prototype</code> that render <b>empty boxes by design</b>. The logo is a smudge below ~32px and is not used under 24px. The <code>spread</code> figure has no written verdict.<br><br>The design doc’s own honest list is worth reading: beat 3 under-sells the product, the scroll section is not wired, and pricing (£0/£6/£14) is explicitly provisional.' }
+];
+
+const DECISIONS = [
+  { t:'A bookmark lives in many collections', alt:'Save copies the bookmark row',
+    why:'Copy-on-save is cheaper and was seriously considered (option b). It loses two things at once: “saved 1.2k times” becomes impossible, and the copy’s metadata rots independently. <code>collection_items</code> also carries <code>position</code>, which is what per-collection ordering will need.',
+    scope:'Phase 2 · 4 migrations · 64 references in 16 files' },
+  { t:'The <code>links</code> table is deferred to phase 5', alt:'Add it in phase 2, alongside collection_items',
+    why:'A unique normalized key forces URL normalization to be right <em>immediately</em>, and getting it wrong silently merges two different pages — visible data loss. The benefit scales with user count; the cost is paid by the first user. Adding a second cross-cutting table to the riskiest migration would have doubled the blast radius.',
+    scope:'ADR-001 · decided 2026-10-07' },
+  { t:'Hand-rolled <code>jobs</code> table', alt:'pg-boss',
+    why:'pg-boss owns ~10 tables in its own <code>pgboss</code> schema, which splits schema ownership away from this repo’s hand-written committed migrations — drizzle-kit cannot see them and no migration here would ever touch them. That is a permanent tax. It also ships cron, priority queues and batching, none of which the roadmap uses. The one primitive actually needed is <code>FOR UPDATE SKIP LOCKED</code>, a single query.',
+    scope:'ADR-003 · Wave 0' },
+  { t:'Crawler-served HTML from the API', alt:'Move public routes to SSR with TanStack Start',
+    why:'Start was a Release Candidate, and adopting it changes the deployment model — a static build behind nginx becomes a long-running server with a different health check and scaling story. And it solves a problem the product does not have: we needed a few <code>&lt;head&gt;</code> tags for crawlers, not a rendering pipeline. The company is explicitly <em>not</em> claiming SEO benefits.',
+    scope:'ADR-002 · phase 3' },
+  { t:'better-auth’s <code>username()</code> plugin', alt:'Hand-rolled uniqueness rules',
+    why:'The plugin owns normalization and uniqueness at the auth layer, so no hand-rolled check can be bypassed by calling the auth API directly. Our column was already nullable and uniquely indexed on <code>lower(username)</code>, so no schema change was needed — the manual uniqueness query in <code>PATCH /user/profile</code> simply came out. The subtle part: <code>validationOrder: "post-normalization"</code> is load-bearing, or the validator rejects “Alice” before it can be normalized.',
+    scope:'Phase 3' },
+  { t:'Explore is keyed on <code>visibility</code>', alt:'Keyed on <code>sharedCollections.isActive</code>',
+    why:'A share code means “anyone with the link” — the unlisted tier. Only <code>visibility = \'public\'</code> is enumerable. Mixing them would make “unlisted” meaningless, and it is a tier the product intends to charge around.',
+    scope:'Phase 3' },
+  { t:'One renderer for <code>/u/:username/:slug</code> and <code>/share/:code</code>', alt:'Two components, one per URL',
+    why:'The payload shape is deliberately identical, so a single <code>PublicCollectionView</code> serves both. Two copies would drift — and the public URL is meant to be the durable one a platform stores.',
+    scope:'Phase 3' },
+  { t:'Crawler HTML branches <em>inside</em> the existing handlers', alt:'A parallel crawler route',
+    why:'The branch sits after the same queries, so a link preview can never disagree with the page a human sees. A separate route would duplicate the query and could drift.',
+    scope:'Phase 3' },
+  { t:'Subtree counts and covers computed at read time', alt:'Denormalized counters and stored covers',
+    why:'One recursive CTE per page (≤24 roots) via <code>getCollectionSubtreeMeta()</code> means no migration, no invalidation bugs, and — crucially — the number on a card and the number on the page it links to are the same value by construction.',
+    scope:'Phase 4a · no migration' },
+  { t:'Full-text search replaces ILIKE on public surfaces', alt:'Keep <code>ILIKE \'%q%\'</code>',
+    why:'Generated <code>search_vector</code> columns and GIN indexes (migration 0011, hand-written outside the drizzle snapshot lineage). The behaviour change is deliberate and tested: matching is whole word plus word prefix, so mid-word substrings no longer match. The dashboard filter intentionally still uses ILIKE.',
+    scope:'Phase 4b' },
+  { t:'Facets are computed <em>without</em> the active tag', alt:'Compute facets from the filtered set',
+    why:'So that pressing a chip does not reshuffle the chips underneath your cursor. A small decision that is the difference between a directory that feels solid and one that feels jumpy.',
+    scope:'Phase 4b' },
+  { t:'3-level nesting cap', alt:'Unlimited depth',
+    why:'A product decision, not a technical one — it keeps the sidebar and the public page readable. It is enforced in one shared module (<code>shared/collection-tree.ts</code>) used by both the API and the parent picker, so the rule can never disagree with itself. The <code>pigeonholes</code> hairline figure’s three rows <em>are</em> this rule, drawn.',
+    scope:'SPEC.md §2 · #17' },
+  { t:'No drop shadows in dark mode', alt:'A conventional shadow scale',
+    why:'Measured, not aesthetic: an opaque black shadow at 100% “punches a hole” in dark mode rather than lifting a surface. Depth is surface lightness plus a 1px hairline plus a 6% white inner top highlight. The rejected theme’s light <code>muted</code> also failed AA at 2.20:1 — which is why “muted” is two different lightness values per ground, not one variable.',
+    scope:'DESIGN.md §2' }
+];
+
+const NEXT = [
+  { t:'Merge #26, then #24, then #25',
+    d:'#26 makes the <code>images</code> job honest again and builds the deploy image that had been skipped; #24 is the Wave 0 remainder; #25 is Wave 1.',
+    w:'They touch disjoint files, so the order is about CI signal, not merge mechanics. #26 first so #24/#25 can be re-run green on <code>images</code>; #24 before #25 because it removes the flaky test that can redden any run. Once the docs live on #24, that branch also carries the Wave 1 status — keep the doc update in one PR, or the later merge silently reverts the earlier one.',
+    tag:'#26 → #24 → #25' },
+  { t:'Rebase the frontend track before touching it',
+    d:'Bring <code>feat/fe-marathon</code> onto <code>main</code>, and copy <code>node_modules</code> plus the env files into the <code>agg-fe</code> worktree.',
+    w:'It is 1,416 lines behind and local-only: an agent landing there builds against a repo with no job queue, no request logger and no email — and discovers it much later.',
+    tag:'housekeeping' },
+  { t:'Finish Wave 1 — the domain (human)',
+    d:'<code>be-08</code>: buy the domain, add it to Reloop, verify DKIM/SPF/DMARC, set <code>RELOOP_FROM</code>, then send one real reset and one verification mail.',
+    w:'The code path is tested against a stub transport, so this is the only step that can fail for reasons the suite cannot see. It is also what arms the publish gate by default: <code>ENFORCE_EMAIL_VERIFICATION</code> defaults to “mail is configured”.',
+    tag:'be-08 · human' },
+  { t:'Wave 2 — the real product work',
+    d:'<code>normalizeUrl()</code> → <code>links</code> → save someone else’s link → fork a collection → follows → view counts.',
+    w:'This is roadmap phase 5 and the entire thesis: collect once, share the whole thing, let other people build on it. Everything before it is foundation.',
+    tag:'be-09 → be-14' },
+  { t:'Then the paid half — Wave 3, then Wave 4',
+    d:'Analytics (<code>be-15</code>…<code>be-17</code>) is the feature that converts; monetization (<code>be-18</code>…<code>be-22</code>) is the money. <code>be-16</code>’s contract is published early so the frontend is not blocked.',
+    w:'Gates must live at the API layer. <code>user.plan</code> exists today and is read nowhere, so there is currently no free-tier limit at all.',
+    tag:'be-15 → be-22' },
+  { t:'Verify the baseline before you trust any green check',
+    d:'Run <code>db:migrate:test</code>, then <code>typecheck</code> + <code>lint</code> + <code>test</code>. Expect 253 on <code>feat/be-03-enrichment</code> and 297 on <code>feat/be-marathon</code>.',
+    w:'A green check is evidence only for the commit it ran on. The lesson this repo just paid for: the <code>images</code> job was red on <code>main</code> for four days and nobody noticed, because <code>test</code> and <code>verify</code> were green.',
+    tag:'env' }
+];
+
+const TLDR = [
+  ['The private product is done; the social and monetization half is the whole remaining job.',
+   'ROADMAP §7 explains why the order is model → public → ranking → social → money, and says the ordering is load-bearing. Reordering it means rewriting the public surfaces twice.'],
+  ['MARATHON.md is process, not product.',
+   'Worktrees, an ownership table, issue IDs, six backend waves and two frontend steps. Wave 0 is done; Wave 1 is done and in review (#25); Wave 2 is the actual thesis. Only the backend writes migrations; only <code>feat/*</code> merges to <code>main</code>.'],
+  ['The foundation is unglamorous — and it is done.',
+   'Wave 0 added a durable queue, request logs and the enrichment fix. Wave 1 replaced the console-logged reset, added verification, and gated publishing on <code>public</code> <em>and</em> <code>unlisted</code>, armed only when mail is configured. Those were the last things that could silently lose work or let an unverified account publish.'],
+  ['The docs are current — and CI is honest for the first time since 16 Oct.',
+   '<code>TASKS.md</code> is stamped 2026-10-20. The <code>images</code> job had been red on every push, <code>main</code> included, for four days, because of a parse-time <code>nginx -t</code> against a compose hostname. Three PRs are open, all green on <code>test</code> and <code>verify</code>.'],
+  ['Read the <em>why</em>, not just the what.',
+   'Almost every surprising thing here — the hand-rolled queue, no SSR, the deferred <code>links</code> table, clay-once, the 512 KB cap, the per-field enrichment guard, the publish-gate arming rule — has a written reason in <code>docs/decisions/</code>, MARATHON or a code comment. Search for it before “fixing” it.']
+];
+
+/* ══════════════════════════════════════════════════════════
+   Render: nav
+   ══════════════════════════════════════════════════════════ */
+const navlist = document.getElementById('navlist');
+SECTIONS.forEach(([id,label],i)=>{
+  const li=document.createElement('li');
+  const b=document.createElement('button');
+  b.type='button';
+  b.dataset.target=id;
+  b.innerHTML='<span class="ind"></span><span>'+label+'</span>';
+  b.addEventListener('click',()=>document.getElementById(id).scrollIntoView());
+  li.appendChild(b); navlist.appendChild(li);
+});
+
+const navButtons=[...navlist.querySelectorAll('button')];
+const observer=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(!e.isIntersecting) return;
+    const id=e.target.id;
+    navButtons.forEach(b=>b.setAttribute('aria-current', String(b.dataset.target===id)));
+  });
+},{rootMargin:'-15% 0px -70% 0px', threshold:0});
+SECTIONS.forEach(([id])=>{ const el=document.getElementById(id); if(el) observer.observe(el); });
+
+/* theme */
+const themebtn=document.getElementById('themebtn');
+const applyTheme=(t)=>{
+  document.documentElement.dataset.theme=t;
+  themebtn.textContent = t==='dark' ? 'Light mode' : 'Dark mode';
+  try{ localStorage.setItem('agg-theme',t); }catch(e){}
+};
+applyTheme((()=>{ try{ return localStorage.getItem('agg-theme')||'dark'; }catch(e){ return 'dark'; } })());
+themebtn.addEventListener('click',()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+
+/* ══ doc map tabs ══ */
+const doctabs=document.getElementById('doctabs');
+const docpanes=document.getElementById('docpanes');
+DOCS.forEach((d,i)=>{
+  const t=document.createElement('button');
+  t.type='button'; t.className='chip'; t.setAttribute('role','tab');
+  t.setAttribute('aria-pressed', String(i===0)); t.textContent=d.name;
+  t.addEventListener('click',()=>{
+    [...doctabs.children].forEach((c,j)=>c.setAttribute('aria-pressed',String(j===i)));
+    [...docpanes.children].forEach((p,j)=>p.classList.toggle('on',j===i));
+  });
+  doctabs.appendChild(t);
+
+  const pane=document.createElement('div');
+  pane.className='tabpane'+(i===0?' on':'');
+  pane.innerHTML =
+    '<div class="card pad"><div class="spread"><div class="eyebrow">'+d.name+'</div>'+
+    '<span class="pill">'+d.q+'</span></div>'+
+    '<p style="margin:12px 0 0">'+d.trust+'</p>'+
+    '<p class="pb" style="margin-top:10px">'+d.watch+'</p></div>';
+  docpanes.appendChild(pane);
+});
+
+/* ══ model toggle ══ */
+const mt=document.getElementById('modeltoggle');
+const mdl=document.getElementById('modeldiagram');
+const mcap=document.getElementById('modelcaption');
+const CAPS={before:'One FK. The private product, complete.', after:'Many-to-many storage. What made phase 5 expressible.'};
+function setModel(v){
+  mdl.innerHTML = MODEL[v];
+  mcap.textContent = CAPS[v];
+  [...mt.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===v)));
+}
+[...mt.children].forEach(b=>b.addEventListener('click',()=>setModel(b.dataset.v)));
+setModel('before');
+
+/* ══ waves ══ */
+const wavelist=document.getElementById('wavelist');
+const wavepanel=document.getElementById('wavepanel');
+const trackhint=document.getElementById('trackhint');
+let curTrack='be', curWave=0;
+const STATUSPILL={done:'<span class="pill ok">done</span>',next:'<span class="pill next">next</span>',todo:'<span class="pill">not started</span>',human:'<span class="pill warn">human task</span>'};
+const HINT={be:'Waves are dependency-ordered. Each wave assumes the one before it.',fe:'Two steps: design boards first, then code in dependency order.'};
+
+function renderWaveList(){
+  wavelist.innerHTML='';
+  WAVES[curTrack].forEach((w,i)=>{
+    const b=document.createElement('button');
+    b.type='button'; b.setAttribute('role','tab');
+    b.setAttribute('aria-selected',String(i===curWave));
+    b.innerHTML='<span class="ws">'+w.label+' · '+w.state+'</span><span class="wt">'+w.title+'</span>';
+    b.addEventListener('click',()=>{ curWave=i; renderWaveList(); renderWavePanel(); });
+    wavelist.appendChild(b);
+  });
+}
+function renderWavePanel(){
+  const w=WAVES[curTrack][curWave];
+  wavepanel.innerHTML =
+    '<div class="spread" style="align-items:flex-start"><div><div class="eyebrow">'+w.sub+'</div>'+
+    '<h3 style="font-family:var(--serif); font-size:22px; margin:6px 0 0">'+w.title+'</h3></div>'+
+    '<span class="pill">'+w.state+'</span></div>'+
+    '<p class="note" style="margin:14px 0 4px">'+w.why+'</p>'+
+    '<div class="islist" style="margin-top:12px">'+
+      w.issues.map(x=>'<div class="is"><div class="id">'+x.id+'</div><div><h4>'+x.title+'</h4>'+(x.note?'<p>'+x.note+'</p>':'')+'</div><div>'+STATUSPILL[x.status]+'</div></div>').join('')+
+    '</div>';
+  wavepanel.animate?.([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:180,easing:'cubic-bezier(0.23,1,0.32,1)'});
+}
+const trackseg=document.getElementById('trackseg');
+[...trackseg.children].forEach(b=>b.addEventListener('click',()=>{
+  curTrack=b.dataset.t; curWave=0;
+  [...trackseg.children].forEach(c=>c.setAttribute('aria-pressed',String(c===b)));
+  trackhint.textContent=HINT[curTrack];
+  renderWaveList(); renderWavePanel();
+}));
+trackhint.textContent=HINT.be;
+renderWaveList(); renderWavePanel();
+
+/* ══ pitfalls ══ */
+const CATS=[['all','All'],['env','Environment'],['code','Code'],['fe','Frontend'],['deploy','Deploy'],['sec','Security']];
+const pitlist=document.getElementById('pitlist');
+const pitfilters=document.getElementById('pitfilters');
+const progbar=document.getElementById('progbar');
+const progtext=document.getElementById('progtext');
+let pitCat='all', pitQuery='';
+const doneSet=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem('agg-pit')||'[]')); }catch(e){ return new Set(); } })();
+
+CATS.forEach(([v,label],i)=>{
+  const b=document.createElement('button');
+  b.type='button'; b.className='chip'; b.setAttribute('aria-pressed',String(i===0)); b.textContent=label;
+  b.addEventListener('click',()=>{
+    pitCat=v;
+    [...pitfilters.children].forEach(c=>c.setAttribute('aria-pressed',String(c===b)));
+    renderPits();
+  });
+  pitfilters.appendChild(b);
+});
+
+function renderPits(){
+  pitlist.innerHTML='';
+  PITFALLS.forEach(p=>{
+    const hay=(p.t+' '+p.b).replace(/<[^>]+>/g,' ').toLowerCase();
+    const match = (pitCat==='all'||p.cat===pitCat) && (!pitQuery || hay.includes(pitQuery));
+    const el=document.createElement('div');
+    el.className='pit'+(doneSet.has(p.id)?' done':'')+(match?'':' filtered-out');
+    const sevCls = p.sev==='high'?'high':p.sev==='mid'?'mid':'';
+    el.innerHTML =
+      '<button class="cbox" type="button" role="checkbox" aria-checked="'+doneSet.has(p.id)+'" aria-label="Mark done">✓</button>'+
+      '<div><div class="pt"><span>'+p.t+'</span><span class="sev '+sevCls+'">'+p.sev+' · '+p.cat+'</span></div>'+
+      '<div class="pb">'+p.b+'</div></div>';
+    el.querySelector('.cbox').addEventListener('click',(ev)=>{
+      const btn=ev.currentTarget;
+      const on = btn.getAttribute('aria-checked')!=='true';
+      btn.setAttribute('aria-checked',String(on));
+      if(on) doneSet.add(p.id); else doneSet.delete(p.id);
+      el.classList.toggle('done',on);
+      try{ localStorage.setItem('agg-pit',JSON.stringify([...doneSet])); }catch(e){}
+      updateProg();
+    });
+    pitlist.appendChild(el);
+  });
+  updateProg();
+}
+function updateProg(){
+  const n=PITFALLS.length, k=PITFALLS.filter(p=>doneSet.has(p.id)).length;
+  progbar.style.width=(n? (k/n*100):0)+'%';
+  progtext.textContent=k+' / '+n;
+}
+document.getElementById('pitsearch').addEventListener('input',(e)=>{ pitQuery=e.target.value.trim().toLowerCase(); renderPits(); });
+document.getElementById('pitreset').addEventListener('click',()=>{
+  doneSet.clear(); try{ localStorage.removeItem('agg-pit'); }catch(e){}
+  [...pitfilters.children].forEach((c,i)=>c.setAttribute('aria-pressed',String(i===0)));
+  pitCat='all'; document.getElementById('pitsearch').value=''; pitQuery='';
+  renderPits();
+});
+renderPits();
+
+/* ══ bugs ══ */
+const bugfilters=document.getElementById('bugfilters');
+const bugtable=document.getElementById('bugtable');
+let bugFilter='all';
+const SEVS=[['all','Everything'],['high','High'],['mid','Medium'],['low','Low']];
+SEVS.forEach(([v,label],i)=>{
+  const b=document.createElement('button');
+  b.type='button'; b.className='chip'; b.setAttribute('aria-pressed',String(i===0)); b.textContent=label;
+  b.addEventListener('click',()=>{
+    bugFilter=v;
+    [...bugfilters.children].forEach(c=>c.setAttribute('aria-pressed',String(c===b)));
+    renderBugs();
+  });
+  bugfilters.appendChild(b);
+});
+function renderBugs(){
+  const rows=BUGS.filter(b=>bugFilter==='all'||b.sev===bugFilter);
+  const cls=s=>s==='high'?'high':s==='mid'?'mid':'';
+  bugtable.innerHTML='<div class="wrap"><table><thead><tr><th>Severity</th><th>Source</th><th>Issue</th></tr></thead><tbody>'+
+    rows.map(b=>'<tr><td><span class="sev '+cls(b.sev)+'">'+b.sev+'</span></td><td class="small">'+b.src+'</td><td><b>'+b.t+'</b><div class="pb" style="margin-top:4px">'+b.d+'</div></td></tr>').join('')+
+    '</tbody></table></div>';
+}
+renderBugs();
+
+/* ══ decisions ══ */
+const dl=document.getElementById('decisionslist');
+dl.innerHTML = DECISIONS.map((d,i)=>
+  '<details class="acc"'+(i===0?' open':'')+'><summary>'+
+  '<span class="t">'+d.t+'</span><span class="caret">›</span></summary>'+
+  '<div class="body"><p class="pb"><b>Rejected alternative:</b> '+d.alt+'</p>'+
+  '<p>'+d.why+'</p><p class="small" style="margin-top:10px">'+d.scope+'</p></div></details>'
+).join('');
+
+/* ══ next ══ */
+document.getElementById('nextlist').innerHTML = NEXT.map((s,i)=>
+  '<div class="step"><div class="num">'+(i+1)+'</div><div>'+
+  '<div class="spread" style="align-items:baseline"><h4>'+s.t+'</h4><span class="pill">'+s.tag+'</span></div>'+
+  '<p>'+s.d+'</p>'+
+  '<div class="whybox">'+s.w+'</div></div></div>'
+).join('');
+
+/* ══ tldr ══ */
+document.getElementById('tldrlist').innerHTML = TLDR.map(([t,d],i)=>
+  '<div class="step"><div class="num">'+(i+1)+'</div><div>'+
+  '<h4>'+t+'</h4><p>'+d+'</p></div></div>'
+).join('');
+</script>
+</body>
+</html>
