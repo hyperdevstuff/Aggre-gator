@@ -3,9 +3,23 @@ import { db } from "../../db";
 import { user } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
-export async function createTestUser() {
+/**
+ * Sign up an account.
+ *
+ * `verified` defaults to **true**, and that default is load-bearing: `be-07`
+ * makes an unverified account unable to publish, which is correct, but it means
+ * every test that publishes needs an account that has clicked the verification
+ * link. Flipping the row is the honest stand-in for that click — the alternative
+ * (walking the real JWT through `/api/auth/verify-email` in setup) would make
+ * every unrelated test depend on the mailer working.
+ *
+ * Pass `verified: false` to get the unverified experience for the tests that are
+ * specifically about it. Nothing else should ever want that.
+ */
+export async function createTestUser(options: { verified?: boolean } = {}) {
+  const verified = options.verified ?? true;
   const testUser = {
-    email: `test-${Date.now()}@example.com`,
+    email: `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
     name: "Test User",
     password: "Test1234!",
   };
@@ -19,8 +33,25 @@ export async function createTestUser() {
   );
 
   const data = await res.json();
+  if (!data?.user?.id) {
+    // Sign-up failures used to surface much later as `cannot read id of
+    // undefined` in whichever test happened to call this. The one that matters
+    // in practice is a duplicate address, which is why the email above carries a
+    // random suffix as well as the timestamp.
+    throw new Error(`sign-up failed (${res.status}): ${JSON.stringify(data)}`);
+  }
+  if (verified) {
+    await db
+      .update(user)
+      .set({ emailVerified: true })
+      .where(eq(user.id, data.user.id));
+  }
+
   return {
-    user: data.user,
+    // Re-read so the caller's view of the account matches what the session will
+    // see — a stale `emailVerified: false` here would make a test assert on a
+    // state that stopped existing.
+    user: { ...data.user, emailVerified: verified },
     email: testUser.email,
     password: testUser.password,
   };

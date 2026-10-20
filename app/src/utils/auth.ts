@@ -5,11 +5,23 @@ import { db } from "../db/index";
 import * as schema from "../db/schema";
 import { env } from "../env";
 import Elysia from "elysia";
-import { InternalError, UnauthorizedError } from "../error";
+import { EmailVerificationRequiredError, InternalError, UnauthorizedError } from "../error";
 import { validateUsername } from "./username";
 import { findAvailableUsername } from "./user-identity";
+import { sendPasswordResetEmail, sendVerificationEmail as mailVerificationEmail, mailEnabled } from "./mail";
 
 const isProduction = env.NODE_ENV === "production";
+
+/**
+ * One hour, in seconds — the unit better-auth documents for
+ * `emailVerification.expiresIn` (it is passed straight to `setExpirationTime`).
+ *
+ * Stated explicitly rather than left at the default because the templates in
+ * `utils/mail.ts` tell the reader the link "expires in an hour". If the default
+ * ever changes, the copy is the thing that has to change with it, and this line
+ * is where that shows up.
+ */
+const VERIFICATION_EXPIRES_IN_SECONDS = 60 * 60;
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -17,11 +29,53 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   emailAndPassword: {
     enabled: true,
-    sendResetPassword: async ({ user, url, token }) => {
-      // TODO: replace with real email provider (Resend, unosend) for production
-      console.log(`\n🔑 Password reset requested for ${user.email}`);
-      console.log(`   Reset URL: ${url}`);
-      console.log(`   Token: ${token}\n`);
+    /**
+     * Requiring verification at sign-in is only safe when a verification mail can
+     * actually leave the building. With `MAIL_PROVIDER=none` the link is dropped
+     * on the floor, so enforcing it would lock out every account permanently —
+     * including existing ones, the first time the flag shipped. So the switch is
+     * tied to a provider actually being configured, and turning mail on turns
+     * this on with it.
+     *
+     * The *publish* gate in `be-07` is deliberately not tied to this: refusing to
+     * publish is recoverable (verify, then publish) and is what actually stops a
+     * spam account reaching a public page, so it stays on either way.
+     */
+    requireEmailVerification: mailEnabled(),
+    sendResetPassword: async ({ user, url }) => {
+      // The mailer never throws and never logs: a provider outage must not turn
+      // a completed "check your inbox" into a 500, and `be-02` established that
+      // emails and reset tokens stay out of the logs. What happens instead is a
+      // lost email — the endpoint still answers the same generic message, so an
+      // attacker learns nothing about whether the address exists either way.
+      await sendPasswordResetEmail({ to: user.email, url, name: user.name });
+    },
+  },
+  /**
+   * Address verification. `be-06`.
+   *
+   * `sendOnSignUp` is left implicit on purpose: better-auth defaults it to
+   * `requireEmailVerification`, which is `mailEnabled()` — so a sign-up mails
+   * exactly when enforcement is on. Naming it would freeze the link between the
+   * two and they could drift apart silently.
+   *
+   * `sendOnSignIn` is the interesting one: it is what makes "wrong password" and
+   * "unverified address" recoverable by the person who hit them, instead of
+   * leaving a signed-out user staring at a rejection with no next step. Note
+   * better-auth refuses sign-in *before* reaching this callback unless
+   * `sendVerificationEmail` is configured at all, so the two always travel
+   * together.
+   */
+  emailVerification: {
+    sendOnSignIn: true,
+    autoSignInAfterVerification: true,
+    expiresIn: VERIFICATION_EXPIRES_IN_SECONDS,
+    sendVerificationEmail: async ({ user, url }) => {
+      await mailVerificationEmail({
+        to: user.email,
+        url,
+        name: user.name,
+      });
     },
   },
   trustedOrigins: [env.CLIENT_URL],
@@ -147,6 +201,43 @@ export const auth = betterAuth({
     },
   },
 });
+
+/**
+ * Gate for the one thing an unverified account may not do: put its content in
+ * front of somebody else. `be-07`.
+ *
+ * This is deliberately *not* the same rule as `requireEmailVerification` in the
+ * config above, and the difference is the whole point of the issue. TASKS.md is
+ * explicit — verification gates **who may publish**, not who may exist. An
+ * unverified user signs in, saves bookmarks, builds collections and organises
+ * them; only the write that makes a collection readable by an anonymous visitor
+ * is refused. Locking an account out of its own data until it clicks a link is
+ * how a verification flow turns into a support burden, and it buys nothing:
+ * nothing is listed anywhere until an owner publishes, so the spam problem the
+ * rule exists for is entirely downstream of publication.
+ *
+ * It is armed by `ENFORCE_EMAIL_VERIFICATION`, which **defaults to mail being
+ * configured** rather than being always on. The gate can only be passed by
+ * clicking a link we send, so arming it while `MAIL_PROVIDER=none` would refuse
+ * publishing to everyone permanently — an outage, not a control. Turning mail on
+ * arms it; the test suite sets the flag explicitly so the refusal path stays
+ * provable without a provider. The rule lives in
+ * `resolveEnforceEmailVerification` in `env.ts`, with a test on it.
+ *
+ * Note this is a *narrower* switch than `requireEmailVerification` above, which
+ * stays tied to a real provider: refusing to publish is recoverable (verify,
+ * then publish), whereas refusing to sign in is not.
+ *
+ * The flag is read off the session's user, which better-auth re-reads from the
+ * database on every request, so a user who verifies mid-session is unblocked
+ * without signing in again.
+ */
+export function requireVerifiedPublisher(user: { emailVerified?: unknown }) {
+  if (!env.ENFORCE_EMAIL_VERIFICATION) return;
+  if (user.emailVerified !== true) {
+    throw new EmailVerificationRequiredError();
+  }
+}
 
 /**
  * Route prefixes that are public by design and must answer anonymous requests:

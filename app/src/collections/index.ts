@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { betterAuthPlugin } from "../utils/auth";
+import { betterAuthPlugin, requireVerifiedPublisher } from "../utils/auth";
 import { db } from "../db";
 import { collections, bookmarks, collectionItems, sharedCollections, user, user as users, type CollectionVisibility } from "../db/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -32,6 +32,26 @@ async function requireUsername(dbOrTx: DbOrTx, userId: string): Promise<boolean>
     .where(eq(user.id, userId))
     .limit(1);
   return !!row?.username;
+}
+
+/**
+ * `be-07`: the publish gate, and it is one predicate for every route that can
+ * put a collection in front of an anonymous reader.
+ *
+ * `private` is the only visibility that stays open — it is the owner's own
+ * filing, visible to nobody else, so it is not a publication. `unlisted` is
+ * gated too, and that is the call worth being explicit about: it is not
+ * indexed, but `/u/:username/:slug` serves any non-private collection to anyone
+ * who has the address, and a share code is exactly that address. Gating only
+ * `public` would leave the tier a spammer can publish into for free.
+ */
+function requireVerifiedToPublish(
+  user: { emailVerified?: unknown },
+  requested: CollectionVisibility | undefined,
+) {
+  if (requested && requested !== "private") {
+    requireVerifiedPublisher(user);
+  }
 }
 
 /** "Design Inspiration" → "design-inspiration", for an auto-derived slug. */
@@ -109,6 +129,9 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     "/",
     async ({ body, user }) => {
       const userId = user.id;
+      // Before the transaction: a refusal is not a write, and there is no reason
+      // to take the owner's per-user row lock to tell them no.
+      requireVerifiedToPublish(user, body.visibility);
       return db.transaction(async (tx) => {
         // Serialize hierarchy writes per owner so concurrent moves cannot
         // each pass validation against an outdated tree.
@@ -210,6 +233,7 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     async ({ params: { id }, user, body }) => {
       const userId = user.id;
       const provided = Object.values(body).filter((value) => value !== undefined);
+      requireVerifiedToPublish(user, body.visibility);
       return db.transaction(async (tx) => {
         await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
         const nodes = await tx.select().from(collections).where(eq(collections.userId, userId));
@@ -471,6 +495,12 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
     "/:id/share",
     async ({ params: { id }, user }) => {
       const userId = user.id;
+
+      // A share code is a publication whatever the collection's visibility says:
+      // `/share/:code` serves it to anyone holding the address. Gated here as
+      // well as on the visibility write, because this route also re-activates a
+      // previously deactivated share.
+      requireVerifiedPublisher(user);
 
       // verify collection exists and belongs to user
       const [col] = await db

@@ -51,6 +51,11 @@ jobs:
           CLIENT_URL="http://localhost:5180"
           BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
           NODE_ENV="test"
+          # No transport in CI: mail.test.ts fails the run if any path reaches
+          # the network. Arming the publish gate explicitly is what lets the
+          # refusal tests prove themselves without a provider to send through.
+          MAIL_PROVIDER="none"
+          ENFORCE_EMAIL_VERIFICATION="true"
           EOF
       - run: bun run db:migrate:test
       - run: bun run test

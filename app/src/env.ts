@@ -19,6 +19,25 @@ export type Env = {
   GOOGLE_CLIENT_ID: string | undefined;
   GOOGLE_CLIENT_SECRET: string | undefined;
   /**
+   * Which transport `utils/mail.ts` speaks through.
+   *
+   * `none` is the default and is a genuine no-op: nothing is sent and no socket
+   * is opened, which is what keeps the test suite off the network and what keeps
+   * us from mailing from an unverified domain before `be-08` lands. `reloop`
+   * requires `RELOOP_API_KEY` + `RELOOP_FROM` below.
+   */
+  MAIL_PROVIDER: "none" | "reloop";
+  RELOOP_API_KEY: string | undefined;
+  /** `hello@aggregator.com` or `Aggregator <hello@aggregator.com>`. */
+  RELOOP_FROM: string | undefined;
+  /**
+   * Whether an unverified account is refused at the publish routes (`be-07`).
+   *
+   * Derived from `MAIL_PROVIDER` unless set explicitly — see
+   * `resolveEnforceEmailVerification`.
+   */
+  ENFORCE_EMAIL_VERIFICATION: boolean;
+  /**
    * Trust `x-forwarded-for` / `cf-connecting-ip` for per-client rate limiting.
    * Only enable when the API genuinely sits behind a proxy/CDN that overwrites
    * those headers — otherwise a caller can spoof an IP and walk around the
@@ -41,6 +60,28 @@ const isHttps = (url: string) => {
     return false;
   }
 };
+
+/**
+ * Default rule for `ENFORCE_EMAIL_VERIFICATION`: **enforcement follows mail
+ * being configured.**
+ *
+ * The gate can only be passed by clicking a link we send, so arming it while
+ * `MAIL_PROVIDER=none` does not stop spam — it stops everyone, permanently, and
+ * with no way to appeal. That is why the default is not a plain `true`, and why
+ * turning mail on (`be-08`) arms the gate with it.
+ *
+ * Extracted and exported rather than inlined so the rule itself has a test: the
+ * suite runs with the override set, so the derived-from-mail path would
+ * otherwise never execute.
+ */
+export function resolveEnforceEmailVerification(
+  raw: string | undefined,
+  mailProvider: Env["MAIL_PROVIDER"],
+): boolean {
+  const value = (raw ?? "").trim().toLowerCase();
+  if (!value) return mailProvider !== "none";
+  return ["1", "true", "yes", "on"].includes(value);
+}
 
 function validate(): Env {
   const problems: string[] = [];
@@ -106,6 +147,51 @@ function validate(): Env {
     problems.push("Google OAuth needs both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (or neither).");
   }
 
+  // Mail. `MAIL_PROVIDER` defaults to `none` — an unconfigured app must still
+  // boot, or every local run and every test would need a provider account.
+  // Selecting `reloop` without credentials, though, is a misconfiguration that
+  // would fail silently at the first password reset, so it is fatal here.
+  const rawMailProvider = (process.env.MAIL_PROVIDER ?? "").trim().toLowerCase();
+  let MAIL_PROVIDER: Env["MAIL_PROVIDER"] = "none";
+  if (rawMailProvider) {
+    if (rawMailProvider === "none" || rawMailProvider === "reloop") {
+      MAIL_PROVIDER = rawMailProvider;
+    } else {
+      problems.push(
+        `MAIL_PROVIDER=${JSON.stringify(process.env.MAIL_PROVIDER)} is not one of none|reloop.`,
+      );
+    }
+  }
+
+  const RELOOP_API_KEY = process.env.RELOOP_API_KEY || undefined;
+  const RELOOP_FROM = process.env.RELOOP_FROM || undefined;
+  if (MAIL_PROVIDER === "reloop") {
+    if (!RELOOP_API_KEY) problems.push("MAIL_PROVIDER=reloop needs RELOOP_API_KEY.");
+    if (!RELOOP_FROM) problems.push("MAIL_PROVIDER=reloop needs RELOOP_FROM (a verified sender address).");
+  }
+
+  // The publish gate (`be-07`). Defaults to "armed once mail is configured",
+  // because a gate nobody can pass is an outage rather than a security control:
+  // with `MAIL_PROVIDER=none` the verification link can never be delivered, so
+  // enforcing verification would refuse publishing to every account with no way
+  // out. Set it explicitly to `true` to arm the gate before a provider exists
+  // (the test suite does exactly that, which is what makes the refusal path
+  // provable without sending mail), or to `false` to allow unverified publishing
+  // with mail on.
+  const rawEnforceVerification = (process.env.ENFORCE_EMAIL_VERIFICATION ?? "").trim().toLowerCase();
+  if (
+    rawEnforceVerification &&
+    !["1", "true", "yes", "on", "0", "false", "no", "off"].includes(rawEnforceVerification)
+  ) {
+    problems.push(
+      `ENFORCE_EMAIL_VERIFICATION=${JSON.stringify(process.env.ENFORCE_EMAIL_VERIFICATION)} is not a boolean — use true or false.`,
+    );
+  }
+  const ENFORCE_EMAIL_VERIFICATION = resolveEnforceEmailVerification(
+    process.env.ENFORCE_EMAIL_VERIFICATION,
+    MAIL_PROVIDER,
+  );
+
   if (NODE_ENV === "production") {
     // Secure session cookies + CORS are only meaningful over https.
     if (BETTER_AUTH_URL && !isHttps(BETTER_AUTH_URL)) {
@@ -132,6 +218,10 @@ function validate(): Env {
     CLIENT_URL: CLIENT_URL!,
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
+    MAIL_PROVIDER,
+    RELOOP_API_KEY,
+    RELOOP_FROM,
+    ENFORCE_EMAIL_VERIFICATION,
     TRUST_PROXY,
     CLIENT_DIST_DIR: process.env.CLIENT_DIST_DIR || undefined,
   };
