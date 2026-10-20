@@ -197,26 +197,30 @@ responses (`Retry-After` survived only by being set on the `Response` itself).
 
 #### Baseline
 
-**253 passing / 0 failing across 26 files** after Wave 0 (was 203/23 when Wave 0
-started, 248 after `be-01`/`be-02`). **297 across 30 files** with Wave 1
-(`be-04`…`be-07`, #25). typecheck and lint clean, build clean. The 20 lint
-warnings are all pre-existing `react-refresh` ones in `client/` — not ours, and
-`agg-fe`'s.
+**302 passing / 0 failing across 30 files** on `main` (203/23 when Wave 0
+started; 248 after `be-01`/`be-02`; 253 after `be-03`; 297 on the Wave 1 branch
+alone — the merged tree carries both sets). typecheck and lint clean, build
+clean. The 20 lint warnings are all pre-existing `react-refresh` ones in
+`client/` — not ours, and `agg-fe`'s.
 
-CI: #26 makes the `images` job green for the first time since 2026-10-16 — it
-had been red on every push, `main` included, because `client/Dockerfile`'s
+CI: all three jobs are green on `main`. The `images` job had been red on every
+push since 2026-10-16 — `main` included — because `client/Dockerfile`'s
 `nginx -t` names the compose service `api:3001`, which nginx resolves *while
 parsing the config*, so a plain `docker build` died with `host not found in
-upstream`. The check now validates a copy pointed at loopback and restores the
-shipped file in the same layer; the job finally also builds the single-service
-deploy image that had been skipped behind the failure. #24 and #25 are green on
-`test` and `verify`; their `images` check is red only until #26 is merged.
+upstream`. #26 validates a copy pointed at loopback and restores the shipped
+file in the same layer; the job now also builds the single-service deploy image
+that had been skipped behind the failure.
 
-### Wave 1 — Email (Reloop) — *implemented, in review (#25)*
+> **Local note:** `ENFORCE_EMAIL_VERIFICATION=true` must be present in
+> `app/.env.test.local` or the six publish-gate refusal tests fail with 200
+> instead of 403. It is in `.env.test.example`; a local file older than Wave 1
+> will not have it. CI writes it explicitly.
 
-> `be-04`…`be-07` are done and in review (#25). `be-08` is the only remainder,
-> and it is a human task. The mailer is a **no-op in dev/test**, so the suite
-> runs without a provider; only the live send-test needs the domain.
+### Wave 1 — Email (Reloop) — *done (#25)*
+
+> `be-04`…`be-07` are merged (#25). `be-08` is the only remainder, and it is a
+> human task. The mailer is a **no-op in dev/test**, so the suite runs without a
+> provider; only the live send-test needs the domain.
 
 | ID | Status | Issue |
 |---|---|---|

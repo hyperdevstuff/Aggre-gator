@@ -1,8 +1,8 @@
 # Aggregator — Status Tracker
 
-> Last audited: **2026-10-20** (Wave 0 complete; Wave 1 implemented and in review —
-> #25. Migration count, the `be-03` cause list and the phase-map table were
-> corrected in the 2026-10-19 audit). Earlier audit: 2026-10-07.
+> Last audited: **2026-10-20** (Wave 0 and Wave 1 merged; `main` is green).
+> Migration count, the `be-03` cause list and the phase-map table were corrected
+> in the 2026-10-19 audit. Earlier audit: 2026-10-07.
 > Plan/phases: [`docs/ROADMAP.md`](ROADMAP.md) · Thesis: [`docs/SPEC.md`](SPEC.md) ·
 > Setup/commands: top-level `README.md`.
 > Open work items are also tracked as GitHub issues.
@@ -29,8 +29,8 @@ Where each section below sits in the roadmap:
 > **Execution has moved to the issue tracks in [`MARATHON.md`](MARATHON.md)** —
 > six backend waves (`be-*`) and two frontend steps (`fe-*`). Wave 0 landed:
 > `be-01` (durable jobs), `be-02` (request logging) and `be-03` (enrichment
-> fixes) are **done**. Wave 1 (email) — `be-04`…`be-07` — is implemented and
-> **in review (#25)**; `be-08` (domain + DNS) is still a human task. The `be-03`
+> fixes) are **done**. Wave 1 (email) — `be-04`…`be-07` — is **merged** (#25);
+> `be-08` (domain + DNS) is the only remainder, and it is a human task. The `be-03`
 > [corrected diagnosis](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec)
 > is the one to read — the second cause in the original spec was measured wrong.
 
@@ -98,7 +98,7 @@ Where each section below sits in the roadmap:
 |--------|------|
 | ✅ | Drizzle schema with relations + indexes, **13 migrations** (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3, `0011` is phase 4b full-text search, `0012` is wave-0 `jobs`) |
 | ✅ | Isolated test database (`aggregator_test`) via `docker compose` |
-| ✅ | `bun test` → **253 passing / 0 failing** across 26 files on this branch; Wave 1 (#25) brings it to **297 across 30 files** (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation, OG rendering, the job queue, metadata scraping, the mailer, password reset and verification) |
+| ✅ | `bun test` → **302 passing / 0 failing** across 30 files (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation, OG rendering, the job queue, metadata scraping, the mailer, password reset and verification) |
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |
 | ✅ | Rate limiting: fixed-window, in-process (`app/src/utils/rate-limit.ts`). Global 1000/min per client in `onRequest` (so it caps unauthenticated floods *before* the session lookup), plus per-route 120/min on `POST /bookmarks`, 20/min on bulk, 60/min on `/share/explore`, 120/min on `/share/:code`. Health/version/OpenAPI/auth are exempt. 429 carries `Retry-After` |
 | ✅ | Client IP for limits comes from the socket; `x-forwarded-for` / `cf-connecting-ip` are only trusted when `TRUST_PROXY=true` (new env var, documented in `app/.env.example`) so a directly exposed API can't be dodged by spoofing a header |
@@ -106,7 +106,7 @@ Where each section below sits in the roadmap:
 | ✅ | **Durable background jobs** (wave 0, `be-01`) — `jobs` table + worker in `app/src/utils/jobs.ts`, migration `0012_jobs.sql`, no new dependency. Claims with `FOR UPDATE SKIP LOCKED`, exponential backoff stored in `run_at` (not slept on), a `locked_at` lease that reclaims a crashed worker's jobs, and a 24h purge of settled rows. `POST /bookmarks` enrichment is queued instead of `setTimeout(…, 0).unref()`, which was losing the work whenever the Render free tier slept or a deploy landed mid-flight. Graceful `SIGTERM` drain. See [ADR-003](decisions/003-durable-jobs.md) for why this is hand-rolled rather than pg-boss |
 | ✅ | **Request logging + request-id** (wave 0, `be-02`) — `app/src/utils/request-log.ts`. One structured JSON line per request to stdout (`ts`, `level`, `method`, `path`, `status`, `durationMs`, `requestId`, `userId`), and every response carries `x-request-id` — the caller's if well-formed, generated otherwise. Never logs cookies, auth headers, bodies, query strings or emails; share codes and reset tokens travel in URLs. `/health` is exempt from *logging* (uptime monitors would bury real traffic) but still returns an id. Fixes the "which request was that" problem that cost an hour on the enrichment bug |
 | ❌ | Monitoring/alerting on top of the logs — nothing consumes the JSON yet (no error-rate alert, no dashboard). Log lines are the prerequisite, not the whole feature |
-| ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20, repaired in #26. `app/Dockerfile` now also copies `app/assets/fonts` (the OG renderer needs them), and `client/Dockerfile` runs `nginx -t` so a broken crawler-routing config fails the image build rather than the deploy. That check was itself broken: `upstream aggregator_api` names the compose service `api:3001`, which nginx resolves **while parsing**, so every plain `docker build` died with `host not found in upstream` and the `images` job was red on every push (including `main`) from 2026-10-16. It now validates a copy of the config with the address pointed at loopback and restores the shipped file in the same layer |
+| ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20, with the `images` check repaired in #26. `app/Dockerfile` now also copies `app/assets/fonts` (the OG renderer needs them), and `client/Dockerfile` runs `nginx -t` so a broken crawler-routing config fails the image build rather than the deploy. That check was itself broken: `upstream aggregator_api` names the compose service `api:3001`, which nginx resolves **while parsing**, so every plain `docker build` died with `host not found in upstream` and the `images` job was red on every push (including `main`) from 2026-10-16. It now validates a copy of the config with the address pointed at loopback and restores the shipped file in the same layer |
 | ✅ | **Hosted on Render (free) + Neon Postgres (free), 2026-10-15.** Root `Dockerfile` = one image: the API serves the built SPA (`CLIENT_DIST_DIR`), runs migrations on boot, and replaces the nginx tier entirely — see `docs/DEPLOY.md`. Navigation-vs-fetch detection (`app/src/utils/client-spa.ts`) lets the API and the pages share URLs (`Sec-Fetch-Mode: navigate` / `Accept: text/html` → SPA shell, anything else → JSON). The nginx split stays as the self-hosted alternative |
 | 🟡 | OG rendering adds ~8 MB to the API bundle (satori + resvg WASM, loaded lazily on first request). Fine at current scale; worth revisiting if the API image size becomes a constraint |
 
