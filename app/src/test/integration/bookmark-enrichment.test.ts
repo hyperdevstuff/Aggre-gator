@@ -1,5 +1,7 @@
-import { describe, test, expect, afterEach, mock, spyOn } from "bun:test";
+import { describe, test, expect, afterEach, beforeEach, mock, spyOn } from "bun:test";
+import { sql } from "drizzle-orm";
 import { app } from "../../index";
+import { db } from "../../db";
 import { setHostResolver, resetHostResolver } from "../../utils/url-guard";
 import { registerJobHandlers, runOnce } from "../../utils/jobs";
 import { enrichMetadata } from "../../utils/enrichment";
@@ -10,6 +12,18 @@ import { createTestUser, getSessionCookie, cleanupTestUser } from "./setup";
 // and `setTimeout` sleeps this file used to need against the old in-process
 // fire-and-forget path: enrichment now happens at a point we choose.
 registerJobHandlers({ "enrich-metadata": enrichMetadata });
+
+/**
+ * Start each test with an empty queue.
+ *
+ * These tests assert exact `processed`/`failed` counts, and `runOnce()` claims
+ * whatever is due — including rows other files left behind when they saved a
+ * bookmark and never drained the queue. Clearing it is the same isolation
+ * `jobs.test.ts` uses, for the same reason.
+ */
+beforeEach(async () => {
+  await db.execute(sql`DELETE FROM "jobs"`);
+});
 
 async function getBookmark(id: string, cookie: string) {
   return await (
@@ -164,6 +178,72 @@ describe("POST /bookmarks metadata enrichment", () => {
     expect(detail.title).toBe("My Title");
     expect(detail.description).toBe("My Description");
     expect(detail.cover).toBe("https://example.com/mine.jpg");
+
+    await cleanupTestUser(testUser.user.id);
+  });
+
+  test("a hand-titled bookmark still gets a cover", async () => {
+    const testUser = await createTestUser();
+    const cookie = await getSessionCookie(testUser.email, testUser.password);
+    setHostResolver(async () => ["93.184.216.34"]);
+    spyOn(global, "fetch").mockImplementation((async () =>
+      new Response(
+        `<html><head><title>Scraped Title</title>
+         <meta property="og:description" content="scraped description">
+         <meta property="og:image" content="https://example.com/scraped.jpg">
+         </head></html>`,
+      )) as unknown as typeof fetch);
+
+    const created = await (
+      await app.handle(
+        new Request("http://localhost/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({
+            url: "https://example.com/hand-titled",
+            title: "My Title",
+          }),
+        }),
+      )
+    ).json();
+
+    const result = await runOnce();
+    // The old gate was `if (!body.title)`, so a titled bookmark never queued a
+    // job at all and could never gain a cover. It now runs and fills only the
+    // fields the user left empty.
+    expect(result).toEqual({ processed: 1, failed: 0 });
+
+    const detail = await getBookmark(created.id, cookie);
+    expect(detail.title).toBe("My Title");
+    expect(detail.description).toBe("scraped description");
+    expect(detail.cover).toBe("https://example.com/scraped.jpg");
+
+    await cleanupTestUser(testUser.user.id);
+  });
+
+  test("a transient fetch failure fails the job so the queue retries it", async () => {
+    const testUser = await createTestUser();
+    const cookie = await getSessionCookie(testUser.email, testUser.password);
+    setHostResolver(async () => ["93.184.216.34"]);
+    // The scrape layer now distinguishes "the server was briefly down" from
+    // "this page has no metadata": the former must fail the job, not write the
+    // hostname and quietly drop the cover forever.
+    spyOn(global, "fetch").mockRejectedValue(new Error("socket hang up"));
+
+    const created = await (
+      await app.handle(
+        new Request("http://localhost/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ url: "https://example.com/flaky" }),
+        }),
+      )
+    ).json();
+
+    expect(await runOnce()).toEqual({ processed: 0, failed: 1 });
+
+    const detail = await getBookmark(created.id, cookie);
+    expect(detail.title).toBe("example.com");
 
     await cleanupTestUser(testUser.user.id);
   });

@@ -24,10 +24,10 @@ import { bookmarksBulkRouter } from "./bulk";
  * or a deploy. It is now a row in `jobs`, so the worker picks it up whenever it
  * next runs, including after a restart. See `utils/jobs.ts` and ADR-003.
  *
- * The `keep` values are carried in the payload rather than re-read here, so a
- * value the user supplied in this same request still wins after the retry.
+ * Which fields the user supplied is carried in the payload rather than re-read
+ * here, so a value set in this same request still wins after a retry.
  */
-function scheduleEnrichment({
+async function scheduleEnrichment({
   id,
   url,
   placeholderTitle,
@@ -36,22 +36,29 @@ function scheduleEnrichment({
   id: string;
   url: string;
   placeholderTitle: string;
-  keep: { description: string | null; cover: string | null };
+  keep: { title: boolean; description: boolean; cover: boolean };
 }) {
-  void enqueue("enrich-metadata", {
-    bookmarkId: id,
-    url,
-    placeholderTitle,
-    keep,
-  }).catch((error) => {
-    // The bookmark is already saved and the response already sent; losing the
-    // enrichment is recoverable by hand, so this must not throw.
+  try {
+    // Awaited, not fired and forgotten: the insert is what makes the work
+    // durable, and a response returned before it lands can outlive the row if
+    // the process goes away in between — the same silent loss the queue was
+    // introduced to stop. It is one indexed insert; the scrape is still off the
+    // request path.
+    await enqueue("enrich-metadata", {
+      bookmarkId: id,
+      url,
+      placeholderTitle,
+      keep,
+    });
+  } catch (error) {
+    // The bookmark is already saved; losing the enrichment is recoverable by
+    // hand, so this must not fail the request.
     console.error(
       `[bookmarks] could not enqueue enrichment for ${id}: ${
         error instanceof Error ? error.message : error
       }`,
     );
-  });
+  }
 }
 
 export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
@@ -103,15 +110,23 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
 
       await setBookmarkCollections(db, userId, bookmark.id, collectionIds);
 
-      // Scrape once, after the response is out. The title guard means an edit
-      // that lands while the fetch is in flight is never clobbered by the
-      // scraped value, and a dead URL simply keeps its hostname title.
-      if (!body.title) {
-        scheduleEnrichment({
+      // Scrape once, after the response is out. Per-field guards in the handler
+      // mean an edit that lands while the fetch is in flight is never clobbered
+      // by the scraped value, and a dead URL simply keeps its hostname title.
+      // Enrich whenever the caller left a field for the scraper to fill. Gating
+      // on the title alone meant a bookmark the user titled by hand could never
+      // acquire a cover — the reason covers were missing on exactly the saves
+      // where the user had typed something.
+      if (!body.title || !description || !cover) {
+        await scheduleEnrichment({
           id: bookmark.id,
           url: body.url,
           placeholderTitle: title,
-          keep: { description, cover },
+          keep: {
+            title: Boolean(body.title),
+            description: description !== null,
+            cover: cover !== null,
+          },
         });
       }
 

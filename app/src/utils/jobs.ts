@@ -27,10 +27,10 @@ export type JobPayloads = {
   "enrich-metadata": {
     bookmarkId: string;
     url: string;
-    /** The bookmark still holding this title is ours to overwrite. */
+    /** The title the row still holds when the caller supplied none. */
     placeholderTitle: string;
-    /** User-supplied values win over scraped ones. */
-    keep: { description: string | null; cover: string | null };
+    /** Fields the caller supplied — enrichment must never overwrite these. */
+    keep: { title: boolean; description: boolean; cover: boolean };
   };
 };
 
