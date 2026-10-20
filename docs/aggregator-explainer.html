@@ -285,7 +285,7 @@ footer{border-top:1px solid var(--border); padding:26px 0 60px; color:var(--meta
       <div class="bar"><i id="progbar"></i></div>
     </div>
     <button class="btn" id="themebtn" type="button">Light mode</button>
-    <div class="small">Verified 20 Oct 2026 against <code>main@fe7ef45</code> plus the three open PRs.</div>
+    <div class="small">Verified 20 Oct 2026 against <code>main@c664879</code>; every PR described here is merged.</div>
   </div>
 </nav>
 
@@ -303,9 +303,9 @@ footer{border-top:1px solid var(--border); padding:26px 0 60px; color:var(--meta
   </p>
 
   <div class="stats">
-    <div class="stat"><b>fe7ef45</b><span>main, in sync with origin</span></div>
-    <div class="stat"><b>253 → 297</b><span>tests: Wave 0 on main, Wave 1 in review</span></div>
-    <div class="stat"><b>3</b><span>open PRs: #24, #25, #26</span></div>
+    <div class="stat"><b>c664879</b><span>main, all four PRs merged</span></div>
+    <div class="stat"><b>302</b><span>tests passing across 30 files</span></div>
+    <div class="stat"><b>0</b><span>open PRs — Wave 0 and Wave 1 landed</span></div>
     <div class="stat"><b>13</b><span>migrations, 0000–0012</span></div>
     <div class="stat"><b>11</b><span>database tables</span></div>
     <div class="stat"><b>26,200</b><span>lines of TS/TSX</span></div>
@@ -390,24 +390,24 @@ footer{border-top:1px solid var(--border); padding:26px 0 60px; color:var(--meta
 <!-- ══ STATE ══ -->
 <section id="state">
   <div class="h2"><span class="n">03</span><h2>Where things actually are</h2></div>
-  <p class="lede">I verified all of this against the working tree and the three open PRs, not just the docs.</p>
+  <p class="lede">I verified all of this against the working tree and <code>main</code>, not just the docs.</p>
 
   <div class="card" style="margin-top:18px">
     <div class="wrap">
       <table>
         <thead><tr><th>Check</th><th>Result</th></tr></thead>
         <tbody>
-          <tr><td><code>main</code></td><td><span class="pill ok">in sync</span> <code>fe7ef45</code> — the docs tidy. Wave 0 (<code>be-01</code> + <code>be-02</code>) merged in PR #23; <code>be-03</code> is green on its branch and open as #24.</td></tr>
-          <tr><td>Open PRs</td><td>#24 enrichment (<code>be-03</code>) · #25 Wave 1 email (<code>be-04</code>…<code>be-07</code>) · #26 CI. Each is green on <code>test</code> and <code>verify</code>; #26 is green on all three jobs.</td></tr>
-          <tr><td><code>bun run typecheck</code></td><td><span class="pill ok">clean</span> both packages exit 0 on every branch.</td></tr>
+          <tr><td><code>main</code></td><td><span class="pill ok">in sync</span> <code>c664879</code> — Wave 0 (#23/#24), Wave 1 (#25), the CI fix (#26) and this briefing (#27) are all merged.</td></tr>
+          <tr><td>Open PRs</td><td><span class="pill ok">none</span> all four landed on 2026-10-20; <code>main</code>’s CI is green on <code>test</code>, <code>verify</code> and <code>images</code>.</td></tr>
+          <tr><td><code>bun run typecheck</code></td><td><span class="pill ok">clean</span> both packages exit 0.</td></tr>
           <tr><td><code>bun run lint</code></td><td><span class="pill ok">0 errors</span> 20 warnings, all pre-existing <code>react-refresh</code> route-file warnings in <code>client/</code>.</td></tr>
-          <tr><td>Test suite</td><td><span class="pill ok">running</span> <b>253 passing / 0 failing</b> on <code>feat/be-03-enrichment</code> (26 files), <b>297 / 30 files</b> on <code>feat/be-marathon</code>. Docker is up; a <em>fresh</em> worktree still needs the root <code>node_modules</code> copied or <code>drizzle-kit</code> is not found.</td></tr>
+          <tr><td>Test suite</td><td><span class="pill ok">302 passing / 0 failing</span> across 30 files — both waves' tests in one tree (be-03 adds 5, Wave 1 adds 49). A local <code>app/.env.test.local</code> older than Wave 1 needs <code>ENFORCE_EMAIL_VERIFICATION=true</code>, or the six publish-gate refusals return 200 instead of 403.</td></tr>
           <tr><td><code>bun</code> binary</td><td><span class="pill warn">not on PATH</span> — lives at <code>~/.bun/bin/bun</code>. Piping a failed run into <code>tail</code> hides its exit code.</td></tr>
-          <tr><td>Worktree <code>agg-be</code></td><td>Wave 1 branch <code>feat/be-marathon</code>, six commits, dependencies in place.</td></tr>
-          <tr><td>Worktree <code>agg-be03</code></td><td><code>feat/be-03-enrichment</code>, two commits, <code>node_modules</code> copied from the root.</td></tr>
-          <tr><td><code>feat/fe-marathon</code></td><td><span class="pill bad">stale + local-only</span> <code>60195a0</code>, never pushed, and 1,416 lines behind main — it has no <code>jobs.ts</code> and no <code>request-log.ts</code>.</td></tr>
+          <tr><td>Worktree <code>agg-be</code></td><td>Wave 1 branch, merged; dependencies in place.</td></tr>
+          <tr><td>Worktree <code>agg-be03</code></td><td><code>be-03</code> branch, merged; <code>node_modules</code> copied from the root.</td></tr>
+          <tr><td><code>feat/fe-marathon</code></td><td><span class="pill bad">stale + local-only</span> <code>60195a0</code>, never pushed, and 1,416 lines behind main — it has no <code>jobs.ts</code>, no <code>request-log.ts</code> and no mailer.</td></tr>
           <tr><td>Root <code>.env</code></td><td><span class="pill ok">fixed</span> untracked and covered by <code>.gitignore:22</code>; the values live in <code>app/.env.local</code>, which is the file the app actually reads.</td></tr>
-          <tr><td>CI <code>images</code></td><td><span class="pill ok">fixed in #26</span> the job had been red on every push, <code>main</code> included, since 2026-10-16. It now builds the client image <em>and</em> finally reaches the single-service deploy image that was skipped behind the failure.</td></tr>
+          <tr><td>CI <code>images</code></td><td><span class="pill ok">green</span> the job had been red on every push, <code>main</code> included, since 2026-10-16. It now builds the client image <em>and</em> the single-service deploy image that was skipped behind the failure.</td></tr>
         </tbody>
       </table>
     </div>
@@ -415,11 +415,10 @@ footer{border-top:1px solid var(--border); padding:26px 0 60px; color:var(--meta
 
   <div class="banner">
     <span class="pill ok">verified 2026-10-20</span>
-    <p><strong>The docs are current as of this read.</strong> <code>TASKS.md</code> is stamped 2026-10-20, carries
-    the corrected migration count (13) and the repaired phase map; <code>MARATHON.md</code> carries the corrected
-    <code>be-03</code> diagnosis plus the shipped Wave 0 and Wave 1 detail. The one thing still worth checking
-    against git: Wave 1 is <em>in review</em>, not merged — read the PR table above before assuming what
-    <code>main</code> contains.</p>
+    <p><strong>The docs and the tree agree.</strong> <code>TASKS.md</code> is stamped 2026-10-20 with the
+    corrected migration count (13) and the repaired phase map; <code>MARATHON.md</code> carries the corrected
+    <code>be-03</code> diagnosis plus the shipped Wave 0 and Wave 1 detail. Everything described here is on
+    <code>main</code> — the next real work is Wave 2, not cleanup.</p>
   </div>
 </section>
 
@@ -579,8 +578,8 @@ footer{border-top:1px solid var(--border); padding:26px 0 60px; color:var(--meta
 <!-- ══ NEXT ══ -->
 <section id="next">
   <div class="h2"><span class="n">09</span><h2>What to work on next</h2></div>
-  <p class="lede">Strict priority order, with the reasoning attached. Items 1–3 are cheap and unblock
-  everything else.</p>
+  <p class="lede">Strict priority order, with the reasoning attached. Item 1 is the next real work; items 2–3
+  are cheap and unblock the tracks around it.</p>
   <div class="card pad" id="nextlist" style="margin-top:18px"></div>
 
   <div class="card pad" style="margin-top:12px; border-left:2px solid var(--bad)">
@@ -602,8 +601,8 @@ footer{border-top:1px solid var(--border); padding:26px 0 60px; color:var(--meta
 
 <footer>
   <p style="margin:0 0 6px"><b>Aggregator</b> — orientation briefing. Built from a read of the working tree,
-  both worktrees, the docs, the ADRs and the code on 19 Oct 2026; revised on 20 Oct 2026 after
-  Wave 0, Wave 1 and the CI fix moved to review.</p>
+  both worktrees, the docs, the ADRs and the code on 19 Oct 2026; revised on 20 Oct 2026 once
+  Wave 0, Wave 1 and the CI fix were merged.</p>
   <p style="margin:0">Doc order to trust: <code>AGENTS.md</code> → <code>ROADMAP.md</code> → <code>SPEC.md</code>
   → <code>TASKS.md</code> → <code>DESIGN.md</code> → <code>MARATHON.md</code> → <code>decisions/</code>.
   When two docs disagree, check git — and note that the attached MARATHON is the stale one.</p>
@@ -614,7 +613,7 @@ footer{border-top:1px solid var(--border); padding:26px 0 60px; color:var(--meta
 
 <script>
 /* ══════════════════════════════════════════════════════════
-   Data. All content is grounded in the repo as of fe7ef45 plus PRs #24–#26.
+   Data. All content is grounded in the repo as of c664879, after the Wave 0 / Wave 1 / CI merges.
    ══════════════════════════════════════════════════════════ */
 
 const SECTIONS = [
@@ -643,13 +642,13 @@ const DOCS = [
     watch:'It is a living document and still says “lives in exactly one collection” in places — phase 2 changed that.' },
   { name:'docs/TASKS.md', q:'“What is actually built?”',
     trust:'Per-area ✅/🟡/❌ status and the open-bugs table.',
-    watch:'Audited 2026-10-20: 13 migrations, repaired phase map, Wave 0 complete and Wave 1 <em>in review</em> (#25). It is the doc to update when a PR merges — “done” there can mean done on a branch, not yet on <code>main</code>.' },
+    watch:'Audited 2026-10-20: 13 migrations, repaired phase map, Wave 0 and Wave 1 merged (#24/#25). It is the doc to update when a PR merges — a stale row here is how a false “done” spreads.' },
   { name:'docs/DESIGN.md', q:'“How does it look and move?”',
     trust:'Wet-slate tokens, measured contrast ratios, the clay-accent rule, the hairline figures.',
     watch:'Its canvas link (doop.design) is external and the Doop MCP is not available in this session — the <em>tokens</em> are in the repo, which is what matters for code.' },
   { name:'docs/MARATHON.md', q:'“How do we work?”',
     trust:'Worktree layout, ownership table, issue IDs, waves, contract-first, definition of done.',
-    watch:'The corrected <code>be-03</code> diagnosis and the Wave 0 / Wave 1 shipped notes live on the open branches; <code>main</code> lacks them until #24 and #25 merge. Read the section, not just the table.' },
+    watch:'The corrected <code>be-03</code> diagnosis and the Wave 0 / Wave 1 shipped notes are on <code>main</code> now. Read the section, not just the table — and note the local test-env warning: <code>ENFORCE_EMAIL_VERIFICATION=true</code> has to be in <code>app/.env.test.local</code>.' },
   { name:'docs/decisions/00N', q:'“Why did we reject the obvious option?”',
     trust:'ADR-001 the <code>links</code> table, ADR-002 crawler HTML vs SSR, ADR-003 hand-rolled jobs vs pg-boss.',
     watch:'Read the relevant one <em>before</em> implementing the phase it governs. They record the rejected options, which is the part people re-litigate.' }
@@ -862,7 +861,7 @@ const BUGS = [
   { sev:'low', src:'TASKS.md §5', t:'No monitoring or alerting',
     d:'Structured JSON logs exist and nothing consumes them — no error-rate alert, no dashboard. The log lines are the prerequisite, not the whole feature.' },
   { sev:'fixed', src:'docs', t:'~~Docs were stale in two places~~',
-    d:'<code>TASKS.md</code> is stamped 2026-10-20 with 13 migrations and a repaired phase map; <code>MARATHON.md</code> carries the corrected <code>be-03</code> diagnosis and the shipped Wave 0 / Wave 1 detail. The remaining caveat is the reverse of before: the docs now describe work that is <em>in review</em>, so check the PR before assuming it is on <code>main</code>.' },
+    d:'<code>TASKS.md</code> is stamped 2026-10-20 with 13 migrations and a repaired phase map; <code>MARATHON.md</code> carries the corrected <code>be-03</code> diagnosis and the shipped Wave 0 / Wave 1 detail. Both now match <code>main</code>.' },
   { sev:'fixed', src:'docs', t:'~~The corrected MARATHON was only on a branch~~',
     d:'The corrected diagnosis and the ownership rule are carried by #24/#25 and land with them. Until then, read the open PR rather than <code>main</code>’s copy.' },
   { sev:'mid', src:'git', t:'<code>feat/fe-marathon</code> is stale and never pushed',
@@ -924,10 +923,10 @@ const DECISIONS = [
 ];
 
 const NEXT = [
-  { t:'Merge #26, then #24, then #25',
-    d:'#26 makes the <code>images</code> job honest again and builds the deploy image that had been skipped; #24 is the Wave 0 remainder; #25 is Wave 1.',
-    w:'They touch disjoint files, so the order is about CI signal, not merge mechanics. #26 first so #24/#25 can be re-run green on <code>images</code>; #24 before #25 because it removes the flaky test that can redden any run. Once the docs live on #24, that branch also carries the Wave 1 status — keep the doc update in one PR, or the later merge silently reverts the earlier one.',
-    tag:'#26 → #24 → #25' },
+  { t:'Wave 2 — start at <code>normalizeUrl()</code>',
+    d:'<code>be-09</code>: pure, unit-tested, no migration. Then <code>be-10</code> the <code>links</code> table (<code>url_key</code> indexed, <b>not unique</b>) and <code>be-11</code> save someone else’s link, where it becomes unique.',
+    w:'ADR-001 fixes this order: a unique key forces normalization to be right immediately, and getting it wrong merges two genuinely different pages — data loss the user cannot undo. Conservative posture: keep ambiguous params, never lowercase the path, never strip <code>www</code>. Fork, follows and view counts all build on this step.',
+    tag:'be-09' },
   { t:'Rebase the frontend track before touching it',
     d:'Bring <code>feat/fe-marathon</code> onto <code>main</code>, and copy <code>node_modules</code> plus the env files into the <code>agg-fe</code> worktree.',
     w:'It is 1,416 lines behind and local-only: an agent landing there builds against a repo with no job queue, no request logger and no email — and discovers it much later.',
@@ -936,16 +935,12 @@ const NEXT = [
     d:'<code>be-08</code>: buy the domain, add it to Reloop, verify DKIM/SPF/DMARC, set <code>RELOOP_FROM</code>, then send one real reset and one verification mail.',
     w:'The code path is tested against a stub transport, so this is the only step that can fail for reasons the suite cannot see. It is also what arms the publish gate by default: <code>ENFORCE_EMAIL_VERIFICATION</code> defaults to “mail is configured”.',
     tag:'be-08 · human' },
-  { t:'Wave 2 — the real product work',
-    d:'<code>normalizeUrl()</code> → <code>links</code> → save someone else’s link → fork a collection → follows → view counts.',
-    w:'This is roadmap phase 5 and the entire thesis: collect once, share the whole thing, let other people build on it. Everything before it is foundation.',
-    tag:'be-09 → be-14' },
   { t:'Then the paid half — Wave 3, then Wave 4',
     d:'Analytics (<code>be-15</code>…<code>be-17</code>) is the feature that converts; monetization (<code>be-18</code>…<code>be-22</code>) is the money. <code>be-16</code>’s contract is published early so the frontend is not blocked.',
     w:'Gates must live at the API layer. <code>user.plan</code> exists today and is read nowhere, so there is currently no free-tier limit at all.',
     tag:'be-15 → be-22' },
   { t:'Verify the baseline before you trust any green check',
-    d:'Run <code>db:migrate:test</code>, then <code>typecheck</code> + <code>lint</code> + <code>test</code>. Expect 253 on <code>feat/be-03-enrichment</code> and 297 on <code>feat/be-marathon</code>.',
+    d:'Run <code>db:migrate:test</code>, then <code>typecheck</code> + <code>lint</code> + <code>test</code>. Expect <b>302 passing / 0 failing</b> across 30 files.',
     w:'A green check is evidence only for the commit it ran on. The lesson this repo just paid for: the <code>images</code> job was red on <code>main</code> for four days and nobody noticed, because <code>test</code> and <code>verify</code> were green.',
     tag:'env' }
 ];
@@ -954,11 +949,11 @@ const TLDR = [
   ['The private product is done; the social and monetization half is the whole remaining job.',
    'ROADMAP §7 explains why the order is model → public → ranking → social → money, and says the ordering is load-bearing. Reordering it means rewriting the public surfaces twice.'],
   ['MARATHON.md is process, not product.',
-   'Worktrees, an ownership table, issue IDs, six backend waves and two frontend steps. Wave 0 is done; Wave 1 is done and in review (#25); Wave 2 is the actual thesis. Only the backend writes migrations; only <code>feat/*</code> merges to <code>main</code>.'],
+   'Worktrees, an ownership table, issue IDs, six backend waves and two frontend steps. Wave 0 and Wave 1 are merged; Wave 2 is the actual thesis. Only the backend writes migrations; only <code>feat/*</code> merges to <code>main</code>.'],
   ['The foundation is unglamorous — and it is done.',
    'Wave 0 added a durable queue, request logs and the enrichment fix. Wave 1 replaced the console-logged reset, added verification, and gated publishing on <code>public</code> <em>and</em> <code>unlisted</code>, armed only when mail is configured. Those were the last things that could silently lose work or let an unverified account publish.'],
-  ['The docs are current — and CI is honest for the first time since 16 Oct.',
-   '<code>TASKS.md</code> is stamped 2026-10-20. The <code>images</code> job had been red on every push, <code>main</code> included, for four days, because of a parse-time <code>nginx -t</code> against a compose hostname. Three PRs are open, all green on <code>test</code> and <code>verify</code>.'],
+  ['The docs and the tree agree, and CI is green including the deploy image.',
+   '<code>TASKS.md</code> is stamped 2026-10-20 with 302 tests across 30 files. The <code>images</code> job had been red on every push, <code>main</code> included, for four days, because of a parse-time <code>nginx -t</code> against a compose hostname; #26 fixed it, and it now builds the deploy image too.'],
   ['Read the <em>why</em>, not just the what.',
    'Almost every surprising thing here — the hand-rolled queue, no SSR, the deferred <code>links</code> table, clay-once, the 512 KB cap, the per-field enrichment guard, the publish-gate arming rule — has a written reason in <code>docs/decisions/</code>, MARATHON or a code comment. Search for it before “fixing” it.']
 ];
