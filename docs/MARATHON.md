@@ -197,24 +197,34 @@ responses (`Retry-After` survived only by being set on the `Response` itself).
 
 #### Baseline
 
-**253 passing / 0 failing across 26 files** (was 203/23 when Wave 0 started, 248
-after `be-01`/`be-02`). typecheck and lint clean, build clean. The 20 lint
+**253 passing / 0 failing across 26 files** after Wave 0 (was 203/23 when Wave 0
+started, 248 after `be-01`/`be-02`). **297 across 30 files** with Wave 1
+(`be-04`…`be-07`, #25). typecheck and lint clean, build clean. The 20 lint
 warnings are all pre-existing `react-refresh` ones in `client/` — not ours, and
 `agg-fe`'s.
 
-### Wave 1 — Email (Reloop) — *provider purchase pending*
+CI: #26 makes the `images` job green for the first time since 2026-10-16 — it
+had been red on every push, `main` included, because `client/Dockerfile`'s
+`nginx -t` names the compose service `api:3001`, which nginx resolves *while
+parsing the config*, so a plain `docker build` died with `host not found in
+upstream`. The check now validates a copy pointed at loopback and restores the
+shipped file in the same layer; the job finally also builds the single-service
+deploy image that had been skipped behind the failure. #24 and #25 are green on
+`test` and `verify`; their `images` check is red only until #26 is merged.
 
-> **Unblocked and ready to start:** `be-05`, `be-06`, `be-07`. None need the
-> domain — they need `be-04`'s mailer, which is a no-op in dev/test. Only
-> `be-04`'s *send-test* is blocked.
+### Wave 1 — Email (Reloop) — *implemented, in review (#25)*
 
-| ID | Issue |
-|---|---|
-| `be-04` | **Mailer module.** `app/src/utils/mail.ts`, provider-agnostic, **no-op in dev/test** so tests never hit the network. Templates as HTML strings (avoids a build step). `MAIL_PROVIDER=none\|reloop`, `RELOOP_API_KEY`, `RELOOP_FROM`. |
-| `be-05` | **Real password reset.** Replaces the `console.log` at `app/src/utils/auth.ts:21`. Small, unblocks the module. |
-| `be-06` | **Email verification flow.** better-auth `emailVerification.sendVerificationEmail` + `requireEmailVerification: true`, `sendOnSignIn: true`. `user.emailVerified` and the `verification` table already exist — verify indexes before writing a migration. |
-| `be-07` | **Verification gates publishing.** `TASKS.md` is explicit: gates *who may publish*, not who may exist. |
-| `be-08` | **Domain + DNS.** ⚠️ **human task, blocks `be-04` send-test.** Buy domain, add to Reloop, verify DKIM/SPF/DMARC. Agent does config wiring; human does the purchase and DNS records. |
+> `be-04`…`be-07` are done and in review (#25). `be-08` is the only remainder,
+> and it is a human task. The mailer is a **no-op in dev/test**, so the suite
+> runs without a provider; only the live send-test needs the domain.
+
+| ID | Status | Issue |
+|---|---|---|
+| `be-04` | ✅ | **Mailer module.** `app/src/utils/mail.ts`, provider-agnostic, no-op in dev/test so tests never touch the network. Templates as HTML strings (no build step). `MAIL_PROVIDER=none\|reloop`, `RELOOP_API_KEY`, `RELOOP_FROM`. The Reloop contract is `POST https://reloop.sh/api/mail/v1/send`, `x-api-key`, `from` as a **single string**, `html`/`text` top-level — verified against the provider docs, because the first implementation invented a different host, `Authorization: Bearer`, a `from` object and a nested `body`, and its tests asserted the invented shape. |
+| `be-05` | ✅ | **Real password reset.** Replaces the `console.log`; the link goes out through the mailer and is still written to stdout under `MAIL_PROVIDER=none`. |
+| `be-06` | ✅ | **Email verification flow.** better-auth `emailVerification.sendVerificationEmail`; `requireEmailVerification` is `mailEnabled()`, so the sign-in gate stays tied to a real provider. `user.emailVerified` and the `verification` table already existed — no migration. |
+| `be-07` | ✅ | **Verification gates publishing.** `public` **and** `unlisted` — a share code, and `/u/:username/:slug`, serve any non-private collection to anyone with the address, so gating only `public` would leave the free spam tier open. `private` and every read path stay open. Armed by `ENFORCE_EMAIL_VERIFICATION`, which **defaults to mail being configured**: arming it while `MAIL_PROVIDER=none` would refuse publishing to everyone permanently, an outage rather than a control. Deliberately narrower than `requireEmailVerification`, because refusing to publish is recoverable (verify, then publish) while refusing to sign in is not. |
+| `be-08` | ⚠️ human | **Domain + DNS.** Buy domain, add to Reloop, verify DKIM/SPF/DMARC. The agent does the config wiring; the human does the purchase and the DNS records. `RELOOP_API_KEY` already exists locally, so the code path is exercised without it — the domain only decides whether real mail lands. |
 
 ### Wave 2 — Phase 5 social loop
 
