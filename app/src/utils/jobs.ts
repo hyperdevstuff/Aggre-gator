@@ -26,11 +26,22 @@ export type JobType = "enrich-metadata";
 export type JobPayloads = {
   "enrich-metadata": {
     bookmarkId: string;
+    /** The shared link for this URL, if one exists. Its preview is updated too. */
+    linkId: string | null;
     url: string;
-    /** The title the row still holds when the caller supplied none. */
+    /** The bookmark still holding this title is ours to overwrite. */
     placeholderTitle: string;
-    /** Fields the caller supplied — enrichment must never overwrite these. */
-    keep: { title: boolean; description: boolean; cover: boolean };
+    /**
+     * Whether the scraped title may overwrite `placeholderTitle`.
+     *
+     * `false` when the user supplied their own title at save time. The
+     * description and cover are still enriched in that case — skipping the whole
+     * job (which is what this flag replaced) meant a hand-titled bookmark could
+     * never get a cover.
+     */
+    fillTitle: boolean;
+    /** User-supplied values win over scraped ones. */
+    keep: { description: string | null; cover: string | null };
   };
 };
 

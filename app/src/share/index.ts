@@ -184,6 +184,13 @@ export const shareRouter = new Elysia({ prefix: "/share" })
       if (!col) throw new NotFoundError("collection not found");
       const colSlug = col.slug;
 
+      // Fire-and-forget view count, same rationale as the public router.
+      void db
+        .update(collections)
+        .set({ viewCount: sql`${collections.viewCount} + 1` })
+        .where(eq(collections.id, col.id))
+        .catch(() => {});
+
       // get the sharing user's name and username — the username lets the crawler
       // document point its canonical at the readable `/u/...` URL instead of
       // the code, so the link a platform stores is the one the owner can change.

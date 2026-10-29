@@ -488,6 +488,15 @@ export const publicRouter = new Elysia({ prefix: "/u" })
         throw new NotFoundError("collection not found");
       }
 
+      // Fire-and-forget view count. A lost increment on a sleeping free-tier
+      // instance is acceptable — it is a counter, not money — and blocking the
+      // response on a write would slow every page view.
+      void db
+        .update(collections)
+        .set({ viewCount: sql`${collections.viewCount} + 1` })
+        .where(eq(collections.id, col.id))
+        .catch(() => {});
+
       const { page, limit, offset } = normalizePagination({
         page: query.page,
         limit: query.limit,

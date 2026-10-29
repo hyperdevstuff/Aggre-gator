@@ -8,6 +8,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 /** A collection is private by default; unlisted is link-only; public is listed. */
@@ -110,12 +111,15 @@ export const bookmarks = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
+    /** Nullable: a bookmark may be a private save with no shared link yet. */
+    linkId: text("link_id").references(() => links.id, { onDelete: "set null" }),
   },
   (table) => ({
     userIdIdx: index("bookmarks_user_id_idx").on(table.userId),
     urlIdx: index("bookmarks_url_idx").on(table.url),
     domainIdx: index("bookmarks_domain_idx").on(table.domain),
     createdAtIdx: index("bookmarks_created_at_idx").on(table.createdAt),
+    linkIdIdx: index("bookmarks_link_id_idx").on(table.linkId),
     userUrlUnique: uniqueIndex("bookmarks_user_url_unique").on(
       table.userId,
       table.url,
@@ -146,6 +150,7 @@ export const collections = pgTable(
       .notNull()
       .default("private"),
     publishedAt: timestamp("published_at"),
+    viewCount: integer("view_count").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -305,6 +310,61 @@ export const jobs = pgTable(
     // The claim query is `WHERE status = 'pending' AND run_at <= now()` ordered
     // by run_at — this index is that query's whole cost model.
     claimableIdx: index("jobs_claimable_idx").on(table.status, table.runAt),
+  }),
+);
+
+/**
+ * A shared link: the common preview (title, description, cover) and a
+ * maintained `saveCount` for a URL. Bookmarks point at it through
+ * `bookmarks.linkId` (nullable — a private save has no link yet).
+ *
+ * `urlKey` is the normalised form from `normalizeUrl()` (be-09). It is indexed
+ * but not unique until be-11 promotes it, so be-10 only offers soft
+ * near-duplicate hints.
+ */
+export const links = pgTable(
+  "links",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    url: text("url").notNull(),
+    urlKey: text("url_key").notNull(),
+    domain: text("domain"),
+    title: text("title"),
+    description: text("description"),
+    cover: text("cover"),
+    saveCount: integer("save_count").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    urlKeyIdx: uniqueIndex("links_url_key_unique").on(table.urlKey),
+    urlIdx: index("links_url_idx").on(table.url),
+  }),
+);
+
+/**
+ * A directed follow edge: `followerId` follows `followingId`.
+ * Composite PK prevents duplicate follows.
+ */
+export const follows = pgTable(
+  "follows",
+  {
+    followerId: text("follower_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    followingId: text("following_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.followerId, table.followingId] }),
+    followingIdIdx: index("follows_following_id_idx").on(table.followingId),
   }),
 );
 

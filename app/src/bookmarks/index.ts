@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import { bookmarks, bookmarkTags, tags } from "../db/schema";
+import { bookmarks, bookmarkTags, tags, links } from "../db/schema";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { ConflictError } from "../error";
 import { betterAuthPlugin } from "../utils/auth";
@@ -11,6 +11,7 @@ import {
   setBookmarkCollections,
 } from "../utils/collections";
 import { enqueue } from "../utils/jobs";
+import { normalizeUrl } from "../utils/normalize-url";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 import { rateLimitGuard } from "../utils/rate-limit";
 import { bookmarksIdRouter } from "./$id";
@@ -24,20 +25,24 @@ import { bookmarksBulkRouter } from "./bulk";
  * or a deploy. It is now a row in `jobs`, so the worker picks it up whenever it
  * next runs, including after a restart. See `utils/jobs.ts` and ADR-003.
  *
- * Which fields the user supplied is carried in the payload rather than re-read
- * here, so a value set in this same request still wins after a retry.
+ * The `keep` values are carried in the payload rather than re-read here, so a
+ * value the user supplied in this same request still wins after the retry.
  */
 async function scheduleEnrichment({
   id,
+  linkId,
   url,
   placeholderTitle,
+  fillTitle,
   keep,
 }: {
   id: string;
+  linkId: string | null;
   url: string;
   placeholderTitle: string;
-  keep: { title: boolean; description: boolean; cover: boolean };
-}) {
+  fillTitle: boolean;
+  keep: { description: string | null; cover: string | null };
+}): Promise<void> {
   try {
     // Awaited, not fired and forgotten: the insert is what makes the work
     // durable, and a response returned before it lands can outlive the row if
@@ -46,8 +51,10 @@ async function scheduleEnrichment({
     // request path.
     await enqueue("enrich-metadata", {
       bookmarkId: id,
+      linkId,
       url,
       placeholderTitle,
+      fillTitle,
       keep,
     });
   } catch (error) {
@@ -94,6 +101,38 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         body.collectionIds,
       );
 
+      // Save-someone-else's-link (ADR-001 step 3): find or create the shared
+      // `links` row for this URL. The upsert is atomic so two concurrent saves
+      // of the same URL never create two rows, and never double-count.
+      const urlKey = normalizeUrl(body.url);
+      // The link's preview is the shared, canonical one — always scraped, never
+      // a user override. User-supplied values live on the bookmark only. So the
+      // link starts as a placeholder and enrichment fills it in.
+      const [link] = await db
+        .insert(links)
+        .values({
+          url: body.url,
+          urlKey,
+          domain: hostname,
+          title: hostname,
+          description: null,
+          cover: null,
+          saveCount: 1,
+        })
+        .onConflictDoUpdate({
+          target: links.urlKey,
+          set: {
+            saveCount: sql`${links.saveCount} + 1`,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+
+      // Only the first save of a URL needs enrichment — the link already has
+      // its preview after that, and re-scraping would just overwrite it. The
+      // upsert tells us: saveCount === 1 means we just created it.
+      const isNewLink = link.saveCount === 1;
+
       const [bookmark] = await db
         .insert(bookmarks)
         .values({
@@ -105,28 +144,32 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
           title,
           description,
           cover,
+          linkId: link.id,
         })
         .returning();
 
       await setBookmarkCollections(db, userId, bookmark.id, collectionIds);
 
-      // Scrape once, after the response is out. Per-field guards in the handler
-      // mean an edit that lands while the fetch is in flight is never clobbered
-      // by the scraped value, and a dead URL simply keeps its hostname title.
-      // Enrich whenever the caller left a field for the scraper to fill. Gating
-      // on the title alone meant a bookmark the user titled by hand could never
-      // acquire a cover — the reason covers were missing on exactly the saves
-      // where the user had typed something.
-      if (!body.title || !description || !cover) {
+      // Enrich only when we created the link. Reusing an existing link means
+      // its preview is already filled (or being filled by the first save's
+      // job), and running again would just overwrite the shared preview with a
+      // duplicate scrape.
+      if (isNewLink) {
+        // Scrape once, after the response is out.
+        //
+        // Always enqueue, even when the user supplied a title: that title must
+        // not be overwritten (`fillTitle: false`), but the description and
+        // cover still need filling, and skipping the whole job is why a
+        // hand-titled bookmark could never get a cover. The placeholder guard
+        // means an edit that lands while the job is queued is never clobbered
+        // either way.
         await scheduleEnrichment({
           id: bookmark.id,
+          linkId: link.id,
           url: body.url,
           placeholderTitle: title,
-          keep: {
-            title: Boolean(body.title),
-            description: description !== null,
-            cover: cover !== null,
-          },
+          fillTitle: !body.title,
+          keep: { description, cover },
         });
       }
 
@@ -158,7 +201,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         );
       }
 
-      return { ...bookmark, collectionIds };
+      return { ...bookmark, collectionIds, saveCount: link.saveCount };
     },
     {
       // Each create can trigger an outbound fetch to the saved URL, so this is

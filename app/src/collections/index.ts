@@ -440,6 +440,174 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       }),
     },
   )
+  .post("/:id/fork", async ({ params: { id }, user }) => {
+    const userId = user.id;
+
+    // Access: the source must be readable by the caller. Own collections are
+    // always forkable (it is a copy, not a move). Public/unlisted ones are
+    // forkable by anyone — that is the social loop.
+    const [source] = await db
+      .select()
+      .from(collections)
+      .where(eq(collections.id, id))
+      .limit(1);
+    if (!source) throw new NotFoundError("Collection not found.");
+    if (source.userId !== userId && source.visibility === "private") {
+      throw new NotFoundError("Collection not found.");
+    }
+
+    // Fetch the whole subtree (root + descendants) in one recursive CTE.
+    const subtree = await db.execute(sql`
+      WITH RECURSIVE tree AS (
+        SELECT id, user_id, name, description, icon, color, parent_id,
+               is_system, slug, visibility, published_at, created_at, updated_at
+        FROM collections WHERE id = ${id}
+        UNION ALL
+        SELECT c.id, c.user_id, c.name, c.description, c.icon, c.color,
+               c.parent_id, c.is_system, c.slug, c.visibility, c.published_at,
+               c.created_at, c.updated_at
+        FROM collections c
+        JOIN tree t ON c.parent_id = t.id
+      )
+      SELECT * FROM tree
+    `);
+
+    const nodes = (subtree.rows ?? []) as Array<{
+      id: string;
+      user_id: string;
+      name: string;
+      description: string | null;
+      icon: string | null;
+      color: string | null;
+      parent_id: string | null;
+      is_system: boolean;
+      slug: string | null;
+      visibility: string;
+      published_at: Date | null;
+    }>;
+
+    if (nodes.length === 0) throw new NotFoundError("Collection not found.");
+
+    // Map old collection id → new collection id. Parents are created first.
+    const idMap = new Map<string, string>();
+
+    // Topological order: parents before children.
+    const sorted: typeof nodes = [];
+    const visited = new Set<string>();
+    function walk(nodeId: string) {
+      if (visited.has(nodeId)) return;
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node) return;
+      if (node.parent_id && nodes.some((n) => n.id === node.parent_id)) {
+        walk(node.parent_id);
+      }
+      visited.add(nodeId);
+      sorted.push(node);
+    }
+    for (const n of nodes) walk(n.id);
+
+    // Create new collections in topological order.
+    let rootId: string | null = null;
+    for (const node of sorted) {
+      const newParentId = node.id === id ? null : idMap.get(node.parent_id!) ?? null;
+      const [created] = await db
+        .insert(collections)
+        .values({
+          userId,
+          name: node.id === id ? `${node.name} (fork)` : node.name,
+          description: node.description,
+          icon: node.icon,
+          color: node.color,
+          parentId: newParentId,
+          isSystem: false,
+          slug: null,
+          visibility: "private",
+          publishedAt: null,
+        })
+        .returning();
+      idMap.set(node.id, created.id);
+      if (node.id === id) rootId = created.id;
+    }
+
+    // Copy bookmarks and collection_items for each collection.
+    for (const node of sorted) {
+      const newCollectionId = idMap.get(node.id)!;
+
+      // Fetch the source collection's items with positions and notes.
+      const items = await db
+        .select({
+          bookmarkId: collectionItems.bookmarkId,
+          position: collectionItems.position,
+          note: collectionItems.note,
+        })
+        .from(collectionItems)
+        .where(eq(collectionItems.collectionId, node.id))
+        .orderBy(asc(collectionItems.position));
+
+      for (const item of items) {
+        // Fetch the source bookmark.
+        const [srcBookmark] = await db
+          .select()
+          .from(bookmarks)
+          .where(eq(bookmarks.id, item.bookmarkId))
+          .limit(1);
+        if (!srcBookmark) continue;
+
+        // Dedup by URL within the caller's account: reuse if already saved.
+        let newBookmarkId: string;
+        const [existing] = await db
+          .select({ id: bookmarks.id })
+          .from(bookmarks)
+          .where(and(eq(bookmarks.userId, userId), eq(bookmarks.url, srcBookmark.url)))
+          .limit(1);
+
+        if (existing) {
+          newBookmarkId = existing.id;
+        } else {
+          // Create a copy of the bookmark, linking to the same shared link.
+          const [created] = await db
+            .insert(bookmarks)
+            .values({
+              userId,
+              url: srcBookmark.url,
+              title: srcBookmark.title,
+              description: srcBookmark.description,
+              note: srcBookmark.note,
+              cover: srcBookmark.cover,
+              domain: srcBookmark.domain,
+              isFavorite: false,
+              archivedAt: srcBookmark.archivedAt,
+              linkId: srcBookmark.linkId,
+            })
+            .returning();
+          newBookmarkId = created.id;
+        }
+
+        // Create the collection_item, skipping if it already exists (idempotent).
+        await db
+          .insert(collectionItems)
+          .values({
+            collectionId: newCollectionId,
+            bookmarkId: newBookmarkId,
+            position: item.position,
+            note: item.note,
+          })
+          .onConflictDoNothing();
+      }
+    }
+
+    if (!rootId) throw new Error("Fork failed: no root collection created.");
+
+    const [root] = await db
+      .select()
+      .from(collections)
+      .where(eq(collections.id, rootId))
+      .limit(1);
+
+    return root;
+  }, {
+    params: t.Object({ id: t.String({ minLength: 1 }) }),
+  })
   .get("/:id/children", async ({ params: { id }, user }) => {
     const userId = user.id;
     return db

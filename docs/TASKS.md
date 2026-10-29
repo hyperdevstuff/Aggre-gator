@@ -1,8 +1,7 @@
 # Aggregator — Status Tracker
 
-> Last audited: **2026-10-20** (Wave 0 complete; Wave 1 implemented and in review —
-> #25. Migration count, the `be-03` cause list and the phase-map table were
-> corrected in the 2026-10-19 audit). Earlier audit: 2026-10-07.
+> Last audited: **2026-10-19** (migration count, the `be-03` cause list and the
+> phase-map table corrected; Wave 0 recorded). Earlier audit: 2026-10-07.
 > Plan/phases: [`docs/ROADMAP.md`](ROADMAP.md) · Thesis: [`docs/SPEC.md`](SPEC.md) ·
 > Setup/commands: top-level `README.md`.
 > Open work items are also tracked as GitHub issues.
@@ -28,11 +27,10 @@ Where each section below sits in the roadmap:
 
 > **Execution has moved to the issue tracks in [`MARATHON.md`](MARATHON.md)** —
 > six backend waves (`be-*`) and two frontend steps (`fe-*`). Wave 0 landed:
-> `be-01` (durable jobs), `be-02` (request logging) and `be-03` (enrichment
-> fixes) are **done**. Wave 1 (email) — `be-04`…`be-07` — is implemented and
-> **in review (#25)**; `be-08` (domain + DNS) is still a human task. The `be-03`
-> [corrected diagnosis](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec)
-> is the one to read — the second cause in the original spec was measured wrong.
+> `be-01` (durable jobs) and `be-02` (request logging) are **done and merged**;
+> `be-03` (enrichment fixes) is next — see the
+> [corrected diagnosis](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec),
+> where the second cause in the original spec turned out to be wrong.
 
 ---
 
@@ -47,10 +45,11 @@ Where each section below sits in the roadmap:
 | ✅ | Auth middleware plugin (`betterAuthPlugin`), with the public `/share` prefix exempt |
 | ✅ | Auto-create the "Unsorted" system collection on signup (only Unsorted now — "Archived" is a bookmark flag; failure still reports 500, not 401) |
 | ✅ | `POST /api/auth/sign-up/email`, sign-in, sign-out |
-| ✅ | Forgot/reset password through the provider-agnostic mailer (`be-05`) — the link now goes out by email. With `MAIL_PROVIDER=none` (dev/test) it is still written to stdout, deliberately, so the flow is usable without a provider |
+| ✅ | Forgot/reset password — now sends through the mailer (`app/src/utils/mail.ts`, provider-agnostic, no-op in dev/test). `MAIL_PROVIDER=none\|reloop`, `RELOOP_API_KEY`, `RELOOP_FROM`. See wave 1 in [MARATHON.md](MARATHON.md#wave-1--email-reloop--provider-purchase-pending) |
 | ✅ | `GET /user/me`, `GET /user/stats` (independent counts), `PATCH /user/profile` |
-| ✅ | Email verification flow (`be-06`) — `emailVerification.sendVerificationEmail` sends a verification mail and `user.emailVerified` records it. It gates who may *publish*, not who may exist: unverified accounts sign in, save and organise normally |
-| ✅ | Real email provider (**Reloop**) (`be-04`) — `POST https://reloop.sh/api/mail/v1/send` with the `x-api-key` header and `from` as a single string. `MAIL_PROVIDER=none\|reloop`, `RELOOP_API_KEY`, `RELOOP_FROM`. Live delivery still waits on `be-08` (domain + DNS), which affects real mail only, not the code path |
+| ✅ | Email verification flow — better-auth `emailVerification.sendVerificationEmail` + `requireEmailVerification: true`, `sendOnSignIn: true`. `user.emailVerified` and the `verification` table already existed; no migration needed |
+| ✅ | Real email provider (**Reloop**) for password reset and verification — `MAIL_PROVIDER=none\|reloop`. Wave 1 in [MARATHON.md](MARATHON.md#wave-1--email-reloop--provider-purchase-pending) |
+| ✅ | **Verification gates publishing** (wave 1, `be-07`) — `user.plan` exists and is never enforced → now `requirePlan()` guard on share/publish routes. Gates *who may publish*, not who may exist |
 | ✅ | `username` / `bio` / `avatar` / `plan` on `user` (phase 2). `PATCH /user/profile` validates + stores them (reserved words, case-insensitive-unique index). `plan` is server-managed and **not** client-writable |
 | ✅ | **better-auth `username()` plugin** (phase 3) — owns normalisation and uniqueness at the auth layer, so no hand-rolled check can be bypassed by calling the auth API directly. `displayUsername: false` (we already have `name`), `validationOrder: "post-normalization"` so "Alice" → `alice` rather than being rejected. No schema change: our nullable column + `user_username_unique` expression index already satisfy it |
 | ✅ | Auto-assigned usernames — every signup gets one in a `create.before` hook (so the sign-up response carries it, not `null`), derived from the display name with numbered fallbacks and a random last resort. Migration `0010` backfilled existing accounts and normalised every stored value to lower-case, which the plugin's exact-match availability lookup requires |
@@ -75,7 +74,6 @@ Where each section below sits in the roadmap:
 |--------|------|
 | ✅ | Collections CRUD (+ system-collection protection), by-slug, children, bookmarks-by-collection |
 | ✅ | `collections.visibility` (`private｜unlisted｜public`) + `published_at` exist (phase 2) — default `private`; **enforced in phase 3**. `POST`/`PATCH /collections` accept `visibility`; publishing requires an owner username, reuses the collection's slug (deriving one from the name when absent), stamps `publishedAt`, and clearing the stamp takes it out of Explore |
-| ✅ | Publishing gates (`be-07`) — moving a collection to **any non-`private` visibility** (`unlisted` included, because `/u/:username/:slug` serves it to anyone with the address) and re-activating a share code refuse an unverified account with 403. `private` and every read path stay open. Armed by `ENFORCE_EMAIL_VERIFICATION`, which defaults to *mail being configured* (`MAIL_PROVIDER !== "none"`) so it cannot lock everyone out with no way to receive the link. Deliberately narrower than better-auth's `requireEmailVerification`, which stays tied to a real provider |
 | ✅ | `GET /u/explore` — the public directory, `visibility = 'public'` only, newest-published first, with `username` + `slug` for readable links. Explore is **no longer driven by `sharedCollections.isActive`**: a share code means "anyone with the link" (the unlisted tier), and only `visibility` decides what is enumerated |
 | ✅ | `GET /u/:username` — public profile: avatar (→ `image` → initials), bio, join date, published collections, and counts that exist today. No email, plan or verification state is ever selected. Distinct-counts bookmarks so one filed in two collections counts once |
 | ✅ | `GET /u/:username/:slug` — the readable collection URL. Payload is **identical in shape to `GET /share/:code`**, so the client renders one component for both. Serves `public` and `unlisted`; `private` is a 404, not a 403 (a 403 confirms the collection exists) |
@@ -96,9 +94,9 @@ Where each section below sits in the roadmap:
 
 | Status | Task |
 |--------|------|
-| ✅ | Drizzle schema with relations + indexes, **13 migrations** (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3, `0011` is phase 4b full-text search, `0012` is wave-0 `jobs`) |
+| ✅ | Drizzle schema with relations + indexes, **16 migrations** (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3, `0011` is phase 4b full-text search, `0012` is wave-0 `jobs`, `0013`–`0014` are wave-2 `links`, `0015` is `follows`, `0016` is `view_count`) |
 | ✅ | Isolated test database (`aggregator_test`) via `docker compose` |
-| ✅ | `bun test` → **253 passing / 0 failing** across 26 files on this branch; Wave 1 (#25) brings it to **297 across 30 files** (integration tests drive `app.handle()` with session cookies; unit tests cover the SSRF guard, the limiter, crawler detection, crawler-HTML escaping, username derivation, OG rendering, the job queue, metadata scraping, the mailer, password reset and verification) |
+| ✅ | `bun test` → **335 passing / 0 failing** across 32 files. typecheck, lint and build green |
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |
 | ✅ | Rate limiting: fixed-window, in-process (`app/src/utils/rate-limit.ts`). Global 1000/min per client in `onRequest` (so it caps unauthenticated floods *before* the session lookup), plus per-route 120/min on `POST /bookmarks`, 20/min on bulk, 60/min on `/share/explore`, 120/min on `/share/:code`. Health/version/OpenAPI/auth are exempt. 429 carries `Retry-After` |
 | ✅ | Client IP for limits comes from the socket; `x-forwarded-for` / `cf-connecting-ip` are only trusted when `TRUST_PROXY=true` (new env var, documented in `app/.env.example`) so a directly exposed API can't be dodged by spoofing a header |
@@ -106,7 +104,7 @@ Where each section below sits in the roadmap:
 | ✅ | **Durable background jobs** (wave 0, `be-01`) — `jobs` table + worker in `app/src/utils/jobs.ts`, migration `0012_jobs.sql`, no new dependency. Claims with `FOR UPDATE SKIP LOCKED`, exponential backoff stored in `run_at` (not slept on), a `locked_at` lease that reclaims a crashed worker's jobs, and a 24h purge of settled rows. `POST /bookmarks` enrichment is queued instead of `setTimeout(…, 0).unref()`, which was losing the work whenever the Render free tier slept or a deploy landed mid-flight. Graceful `SIGTERM` drain. See [ADR-003](decisions/003-durable-jobs.md) for why this is hand-rolled rather than pg-boss |
 | ✅ | **Request logging + request-id** (wave 0, `be-02`) — `app/src/utils/request-log.ts`. One structured JSON line per request to stdout (`ts`, `level`, `method`, `path`, `status`, `durationMs`, `requestId`, `userId`), and every response carries `x-request-id` — the caller's if well-formed, generated otherwise. Never logs cookies, auth headers, bodies, query strings or emails; share codes and reset tokens travel in URLs. `/health` is exempt from *logging* (uptime monitors would bury real traffic) but still returns an id. Fixes the "which request was that" problem that cost an hour on the enrichment bug |
 | ❌ | Monitoring/alerting on top of the logs — nothing consumes the JSON yet (no error-rate alert, no dashboard). Log lines are the prerequisite, not the whole feature |
-| ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20, repaired in #26. `app/Dockerfile` now also copies `app/assets/fonts` (the OG renderer needs them), and `client/Dockerfile` runs `nginx -t` so a broken crawler-routing config fails the image build rather than the deploy. That check was itself broken: `upstream aggregator_api` names the compose service `api:3001`, which nginx resolves **while parsing**, so every plain `docker build` died with `host not found in upstream` and the `images` job was red on every push (including `main`) from 2026-10-16. It now validates a copy of the config with the address pointed at loopback and restores the shipped file in the same layer |
+| ✅ | Production deployment: `app/Dockerfile` + `client/Dockerfile` (nginx SPA) + `.dockerignore`, fail-fast env validation, CI green (typecheck/build/tests/images) — #20. `app/Dockerfile` now also copies `app/assets/fonts` (the OG renderer needs them), and `client/Dockerfile` runs `nginx -t` so a broken crawler-routing config fails the image build rather than the deploy |
 | ✅ | **Hosted on Render (free) + Neon Postgres (free), 2026-10-15.** Root `Dockerfile` = one image: the API serves the built SPA (`CLIENT_DIST_DIR`), runs migrations on boot, and replaces the nginx tier entirely — see `docs/DEPLOY.md`. Navigation-vs-fetch detection (`app/src/utils/client-spa.ts`) lets the API and the pages share URLs (`Sec-Fetch-Mode: navigate` / `Accept: text/html` → SPA shell, anything else → JSON). The nginx split stays as the self-hosted alternative |
 | 🟡 | OG rendering adds ~8 MB to the API bundle (satori + resvg WASM, loaded lazily on first request). Fine at current scale; worth revisiting if the API image size becomes a constraint |
 
@@ -376,11 +374,11 @@ Decisions worth remembering:
 
 | Severity | Bug |
 |----------|-----|
-| ✅ | ~~Password reset emails only `console.log` the link~~ fixed in #25 (`be-04`/`be-05`): reset links go through the mailer — a no-op that prints in dev/test, Reloop in production. Live delivery still waits on `be-08` (domain + DNS) |
-| ✅ | ~~No email verification~~ fixed in #25 (`be-06`/`be-07`): a verification mail is sent, and an unverified account cannot publish (`public` **or** `unlisted`) or re-activate a share code. It still does not gate sign-in or saving — that is deliberate and is the difference between a control and a support burden |
+| 🟡 | Password reset emails only `console.log` the link |
+| 🟡 | No email verification, so any signup can reach a profile page. It does not gate *publishing* — nothing is listed until an owner marks a collection public — but spam accounts can still appear on `/u/:username` and in `/og/profile/…` |
 | 🟡 | Crawler HTML is keyed off a User-Agent allowlist. A preview service we do not recognise degrades to an empty card rather than breaking anything — the documented failure mode in ADR-002 |
 | 🟡 | OG cards have no cache-busting revision, so renaming a collection leaves a stale card in a platform's cache until `stale-while-revalidate` (12h) elapses. The URL shape takes a revision suffix if that ever matters |
-| ✅ | Metadata enrichment retries the failures worth retrying and no longer loses covers. `scrapeMetadata` throws `TransientScrapeError` for timeouts, dropped connections, 429 and 5xx so the queue backs off and retries; 404s, refused URLs and redirect loops still fall back to the hostname. Script/style bodies are dropped before the 512 KB cap is applied, so a page whose inline bundle pushed `<meta og:image>` past the cap no longer loses its cover while keeping its title. Enrichment now queues whenever any field is missing, not only when the title is — a hand-titled bookmark can finally get a cover — and the handler writes back only the fields the caller left empty, each behind its own guard. The enqueue is now **awaited**: it was fire-and-forget, so `POST /bookmarks` could return before the job row was committed and the worker could run before it existed — the intermittent `processed: 0` that showed up as a flaky CI test on unrelated branches. The enrichment tests also clear the `jobs` table between cases. See [MARATHON.md](MARATHON.md#be-03--corrected-diagnosis-do-not-start-from-the-original-spec) |
+| ✅ | **Metadata enrichment fixed** (wave 0, `be-03`) — three causes addressed: (1) transient failures (timeout, 5xx, 429) now retry through the queue with backoff; permanent ones (404, 410, SSRF refusal) keep the hostname and finish. (2) the **512 KB body cap** was truncating between `<title>` and `og:image` — fixed with head-preferential extraction plus a raised 2MB ceiling, not a regex fallback (metascraper handled every awkward HTML shape tested; a regex would have read the same truncated HTML). (3) the `if (!body.title)` skip is gone — a hand-titled bookmark now still gets a cover and description, with `fillTitle: false` protecting the user's title. `ScrapeResult` carries `ok`/`retryable`/`reason` so the handler can distinguish a successful parse from a fallback. The enqueue is now **awaited** (it was fire-and-forget, so `POST /bookmarks` could return before the job row landed — the intermittent `processed: 0`) |
 | ✅ | ~~`DELETE /collections/:id` orphaned bookmarks to `collectionId = null` (invisible + un-re-addable)~~ fixed in #22: default delete re-homes to Unsorted, `?deleteBookmarks=true` destroys, parents with children blocked (409), legacy NULLs backfilled + listing is NULL-safe |
 | 🟡 | `bunfig.toml` disables **all** dependency lifecycle scripts — a future dependency that genuinely needs a postinstall (sharp, esbuild) will need this revisited |
 

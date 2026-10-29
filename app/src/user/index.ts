@@ -1,10 +1,11 @@
 import { Elysia, t } from "elysia";
 import { auth, betterAuthPlugin } from "../utils/auth";
 import { db } from "../db";
-import { bookmarks, collections, tags, user as users } from "../db/schema";
-import { and, eq, ne, sql } from "drizzle-orm";
-import { ConflictError } from "../error";
+import { bookmarks, collections, tags, user as users, follows } from "../db/schema";
+import { and, eq, ne, sql, desc } from "drizzle-orm";
+import { ConflictError, NotFoundError } from "../error";
 import { validateUsername } from "../utils/username";
+import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 /**
  * better-auth signals username problems with a machine code (`APIError.body.code`).
@@ -139,5 +140,159 @@ export const userRouter = new Elysia({ prefix: "/user" })
         bio: t.Optional(t.String({ maxLength: 500 })),
         avatar: t.Optional(t.String({ format: "uri", maxLength: 1000 })),
       }),
+    },
+  )
+
+  // --- Follows ---
+
+  .post(
+    "/:id/follow",
+    async ({ params: { id: targetId }, user }) => {
+      const followerId = user.id;
+      if (followerId === targetId) {
+        throw new ConflictError("You cannot follow yourself.");
+      }
+      const [target] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, targetId))
+        .limit(1);
+      if (!target) throw new NotFoundError("User not found.");
+
+      await db
+        .insert(follows)
+        .values({ followerId, followingId: targetId })
+        .onConflictDoNothing();
+      return { following: true };
+    },
+    {
+      params: t.Object({ id: t.String({ minLength: 1 }) }),
+    },
+  )
+
+  .delete(
+    "/:id/follow",
+    async ({ params: { id: targetId }, user }) => {
+      const followerId = user.id;
+      await db
+        .delete(follows)
+        .where(
+          and(
+            eq(follows.followerId, followerId),
+            eq(follows.followingId, targetId),
+          ),
+        );
+      return { following: false };
+    },
+    {
+      params: t.Object({ id: t.String({ minLength: 1 }) }),
+    },
+  )
+
+  .get(
+    "/:id/followers",
+    async ({ params: { id: targetId }, query }) => {
+      const { page, limit, offset } = normalizePagination({
+        page: query.page,
+        limit: query.limit,
+      });
+
+      const [data, [{ count }]] = await Promise.all([
+        db
+          .select({
+            id: users.id,
+            username: users.username,
+            name: users.name,
+            avatar: users.avatar,
+            image: users.image,
+            followedAt: follows.createdAt,
+          })
+          .from(follows)
+          .innerJoin(users, eq(users.id, follows.followerId))
+          .where(eq(follows.followingId, targetId))
+          .orderBy(desc(follows.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(follows)
+          .where(eq(follows.followingId, targetId)),
+      ]);
+
+      return {
+        data,
+        pagination: createPaginationMeta(page, limit, Number(count)),
+      };
+    },
+    {
+      params: t.Object({ id: t.String({ minLength: 1 }) }),
+      query: t.Object({
+        page: t.Optional(t.Numeric({ minimum: 1 })),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+      }),
+    },
+  )
+
+  .get(
+    "/:id/following",
+    async ({ params: { id: targetId }, query }) => {
+      const { page, limit, offset } = normalizePagination({
+        page: query.page,
+        limit: query.limit,
+      });
+
+      const [data, [{ count }]] = await Promise.all([
+        db
+          .select({
+            id: users.id,
+            username: users.username,
+            name: users.name,
+            avatar: users.avatar,
+            image: users.image,
+            followedAt: follows.createdAt,
+          })
+          .from(follows)
+          .innerJoin(users, eq(users.id, follows.followingId))
+          .where(eq(follows.followerId, targetId))
+          .orderBy(desc(follows.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(follows)
+          .where(eq(follows.followerId, targetId)),
+      ]);
+
+      return {
+        data,
+        pagination: createPaginationMeta(page, limit, Number(count)),
+      };
+    },
+    {
+      params: t.Object({ id: t.String({ minLength: 1 }) }),
+      query: t.Object({
+        page: t.Optional(t.Numeric({ minimum: 1 })),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+      }),
+    },
+  )
+
+  .get(
+    "/:id/follow-status",
+    async ({ params: { id: targetId }, user }) => {
+      const [row] = await db
+        .select({ createdAt: follows.createdAt })
+        .from(follows)
+        .where(
+          and(
+            eq(follows.followerId, user.id),
+            eq(follows.followingId, targetId),
+          ),
+        )
+        .limit(1);
+      return { following: !!row };
+    },
+    {
+      params: t.Object({ id: t.String({ minLength: 1 }) }),
     },
   );

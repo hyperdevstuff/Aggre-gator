@@ -1,7 +1,7 @@
 import { describe, test, expect, afterEach, beforeEach, mock, spyOn } from "bun:test";
-import { sql } from "drizzle-orm";
 import { app } from "../../index";
 import { db } from "../../db";
+import { sql } from "drizzle-orm";
 import { setHostResolver, resetHostResolver } from "../../utils/url-guard";
 import { registerJobHandlers, runOnce } from "../../utils/jobs";
 import { enrichMetadata } from "../../utils/enrichment";
@@ -13,18 +13,6 @@ import { createTestUser, getSessionCookie, cleanupTestUser } from "./setup";
 // fire-and-forget path: enrichment now happens at a point we choose.
 registerJobHandlers({ "enrich-metadata": enrichMetadata });
 
-/**
- * Start each test with an empty queue.
- *
- * These tests assert exact `processed`/`failed` counts, and `runOnce()` claims
- * whatever is due — including rows other files left behind when they saved a
- * bookmark and never drained the queue. Clearing it is the same isolation
- * `jobs.test.ts` uses, for the same reason.
- */
-beforeEach(async () => {
-  await db.execute(sql`DELETE FROM "jobs"`);
-});
-
 async function getBookmark(id: string, cookie: string) {
   return await (
     await app.handle(
@@ -34,6 +22,16 @@ async function getBookmark(id: string, cookie: string) {
 }
 
 describe("POST /bookmarks metadata enrichment", () => {
+  beforeEach(async () => {
+    // The queue and the links table are shared across files. Leftover rows from
+    // another test (or a previous run) would be claimed by this test's runOnce()
+    // and skew its exact processed/failed counts — and, worse, a leftover job
+    // that fetches a real URL would time out under a spy with no mock
+    // implementation. Leftover links would make isNewLink false, so enrichment
+    // would be skipped and the test would see no scrape.
+    await db.execute(sql`DELETE FROM "jobs"`);
+    await db.execute(sql`DELETE FROM "links"`);
+  });
   afterEach(() => {
     mock.restore();
     resetHostResolver();
@@ -183,6 +181,9 @@ describe("POST /bookmarks metadata enrichment", () => {
   });
 
   test("a hand-titled bookmark still gets a cover", async () => {
+    // The `if (!body.title)` skip meant a bookmark the user titled by hand never
+    // got enriched at all, so it could never get a cover or description. The
+    // title decision is now per-field: keep the user's title, fill the rest.
     const testUser = await createTestUser();
     const cookie = await getSessionCookie(testUser.email, testUser.password);
     setHostResolver(async () => ["93.184.216.34"]);
@@ -199,19 +200,15 @@ describe("POST /bookmarks metadata enrichment", () => {
         new Request("http://localhost/bookmarks", {
           method: "POST",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({
-            url: "https://example.com/hand-titled",
-            title: "My Title",
-          }),
+          body: JSON.stringify({ url: "https://example.com/hand-titled", title: "My Title" }),
         }),
       )
     ).json();
 
     const result = await runOnce();
-    // The old gate was `if (!body.title)`, so a titled bookmark never queued a
-    // job at all and could never gain a cover. It now runs and fills only the
-    // fields the user left empty.
-    expect(result).toEqual({ processed: 1, failed: 0 });
+
+    // The job must actually have run — the old code never enqueued one.
+    expect(result.processed).toBe(1);
 
     const detail = await getBookmark(created.id, cookie);
     expect(detail.title).toBe("My Title");
@@ -221,29 +218,41 @@ describe("POST /bookmarks metadata enrichment", () => {
     await cleanupTestUser(testUser.user.id);
   });
 
-  test("a transient fetch failure fails the job so the queue retries it", async () => {
+  test("a failed scrape leaves the bookmark on its placeholder title", async () => {
     const testUser = await createTestUser();
     const cookie = await getSessionCookie(testUser.email, testUser.password);
     setHostResolver(async () => ["93.184.216.34"]);
-    // The scrape layer now distinguishes "the server was briefly down" from
-    // "this page has no metadata": the former must fail the job, not write the
-    // hostname and quietly drop the cover forever.
-    spyOn(global, "fetch").mockRejectedValue(new Error("socket hang up"));
+    spyOn(global, "fetch").mockImplementation((async () =>
+      new Response("<html><head><title>Real Title</title></head></html>")) as unknown as typeof fetch);
 
     const created = await (
       await app.handle(
         new Request("http://localhost/bookmarks", {
           method: "POST",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ url: "https://example.com/flaky" }),
+          body: JSON.stringify({ url: "https://example.com/partial" }),
         }),
       )
     ).json();
 
-    expect(await runOnce()).toEqual({ processed: 0, failed: 1 });
+    await runOnce();
+    expect((await getBookmark(created.id, cookie)).title).toBe("Real Title");
 
-    const detail = await getBookmark(created.id, cookie);
-    expect(detail.title).toBe("example.com");
+    // A permanent failure (404) must not be retried, and must not lose the row.
+    spyOn(global, "fetch").mockImplementation((async () =>
+      new Response("gone", { status: 404 })) as unknown as typeof fetch);
+    const second = await (
+      await app.handle(
+        new Request("http://localhost/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ url: "https://example.com/dead" }),
+        }),
+      )
+    ).json();
+
+    expect(await runOnce()).toEqual({ processed: 1, failed: 0 });
+    expect((await getBookmark(second.id, cookie)).title).toBe("example.com");
 
     await cleanupTestUser(testUser.user.id);
   });

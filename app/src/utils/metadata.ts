@@ -12,36 +12,35 @@ const scraper = metascraper([
   metascraperUrl(),
 ]);
 
-/**
- * A scrape that failed for a reason which may not recur: a timeout, a dropped
- * connection, a 429 or a 5xx.
- *
- * These are deliberately *not* folded into the hostname fallback. The queue
- * retries them with backoff (see `utils/jobs.ts`), which is the whole point of
- * having moved enrichment onto it. A 404, a refused URL or a redirect loop is
- * permanent and still falls back — retrying those would burn five attempts on a
- * page that will never resolve.
- */
-export class TransientScrapeError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "TransientScrapeError";
-  }
-}
-
 const FETCH_TIMEOUT_MS = 5000;
 /**
- * Two separate budgets, because they defend against different things.
+ * Hard ceiling on buffered bytes.
  *
- * `MAX_HTML_BYTES` is what we hand to the parser, kept small so a hostile page
- * cannot be buffered into memory. `MAX_READ_BYTES` is how much we are willing to
- * pull off the wire while looking for the metadata, and is larger on purpose: a
- * modern page can front-load megabytes of inline `<script>` before its
- * `<meta og:image>`, and reading a couple of MB that we then throw away is cheap
- * next to losing the cover. See `stripSkippedElements`.
+ * This is a DoS guard, not a tuning knob — a hostile or enormous page must not
+ * be held in memory. It is deliberately still modest: the queue runs a small
+ * batch (`BATCH_SIZE` in `utils/jobs.ts`) and `POST /bookmarks` is rate
+ * limited, so the worst case is a few MB transient, not unbounded.
+ *
+ * It was raised from 512KB while fixing the missing-cover bug, because two
+ * distinct shapes were losing `og:image` and only one of them is fixable by
+ * extraction alone:
+ *
+ *   - junk *after* `</head>` → fixed by `headFirstHtml`, no cap change needed
+ *   - megabytes of inline `<script>` *inside* `<head>` → the metadata is
+ *     genuinely past the cut, so the only remedy is reading further
+ *
+ * Real pages inline far more JavaScript into `<head>` than a 512KB budget
+ * assumed, which is why the second shape was common enough to measure.
  */
-const MAX_HTML_BYTES = 512 * 1024;
-const MAX_READ_BYTES = 2 * 1024 * 1024;
+const MAX_HTML_BYTES = 2 * 1024 * 1024;
+/**
+ * How much of the buffer we are willing to search for `<head>`.
+ *
+ * `<head>` is almost always within the first few KB; some pages front-load
+ * megabytes of inline CSS/JS before the metadata, and those are exactly the
+ * pages that were losing their covers.
+ */
+const HEAD_SEARCH_BYTES = 256 * 1024;
 const MAX_REDIRECTS = 3;
 /** Matches the `bookmarks` API validation so a scraped value can never be rejected later. */
 const MAX_TITLE_LENGTH = 500;
@@ -114,32 +113,56 @@ async function readCappedText(response: Response, maxBytes: number): Promise<str
 }
 
 /**
- * Drop whole `<script>` and `<style>` elements before the size cap is applied.
+ * Whether a thrown fetch error is a permanent answer from the server.
  *
- * Metadata lives in `<title>`/`<meta>`, which these elements never contain, and
- * on a modern page they are the overwhelming majority of the bytes. Removing
- * them first is what stops the cap from cutting between `<title>` and
- * `<meta og:image>` on a page with a large inline bundle — the measured cause of
- * saves that kept their title and silently lost their cover.
- *
- * An element whose closing tag never arrived (cut off by the read budget) is
- * left alone: the pattern needs both tags, so a truncated script is kept
- * verbatim rather than swallowing the rest of the document.
+ * `fetchHtml` throws `http <status>` for a non-2xx response, so 404 and 410 are
+ * the server saying this resource is gone. 429 is deliberately *not* permanent —
+ * it is the clearest possible case of "come back later".
  */
-const SKIPPED_ELEMENTS = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
-
-function stripSkippedElements(html: string): string {
-  return html.replace(SKIPPED_ELEMENTS, "");
+function isPermanentStatus(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const match = /^http (\d{3})$/.exec(error.message);
+  if (!match) return false;
+  const status = Number(match[1]);
+  return status >= 400 && status < 500 && status !== 429;
 }
 
 /**
- * Read enough of the response for the parser to work with, without holding the
- * whole document: pull up to the read budget, discard the elements that cannot
- * carry metadata, then keep the first `MAX_HTML_BYTES` of what is left.
+ * Reduce a page to what metadata extraction actually needs.
+ *
+ * **Why this exists.** The 512KB cap used to truncate pages mid-document, and
+ * because `<title>` sits early in `<head>` while `og:image` frequently sits much
+ * later, the cut landed *between* them: the save got a real title and no cover.
+ * That is the "returned a title with no image" symptom measured on the live
+ * deploy, and it is a cap problem rather than a metascraper one — verified
+ * against single quotes, unquoted attributes, uppercase `OG:`, protocol-relative
+ * URLs, JSON-LD, `og:image` inside `<body>` and odd title whitespace, all of
+ * which metascraper handled correctly.
+ *
+ * Raising the cap alone would not have been enough either — see the note on
+ * `MAX_HTML_BYTES` for the two distinct shapes this fixes. Both are needed:
+ *
+ *  - If `<head>` is found within the first `HEAD_SEARCH_BYTES`, keep only the
+ *    head. Extraction only ever reads meta tags, JSON-LD and the title, all of
+ *    which live there — so nothing is lost, and a multi-megabyte `<body>` can no
+ *    longer cost us the cover.
+ *  - Otherwise pass the whole buffer through unchanged, so pages that put
+ *    metadata in `<body>` (or ship no `<head>` at all) still work exactly as
+ *    before.
+ *
+ * A full page that legitimately has no `<head>` close to the start is rare, and
+ * it degrades to today's behaviour rather than to a failure.
  */
-async function readHtml(response: Response): Promise<string> {
-  const raw = await readCappedText(response, MAX_READ_BYTES);
-  return stripSkippedElements(raw).slice(0, MAX_HTML_BYTES);
+export function headFirstHtml(html: string): string {
+  // Only the prefix is searched: a `<head>` string appearing deep in the body
+  // is not the document head, and slicing to it would discard the real one.
+  const headOpen = html.slice(0, HEAD_SEARCH_BYTES).search(/<head[\s>]/i);
+  if (headOpen === -1) return html;
+
+  const headEnd = html.slice(headOpen).search(/<\/head\s*>/i);
+  if (headEnd === -1) return html;
+
+  return html.slice(headOpen, headOpen + headEnd);
 }
 
 /**
@@ -150,25 +173,15 @@ async function fetchHtml(targetUrl: string): Promise<{ html: string; finalUrl: U
   let current = targetUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const url = await assertSafeToFetch(current);
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        // Manual: `redirect: "follow"` would hide the next hop from the guard.
-        redirect: "manual",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; BookmarkBot/1.0)",
-          Accept: "text/html,application/xhtml+xml",
-        },
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
-    } catch (e) {
-      // Timeouts and dropped connections are the URL's problem on this attempt,
-      // not a verdict on it: let the queue retry with backoff.
-      throw new TransientScrapeError(
-        `fetch failed: ${e instanceof Error ? e.message : e}`,
-      );
-    }
+    const response = await fetch(url, {
+      // Manual: `redirect: "follow"` would hide the next hop from the guard.
+      redirect: "manual",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; BookmarkBot/1.0)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
@@ -177,28 +190,54 @@ async function fetchHtml(targetUrl: string): Promise<{ html: string; finalUrl: U
       continue;
     }
 
-    // 429 and 5xx are the server asking us to come back later; retry those too.
-    if (response.status === 429 || response.status >= 500) {
-      throw new TransientScrapeError(`http ${response.status}`);
-    }
-
     if (!response.ok) throw new Error(`http ${response.status}`);
-    return { html: await readHtml(response), finalUrl: url };
+    return { html: await readCappedText(response, MAX_HTML_BYTES), finalUrl: url };
   }
   throw new Error(`too many redirects (>${MAX_REDIRECTS})`);
 }
 
-export default async function scrapeMetadata(targetUrl: string): Promise<ScrapedMetadata> {
+export type ScrapeResult = ScrapedMetadata & {
+  /**
+   * Whether the page was actually fetched and parsed.
+   *
+   * `false` means we fell back to the hostname. This distinction matters because
+   * the enrichment job retries on failure: a timeout or a 503 is worth another
+   * attempt, while a refused-by-SSRF URL or a 404 never will be. Without this
+   * flag a transient blip looks like success and the retry machinery built in
+   * `be-01` would never fire.
+   */
+  ok: boolean;
+  /**
+   * Whether another attempt could plausibly succeed. `false` for a refusal by
+   * the SSRF guard and for a 4xx — permanent by nature, so retrying only burns
+   * requests. `undefined` when `ok` is true.
+   */
+  retryable?: boolean;
+  /** The failure reason, for the job's `last_error`. */
+  reason?: string;
+};
+
+export default async function scrapeMetadata(targetUrl: string): Promise<ScrapeResult> {
   let hostname: string;
   try {
     hostname = new URL(targetUrl).hostname;
   } catch {
-    return { title: targetUrl, description: null, image: null, domain: "", url: targetUrl };
+    return {
+      title: targetUrl,
+      description: null,
+      image: null,
+      domain: "",
+      url: targetUrl,
+      ok: false,
+    };
   }
 
   try {
     const { html, finalUrl } = await fetchHtml(targetUrl);
-    const metadata = await scraper({ html, url: finalUrl.toString() });
+    const metadata = await scraper({
+      html: headFirstHtml(html),
+      url: finalUrl.toString(),
+    });
     return {
       title: clamp(metadata.title || hostname, MAX_TITLE_LENGTH),
       description: metadata.description
@@ -207,15 +246,12 @@ export default async function scrapeMetadata(targetUrl: string): Promise<Scraped
       image: safeImageUrl(metadata.image),
       domain: finalUrl.hostname,
       url: finalUrl.toString(),
+      ok: true,
     };
   } catch (e) {
-    // A transient failure is thrown, not swallowed: the queue owns retries, and
-    // treating "the server was briefly down" as "this page has no metadata"
-    // silently cost the cover. Everything else — a 404, a refused URL, a
-    // redirect loop — is a real fallback, so keep the log to one line instead of
-    // a full stack.
-    if (e instanceof TransientScrapeError) throw e;
-
+    // Expected for unreachable/dead URLs, and for URLs the guard refuses —
+    // the hostname fallback is the designed behavior, so keep the log to one
+    // line instead of a full stack.
     const reason =
       e instanceof UnsafeUrlError
         ? "refused by ssrf guard"
@@ -223,6 +259,13 @@ export default async function scrapeMetadata(targetUrl: string): Promise<Scraped
           ? e.message
           : e;
     console.warn(`scrapeMetadata: failed to fetch ${targetUrl}: ${reason}`);
-    return fallback(targetUrl);
+    return {
+      ...fallback(targetUrl),
+      ok: false,
+      // A refused URL can never become safe, and a 4xx is the server telling us
+      // this will not change. Both are permanent; timeouts and 5xx are not.
+      retryable: !(e instanceof UnsafeUrlError) && !isPermanentStatus(e),
+      reason: String(reason),
+    };
   }
 }
