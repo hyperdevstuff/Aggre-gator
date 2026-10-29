@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Check, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { LEGAL } from "@/lib/legal";
 
 type Tier = {
   name: string;
@@ -21,12 +22,13 @@ const TIERS: Tier[] = [
     name: "Free",
     price: "$0",
     summary:
-      "Enough for one person keeping one set of links straight. The limit is how many pages you publish, not what a reader sees.",
+      "Enough for one person keeping one set of links straight. The limit is how many pages you publish, not how much you keep.",
     features: [
       "Unlimited bookmarks and collections",
+      "Unlimited private collections",
       "Nesting three levels deep",
       "Tags, favorites, archive, search",
-      "5 public links",
+      `${LEGAL.freePublicCollections} published collections`,
       "Unlimited viewers",
     ],
     lacks: "Password protection and view analytics",
@@ -34,13 +36,13 @@ const TIERS: Tier[] = [
   },
   {
     name: "Pro",
-    price: "$5",
+    price: LEGAL.proPrice,
     cadence: "/month",
     summary:
       "For the collection other people actually come back to. You are past whether to publish and into who is reading.",
     features: [
       "Everything in Free",
-      "Unlimited public links",
+      "Unlimited published collections",
       "View counts, referrers, top bookmarks",
       "Passwords, expiry dates, custom slugs",
       "Multi-collection pages",
@@ -48,21 +50,6 @@ const TIERS: Tier[] = [
     ],
     cta: { label: "Get Pro", to: "/signup", variant: "default" },
     highlighted: true,
-  },
-  {
-    name: "Team",
-    price: "$12",
-    cadence: "/seat/month",
-    summary:
-      "When the links belong to a studio rather than a person. Roles, one bill, and a record of who changed what.",
-    features: [
-      "Everything in Pro, per seat",
-      "Shared workspaces with roles",
-      "Shared billing and seat management",
-      "Audit log",
-    ],
-    lacks: "Two seat minimum",
-    cta: { label: "Talk to us", to: "/signup", variant: "outline" },
   },
 ];
 
@@ -82,12 +69,13 @@ export function PricingTeaser() {
             Free isn&apos;t a trial
           </h2>
           <p className="mt-3 text-pretty text-muted-foreground">
-            No card, no countdown, no feature gate. The paid tiers just add the
-            numbers: views, referrers, and which links people open.
+            No card, no countdown, no feature gate. The paid plan removes the
+            publishing limit and adds the numbers: views, referrers, and which
+            links people open.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:max-w-4xl">
           {TIERS.map((tier) => (
             <div
               key={tier.name}
@@ -154,8 +142,17 @@ export function PricingTeaser() {
         <div className="mt-6 flex flex-wrap items-baseline gap-x-6 gap-y-2 border-t border-border/60 pt-6">
           <p className="meta-sm">No card on Free</p>
           <p className="max-w-xl text-xs text-muted-foreground">
-            Pro and Team aren&apos;t on sale yet. Everything is free today, and the
-            free tier stays free when they launch.
+            Free includes unlimited private collections and{" "}
+            {LEGAL.freePublicCollections} published ones. Pro removes the
+            publishing limit and adds analytics and share controls. Billed
+            monthly in USD, cancel any time; see the{" "}
+            <Link
+              to="/refunds"
+              className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              refund policy
+            </Link>
+            .
           </p>
         </div>
       </div>
