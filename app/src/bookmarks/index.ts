@@ -31,17 +31,20 @@ function scheduleEnrichment({
   id,
   url,
   placeholderTitle,
+  fillTitle,
   keep,
 }: {
   id: string;
   url: string;
   placeholderTitle: string;
+  fillTitle: boolean;
   keep: { description: string | null; cover: string | null };
 }) {
   void enqueue("enrich-metadata", {
     bookmarkId: id,
     url,
     placeholderTitle,
+    fillTitle,
     keep,
   }).catch((error) => {
     // The bookmark is already saved and the response already sent; losing the
@@ -103,17 +106,20 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
 
       await setBookmarkCollections(db, userId, bookmark.id, collectionIds);
 
-      // Scrape once, after the response is out. The title guard means an edit
-      // that lands while the fetch is in flight is never clobbered by the
-      // scraped value, and a dead URL simply keeps its hostname title.
-      if (!body.title) {
-        scheduleEnrichment({
-          id: bookmark.id,
-          url: body.url,
-          placeholderTitle: title,
-          keep: { description, cover },
-        });
-      }
+      // Scrape once, after the response is out.
+      //
+      // Always enqueue, even when the user supplied a title: that title must not
+      // be overwritten (`fillTitle: false`), but the description and cover still
+      // need filling, and skipping the whole job is why a hand-titled bookmark
+      // could never get a cover. The placeholder guard means an edit that lands
+      // while the job is queued is never clobbered either way.
+      scheduleEnrichment({
+        id: bookmark.id,
+        url: body.url,
+        placeholderTitle: title,
+        fillTitle: !body.title,
+        keep: { description, cover },
+      });
 
       if (tagNames && tagNames.length > 0) {
         const tagIds = await Promise.all(

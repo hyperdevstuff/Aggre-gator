@@ -167,4 +167,81 @@ describe("POST /bookmarks metadata enrichment", () => {
 
     await cleanupTestUser(testUser.user.id);
   });
+
+  test("a hand-titled bookmark still gets a cover", async () => {
+    // The `if (!body.title)` skip meant a bookmark the user titled by hand never
+    // got enriched at all, so it could never get a cover or description. The
+    // title decision is now per-field: keep the user's title, fill the rest.
+    const testUser = await createTestUser();
+    const cookie = await getSessionCookie(testUser.email, testUser.password);
+    setHostResolver(async () => ["93.184.216.34"]);
+    spyOn(global, "fetch").mockImplementation((async () =>
+      new Response(
+        `<html><head><title>Scraped Title</title>
+         <meta property="og:description" content="scraped description">
+         <meta property="og:image" content="https://example.com/scraped.jpg">
+         </head></html>`,
+      )) as unknown as typeof fetch);
+
+    const created = await (
+      await app.handle(
+        new Request("http://localhost/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ url: "https://example.com/hand-titled", title: "My Title" }),
+        }),
+      )
+    ).json();
+
+    const result = await runOnce();
+
+    // The job must actually have run — the old code never enqueued one.
+    expect(result.processed).toBe(1);
+
+    const detail = await getBookmark(created.id, cookie);
+    expect(detail.title).toBe("My Title");
+    expect(detail.description).toBe("scraped description");
+    expect(detail.cover).toBe("https://example.com/scraped.jpg");
+
+    await cleanupTestUser(testUser.user.id);
+  });
+
+  test("a failed scrape leaves the bookmark on its placeholder title", async () => {
+    const testUser = await createTestUser();
+    const cookie = await getSessionCookie(testUser.email, testUser.password);
+    setHostResolver(async () => ["93.184.216.34"]);
+    spyOn(global, "fetch").mockImplementation((async () =>
+      new Response("<html><head><title>Real Title</title></head></html>")) as unknown as typeof fetch);
+
+    const created = await (
+      await app.handle(
+        new Request("http://localhost/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ url: "https://example.com/partial" }),
+        }),
+      )
+    ).json();
+
+    await runOnce();
+    expect((await getBookmark(created.id, cookie)).title).toBe("Real Title");
+
+    // A permanent failure (404) must not be retried, and must not lose the row.
+    spyOn(global, "fetch").mockImplementation((async () =>
+      new Response("gone", { status: 404 })) as unknown as typeof fetch);
+    const second = await (
+      await app.handle(
+        new Request("http://localhost/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ url: "https://example.com/dead" }),
+        }),
+      )
+    ).json();
+
+    expect(await runOnce()).toEqual({ processed: 1, failed: 0 });
+    expect((await getBookmark(second.id, cookie)).title).toBe("example.com");
+
+    await cleanupTestUser(testUser.user.id);
+  });
 });

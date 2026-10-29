@@ -29,6 +29,15 @@ export type JobPayloads = {
     url: string;
     /** The bookmark still holding this title is ours to overwrite. */
     placeholderTitle: string;
+    /**
+     * Whether the scraped title may overwrite `placeholderTitle`.
+     *
+     * `false` when the user supplied their own title at save time. The
+     * description and cover are still enriched in that case — skipping the whole
+     * job (which is what this flag replaced) meant a hand-titled bookmark could
+     * never get a cover.
+     */
+    fillTitle: boolean;
     /** User-supplied values win over scraped ones. */
     keep: { description: string | null; cover: string | null };
   };
