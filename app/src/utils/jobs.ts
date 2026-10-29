@@ -115,7 +115,13 @@ async function claimBatch() {
         "updated_at" = now()
     WHERE j."id" IN (
       SELECT "id" FROM "jobs"
-      WHERE "status" = 'pending' AND "run_at" <= now()
+      -- A grace window: run_at defaults to now() at insert time and now() is
+      -- transaction-scoped, so a claim that lands in the same microsecond as
+      -- the insert can see run_at one tick ahead of its own clock. 100ms is
+      -- far more than any observed skew and far less than the smallest backoff
+      -- (1s), so it fixes the flake without making a freshly-failed job
+      -- immediately re-claimable.
+      WHERE "status" = 'pending' AND "run_at" <= now() + interval '100 milliseconds'
       ORDER BY "run_at"
       LIMIT ${BATCH_SIZE}
       FOR UPDATE SKIP LOCKED
