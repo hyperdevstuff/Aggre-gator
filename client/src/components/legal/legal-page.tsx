@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { SiteNavbar } from "@/components/landing/site-navbar";
 import { SiteFooter } from "@/components/landing/site-footer";
@@ -71,6 +70,9 @@ export function LegalPage({ title, summary, children }: LegalPageProps) {
           {children}
         </div>
 
+        {/* Rendered here, once, rather than in each page: a legal document that
+            ends without a contact address is the thing reviewers flag, so it
+            must not be possible to forget. */}
         <LegalContact />
       </main>
       <SiteFooter notes={false} />
@@ -133,13 +135,6 @@ export function LegalContact() {
         >
           {LEGAL.supportEmail}
         </a>
-        . {LEGAL.operator} is responsible for the service at{" "}
-        <Link
-          to="/"
-          className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          {LEGAL.siteUrl.replace(/^https?:\/\//, "")}
-        </Link>
         .
       </p>
     </section>

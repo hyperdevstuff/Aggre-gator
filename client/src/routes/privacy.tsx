@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  LegalContact,
   LegalList,
   LegalPage,
   LegalSection,
@@ -243,8 +242,6 @@ function PrivacyPage() {
           describe the rest of our relationship.
         </p>
       </LegalSection>
-
-      <LegalContact />
     </LegalPage>
   );
 }

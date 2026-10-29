@@ -24,8 +24,8 @@ export const LEGAL = {
    * as a sole proprietor, use your own name; if you have a company, the
    * registered name. `jurisdiction` is the country whose law governs.
    */
-  operator: "«Operator legal name»",
-  jurisdiction: "«Jurisdiction»",
+  operator: "Harsh Chauhan",
+  jurisdiction: "India",
 
   /** Refund window, in days, from the initial charge. */
   refundDays: 14,

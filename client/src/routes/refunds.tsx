@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  LegalContact,
   LegalList,
   LegalPage,
   LegalSection,
@@ -110,8 +109,6 @@ function RefundsPage() {
           checkout. The free plan costs nothing and never requires a card.
         </p>
       </LegalSection>
-
-      <LegalContact />
     </LegalPage>
   );
 }

@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  LegalContact,
   LegalList,
   LegalPage,
   LegalSection,
@@ -256,8 +255,6 @@ function TermsPage() {
           accept the updated terms.
         </p>
       </LegalSection>
-
-      <LegalContact />
     </LegalPage>
   );
 }
