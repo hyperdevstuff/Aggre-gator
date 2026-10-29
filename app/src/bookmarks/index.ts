@@ -28,7 +28,7 @@ import { bookmarksBulkRouter } from "./bulk";
  * The `keep` values are carried in the payload rather than re-read here, so a
  * value the user supplied in this same request still wins after the retry.
  */
-function scheduleEnrichment({
+async function scheduleEnrichment({
   id,
   linkId,
   url,
@@ -42,23 +42,30 @@ function scheduleEnrichment({
   placeholderTitle: string;
   fillTitle: boolean;
   keep: { description: string | null; cover: string | null };
-}) {
-  void enqueue("enrich-metadata", {
-    bookmarkId: id,
-    linkId,
-    url,
-    placeholderTitle,
-    fillTitle,
-    keep,
-  }).catch((error) => {
-    // The bookmark is already saved and the response already sent; losing the
-    // enrichment is recoverable by hand, so this must not throw.
+}): Promise<void> {
+  try {
+    // Awaited, not fired and forgotten: the insert is what makes the work
+    // durable, and a response returned before it lands can outlive the row if
+    // the process goes away in between — the same silent loss the queue was
+    // introduced to stop. It is one indexed insert; the scrape is still off the
+    // request path.
+    await enqueue("enrich-metadata", {
+      bookmarkId: id,
+      linkId,
+      url,
+      placeholderTitle,
+      fillTitle,
+      keep,
+    });
+  } catch (error) {
+    // The bookmark is already saved; losing the enrichment is recoverable by
+    // hand, so this must not fail the request.
     console.error(
       `[bookmarks] could not enqueue enrichment for ${id}: ${
         error instanceof Error ? error.message : error
       }`,
     );
-  });
+  }
 }
 
 export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
@@ -156,7 +163,7 @@ export const bookmarksRouter = new Elysia({ prefix: "/bookmarks" })
         // hand-titled bookmark could never get a cover. The placeholder guard
         // means an edit that lands while the job is queued is never clobbered
         // either way.
-        scheduleEnrichment({
+        await scheduleEnrichment({
           id: bookmark.id,
           linkId: link.id,
           url: body.url,

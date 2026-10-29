@@ -74,13 +74,13 @@ describe("enqueue", () => {
       bookmarkId: "b-1",
       url: "https://example.com",
       placeholderTitle: "example.com",
-      keep: { description: null, cover: null },
+      keep: { title: false, description: false, cover: false },
     });
     const row = await rowFor(id);
 
     expect(row.type).toBe("enrich-metadata");
     expect(row.payload.bookmarkId).toBe("b-1");
-    expect(row.payload.keep).toEqual({ description: null, cover: null });
+    expect(row.payload.keep).toEqual({ title: false, description: false, cover: false });
   });
 });
 
