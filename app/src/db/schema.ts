@@ -8,6 +8,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 /** A collection is private by default; unlisted is link-only; public is listed. */
@@ -342,6 +343,27 @@ export const links = pgTable(
   (table) => ({
     urlKeyIdx: uniqueIndex("links_url_key_unique").on(table.urlKey),
     urlIdx: index("links_url_idx").on(table.url),
+  }),
+);
+
+/**
+ * A directed follow edge: `followerId` follows `followingId`.
+ * Composite PK prevents duplicate follows.
+ */
+export const follows = pgTable(
+  "follows",
+  {
+    followerId: text("follower_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    followingId: text("following_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.followerId, table.followingId] }),
+    followingIdIdx: index("follows_following_id_idx").on(table.followingId),
   }),
 );
 
