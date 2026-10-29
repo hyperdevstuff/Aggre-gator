@@ -1,5 +1,7 @@
 import { describe, test, expect, afterEach, mock, spyOn } from "bun:test";
 import { app } from "../../index";
+import { db } from "../../db";
+import { sql } from "drizzle-orm";
 import { setHostResolver, resetHostResolver } from "../../utils/url-guard";
 import { registerJobHandlers, runOnce } from "../../utils/jobs";
 import { enrichMetadata } from "../../utils/enrichment";
@@ -20,6 +22,13 @@ async function getBookmark(id: string, cookie: string) {
 }
 
 describe("POST /bookmarks metadata enrichment", () => {
+  beforeEach(async () => {
+    // The queue is shared across files. Leftover rows from another test (or a
+    // previous run) would be claimed by this test's runOnce() and skew its
+    // exact processed/failed counts — and, worse, a leftover job that fetches
+    // a real URL would time out under a spy with no mock implementation.
+    await db.execute(sql`DELETE FROM "jobs"`);
+  });
   afterEach(() => {
     mock.restore();
     resetHostResolver();

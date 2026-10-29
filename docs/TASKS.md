@@ -96,7 +96,7 @@ Where each section below sits in the roadmap:
 |--------|------|
 | ✅ | Drizzle schema with relations + indexes, **13 migrations** (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3, `0011` is phase 4b full-text search, `0012` is wave-0 `jobs`) |
 | ✅ | Isolated test database (`aggregator_test`) via `docker compose` |
-| ✅ | `bun test` → **302 passing / 0 failing** across 30 files (248 + 39 wave-1 + 15 be-03: 10 metadata unit + 5 enrichment integration). typecheck, lint and build green |
+| ✅ | `bun test` → **326 passing / 0 failing** across 31 files (248 + 39 wave-1 + 15 be-03 + 24 be-09/10). typecheck, lint and build green |
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |
 | ✅ | Rate limiting: fixed-window, in-process (`app/src/utils/rate-limit.ts`). Global 1000/min per client in `onRequest` (so it caps unauthenticated floods *before* the session lookup), plus per-route 120/min on `POST /bookmarks`, 20/min on bulk, 60/min on `/share/explore`, 120/min on `/share/:code`. Health/version/OpenAPI/auth are exempt. 429 carries `Retry-After` |
 | ✅ | Client IP for limits comes from the socket; `x-forwarded-for` / `cf-connecting-ip` are only trusted when `TRUST_PROXY=true` (new env var, documented in `app/.env.example`) so a directly exposed API can't be dodged by spoofing a header |
