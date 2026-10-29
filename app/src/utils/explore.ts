@@ -140,12 +140,16 @@ export async function buildExploreResponse<T extends ExploreEntry>(args: {
   if (args.sort === "top") {
     const all = await args.fetchAllCandidates();
     const meta = await getCollectionSubtreeMeta(all.map((row) => row.id));
-    const ranked = enrich(all, meta).sort(
-      (a, b) =>
-        b.bookmarkCount - a.bookmarkCount ||
+    const ranked = enrich(all, meta).sort((a, b) => {
+      const scoreA = (meta.get(a.id)?.saves ?? 0) + (meta.get(a.id)?.views ?? 0);
+      const scoreB = (meta.get(b.id)?.saves ?? 0) + (meta.get(b.id)?.views ?? 0);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      // Recency tiebreak.
+      return (
         (args.publishedAtOf(b)?.getTime() ?? 0) -
-          (args.publishedAtOf(a)?.getTime() ?? 0),
-    );
+        (args.publishedAtOf(a)?.getTime() ?? 0)
+      );
+    });
     return {
       data: ranked.slice(args.offset, args.offset + args.limit),
       pagination: createPaginationMeta(args.page, args.limit, ranked.length),

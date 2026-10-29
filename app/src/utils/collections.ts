@@ -138,6 +138,10 @@ export function collectionBookmarkCount(
 export type CollectionSubtreeMeta = {
   /** Non-archived bookmarks across the whole subtree, counted once each. */
   bookmarkCount: number;
+  /** Sum of `links.save_count` across those bookmarks (popularity signal). */
+  saves: number;
+  /** Sum of `collections.view_count` across the subtree (engagement signal). */
+  views: number;
   /** Up to 4 distinct cover images from those bookmarks. */
   covers: string[];
 };
@@ -145,6 +149,8 @@ export type CollectionSubtreeMeta = {
 type SubtreeMetaRow = {
   root_id: string;
   bookmark_count: number | string;
+  saves: number | string | null;
+  views: number | string | null;
   covers: string[] | null;
 };
 
@@ -186,28 +192,58 @@ export async function getCollectionSubtreeMeta(
       FROM collections c
       JOIN tree t ON c.parent_id = t.id
       WHERE true ${descendantFilter}
+    ),
+    subtree_bookmarks AS (
+      SELECT DISTINCT ON (t.root_id, b.id)
+        t.root_id AS root_id,
+        b.id AS bookmark_id,
+        COALESCE(l.save_count, 0)::int AS save_count
+      FROM tree t
+      JOIN collection_items ci ON ci.collection_id = t.id
+      JOIN bookmarks b ON b.id = ci.bookmark_id
+      LEFT JOIN links l ON l.id = b.link_id
+      WHERE b.archived_at IS NULL
+    ),
+    bookmark_agg AS (
+      SELECT root_id,
+        count(bookmark_id)::int AS bookmark_count,
+        COALESCE(sum(save_count), 0)::int AS saves,
+        (array_agg(DISTINCT b.cover) FILTER (
+          WHERE b.cover IS NOT NULL
+        ))[1:4] AS covers
+      FROM subtree_bookmarks sb
+      LEFT JOIN bookmarks b ON b.id = sb.bookmark_id
+      GROUP BY root_id
+    ),
+    view_agg AS (
+      SELECT tr.root_id, COALESCE(sum(c.view_count), 0)::int AS views
+      FROM (SELECT DISTINCT root_id, id FROM tree) tr
+      JOIN collections c ON c.id = tr.id
+      GROUP BY tr.root_id
     )
     SELECT t.root_id AS root_id,
-      count(DISTINCT ci.bookmark_id) FILTER (WHERE b.archived_at IS NULL)::int AS bookmark_count,
-      (array_agg(DISTINCT b.cover) FILTER (
-        WHERE b.cover IS NOT NULL AND b.archived_at IS NULL
-      ))[1:4] AS covers
-    FROM tree t
-    LEFT JOIN collection_items ci ON ci.collection_id = t.id
-    LEFT JOIN bookmarks b ON b.id = ci.bookmark_id
-    GROUP BY t.root_id
+      COALESCE(ba.bookmark_count, 0)::int AS bookmark_count,
+      COALESCE(ba.saves, 0)::int AS saves,
+      COALESCE(va.views, 0)::int AS views,
+      ba.covers AS covers
+    FROM (SELECT DISTINCT root_id FROM tree) t
+    LEFT JOIN bookmark_agg ba ON ba.root_id = t.root_id
+    LEFT JOIN view_agg va ON va.root_id = t.root_id
   `)) as { rows?: SubtreeMetaRow[] } | SubtreeMetaRow[];
 
   const rows = Array.isArray(result) ? result : (result.rows ?? []);
   for (const row of rows) {
     map.set(row.root_id, {
       bookmarkCount: Number(row.bookmark_count ?? 0),
+      saves: Number(row.saves ?? 0),
+      views: Number(row.views ?? 0),
       covers: row.covers ?? [],
     });
   }
   // Every requested id resolves, even when the query returns nothing for it.
   for (const id of rootIds) {
-    if (!map.has(id)) map.set(id, { bookmarkCount: 0, covers: [] });
+    if (!map.has(id))
+      map.set(id, { bookmarkCount: 0, saves: 0, views: 0, covers: [] });
   }
   return map;
 }
