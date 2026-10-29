@@ -3,6 +3,7 @@ import { db } from "../db";
 import {
   sharedCollections,
   collections,
+  shareViews,
   bookmarks,
   bookmarkTags,
   collectionItems,
@@ -189,6 +190,29 @@ export const shareRouter = new Elysia({ prefix: "/share" })
         .update(collections)
         .set({ viewCount: sql`${collections.viewCount} + 1` })
         .where(eq(collections.id, col.id))
+        .catch(() => {});
+
+      // Detailed per-view log (be-15). shareCode records which share link was
+      // used; referrer is the HTTP Referer header (nullable). Fire-and-forget.
+      // Normalise the referrer to origin only (scheme + host) so paths never
+      // leak across sites; origin is all the referrer breakdown needs.
+      const rawReferrer = request.headers.get("referer");
+      let referrerOrigin: string | null = null;
+      if (rawReferrer) {
+        try {
+          referrerOrigin = new URL(rawReferrer).origin;
+        } catch {
+          referrerOrigin = null;
+        }
+      }
+
+      void db
+        .insert(shareViews)
+        .values({
+          shareId: share.id,
+          referrer: referrerOrigin,
+          dayBucket: new Date(),
+        })
         .catch(() => {});
 
       // get the sharing user's name and username — the username lets the crawler

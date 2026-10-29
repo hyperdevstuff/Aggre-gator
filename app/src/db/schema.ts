@@ -3,6 +3,7 @@ import {
   pgTable,
   text,
   timestamp,
+  date,
   boolean,
   integer,
   jsonb,
@@ -344,6 +345,36 @@ export const links = pgTable(
   (table) => ({
     urlKeyIdx: uniqueIndex("links_url_key_unique").on(table.urlKey),
     urlIdx: index("links_url_idx").on(table.url),
+  }),
+);
+
+/**
+ * Detailed per-view log behind `collections.view_count` (be-14).
+ *
+ * One row per page view of a collection. `shareCode` is null for a direct
+ * `/u/:username/:slug` view; `referrer` is null when absent. `dayBucket` is
+ * the calendar date of `viewedAt`, pre-computed so the views/day series can
+ * group without a date_trunc per row. No raw IP is stored.
+ */
+export const shareViews = pgTable(
+  "share_views",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    shareId: text("share_id")
+      .notNull()
+      .references(() => sharedCollections.id, { onDelete: "cascade" }),
+    referrer: text("referrer"),
+    viewedAt: timestamp("viewed_at").defaultNow().notNull(),
+    dayBucket: date("day_bucket", { mode: "date" }).notNull(),
+  },
+  (table) => ({
+    shareDayIdx: index("share_views_share_day_idx").on(
+      table.shareId,
+      table.dayBucket,
+    ),
+    shareIdx: index("share_views_share_idx").on(table.shareId),
   }),
 );
 

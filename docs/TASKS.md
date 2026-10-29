@@ -94,7 +94,7 @@ Where each section below sits in the roadmap:
 
 | Status | Task |
 |--------|------|
-| ✅ | Drizzle schema with relations + indexes, **16 migrations** (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3, `0011` is phase 4b full-text search, `0012` is wave-0 `jobs`, `0013`–`0014` are wave-2 `links`, `0015` is `follows`, `0016` is `view_count`) |
+| ✅ | Drizzle schema with relations + indexes, **17 migrations** (now committed to git; `0006`–`0009` are phase 2, `0010` is phase 3, `0011` is phase 4b full-text search, `0012` is wave-0 `jobs`, `0013`–`0014` are wave-2 `links`, `0015` is `follows`, `0016` is `view_count`, `0017` is `share_views`) |
 | ✅ | Isolated test database (`aggregator_test`) via `docker compose` |
 | ✅ | `bun test` → **335 passing / 0 failing** across 32 files. typecheck, lint and build green |
 | ✅ | Error plugin, CORS, OpenAPI docs, `/health`, `/api/version` |

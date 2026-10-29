@@ -496,7 +496,6 @@ export const publicRouter = new Elysia({ prefix: "/u" })
         .set({ viewCount: sql`${collections.viewCount} + 1` })
         .where(eq(collections.id, col.id))
         .catch(() => {});
-
       const { page, limit, offset } = normalizePagination({
         page: query.page,
         limit: query.limit,
