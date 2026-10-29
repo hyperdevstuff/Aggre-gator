@@ -15,9 +15,12 @@ import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LandingPrototypeRouteImport } from './routes/landing-prototype'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RefundsRouteImport } from './routes/refunds'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
 import { Route as ShareCodeRouteImport } from './routes/share.$code'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
@@ -53,6 +56,16 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundsRoute = RefundsRouteImport.update({
+  id: '/refunds',
+  path: '/refunds',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -66,6 +79,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedDashboardRoute = ProtectedDashboardRouteImport.update({
@@ -100,9 +118,12 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/landing-prototype': typeof LandingPrototypeRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refunds': typeof RefundsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/share/$code': typeof ShareCodeRoute
   '/u/$username': typeof UUsernameRouteWithChildren
@@ -115,9 +136,12 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/landing-prototype': typeof LandingPrototypeRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refunds': typeof RefundsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/share/$code': typeof ShareCodeRoute
   '/u/$username/$slug': typeof UUsernameSlugRoute
@@ -131,9 +155,12 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/landing-prototype': typeof LandingPrototypeRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refunds': typeof RefundsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/_protected/dashboard': typeof ProtectedDashboardRoute
   '/share/$code': typeof ShareCodeRoute
   '/u/$username': typeof UUsernameRouteWithChildren
@@ -148,9 +175,12 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/landing-prototype'
     | '/login'
+    | '/privacy'
+    | '/refunds'
     | '/reset-password'
     | '/settings'
     | '/signup'
+    | '/terms'
     | '/dashboard'
     | '/share/$code'
     | '/u/$username'
@@ -163,9 +193,12 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/landing-prototype'
     | '/login'
+    | '/privacy'
+    | '/refunds'
     | '/reset-password'
     | '/settings'
     | '/signup'
+    | '/terms'
     | '/dashboard'
     | '/share/$code'
     | '/u/$username/$slug'
@@ -178,9 +211,12 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/landing-prototype'
     | '/login'
+    | '/privacy'
+    | '/refunds'
     | '/reset-password'
     | '/settings'
     | '/signup'
+    | '/terms'
     | '/_protected/dashboard'
     | '/share/$code'
     | '/u/$username'
@@ -195,9 +231,12 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LandingPrototypeRoute: typeof LandingPrototypeRoute
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  RefundsRoute: typeof RefundsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
+  TermsRoute: typeof TermsRoute
   ShareCodeRoute: typeof ShareCodeRoute
   UUsernameRoute: typeof UUsernameRouteWithChildren
 }
@@ -246,6 +285,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refunds': {
+      id: '/refunds'
+      path: '/refunds'
+      fullPath: '/refunds'
+      preLoaderRoute: typeof RefundsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -265,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_protected/dashboard': {
@@ -338,9 +398,12 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LandingPrototypeRoute: LandingPrototypeRoute,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
+  RefundsRoute: RefundsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
+  TermsRoute: TermsRoute,
   ShareCodeRoute: ShareCodeRoute,
   UUsernameRoute: UUsernameRouteWithChildren,
 }

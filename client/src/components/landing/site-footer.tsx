@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/ui/logo";
 import { Wordmark } from "@/components/landing/wordmark";
+import { LEGAL } from "@/lib/legal";
 
 /**
  * The closing footer, in the shape it already had: a brand block and two short
@@ -39,6 +40,17 @@ const COLUMNS = [
       { label: "Create a collection", to: "/signup", note: "Free, no card" },
     ],
   },
+  // The payment provider's reviewer looks for exactly these three, and a
+  // customer looking for "how do I get my money back" looks for the third. They
+  // are in the footer, not buried in a settings screen.
+  {
+    heading: "Legal",
+    links: [
+      { label: "Terms", to: "/terms", note: "The agreement" },
+      { label: "Privacy", to: "/privacy", note: "What we store, and who sees it" },
+      { label: "Refunds", to: "/refunds", note: "14 days, no questions" },
+    ],
+  },
 ];
 
 export function SiteFooter({ notes = true }: { notes?: boolean }) {
@@ -47,7 +59,7 @@ export function SiteFooter({ notes = true }: { notes?: boolean }) {
   return (
     <footer className="border-t border-border/60">
       <div className="mx-auto max-w-6xl px-6 pt-16 pb-10">
-        <div className="grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <Link
               to="/"
@@ -91,6 +103,12 @@ export function SiteFooter({ notes = true }: { notes?: boolean }) {
 
         <div className="mt-14 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t border-border/60 pt-6">
           <p className="text-xs text-muted-foreground">© {year} Aggregator</p>
+          <a
+            href={`mailto:${LEGAL.supportEmail}`}
+            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            {LEGAL.supportEmail}
+          </a>
           <p className="text-xs text-muted-foreground">
             Built for people with too many tabs
           </p>
