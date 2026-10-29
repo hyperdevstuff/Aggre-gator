@@ -1,7 +1,7 @@
 import Elysia, { t } from "elysia";
 import { betterAuthPlugin, requireVerifiedPublisher } from "../utils/auth";
 import { db } from "../db";
-import { collections, bookmarks, collectionItems, sharedCollections, user, user as users, type CollectionVisibility } from "../db/schema";
+import { collections, bookmarks, collectionItems, sharedCollections, shareViews, links, user, user as users, type CollectionVisibility } from "../db/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { ConflictError, ForbiddenError, NotFoundError } from "../error";
 import { generateShareCode } from "../utils/nanoid";
@@ -608,6 +608,127 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
   }, {
     params: t.Object({ id: t.String({ minLength: 1 }) }),
   })
+  .get(
+    "/:id/analytics",
+    async ({ params: { id }, query, user }) => {
+      const userId = user.id;
+      // Owner-only: analytics are private to the collection owner.
+      await requireUserCollection(db, userId, id);
+
+      const days = Math.min(Math.max(query.days ?? 30, 1), 90);
+      const topLimit = Math.min(Math.max(query.limit ?? 10, 1), 50);
+
+      // Cutoff date for the views/day series.
+      const since = new Date();
+      since.setUTCDate(since.getUTCDate() - (days - 1));
+      since.setUTCHours(0, 0, 0, 0);
+
+      // Total views (all sources, including direct /u/ views) from the counter.
+      const [col] = await db
+        .select({ viewCount: collections.viewCount })
+        .from(collections)
+        .where(eq(collections.id, id))
+        .limit(1);
+
+      // Views per day from share_views (share-link views only).
+      const viewsPerDayRows = await db
+        .select({
+          day: shareViews.dayBucket,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(shareViews)
+        .innerJoin(sharedCollections, eq(sharedCollections.id, shareViews.shareId))
+        .where(
+          and(
+            eq(sharedCollections.collectionId, id),
+            sql`${shareViews.dayBucket} >= ${since.toISOString().slice(0, 10)}`,
+          ),
+        )
+        .groupBy(shareViews.dayBucket)
+        .orderBy(asc(shareViews.dayBucket));
+
+      // Fill gaps so the series is contiguous.
+      const countsByDay = new Map<string, number>();
+      for (const r of viewsPerDayRows) {
+        countsByDay.set(
+          r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day),
+          Number(r.count),
+        );
+      }
+      const viewsPerDay: { day: string; count: number }[] = [];
+      const cursor = new Date(since);
+      for (let i = 0; i < days; i++) {
+        const key = cursor.toISOString().slice(0, 10);
+        viewsPerDay.push({ day: key, count: countsByDay.get(key) ?? 0 });
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+
+      // Referrer breakdown (share-link views only).
+      const referrerRows = await db
+        .select({
+          referrer: shareViews.referrer,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(shareViews)
+        .innerJoin(sharedCollections, eq(sharedCollections.id, shareViews.shareId))
+        .where(eq(sharedCollections.collectionId, id))
+        .groupBy(shareViews.referrer)
+        .orderBy(desc(sql`count(*)`));
+
+      const referrerBreakdown = referrerRows.map((r) => ({
+        referrer: r.referrer,
+        count: Number(r.count),
+      }));
+
+      // Top bookmarks in the collection, ranked by their shared link's save
+      // count (a proxy for how popular each bookmark is across the platform).
+      const topBookmarkRows = await db
+        .select({
+          id: bookmarks.id,
+          title: bookmarks.title,
+          url: bookmarks.url,
+          saveCount: sql<number>`coalesce(${links.saveCount}, 0)::int`,
+        })
+        .from(collectionItems)
+        .innerJoin(bookmarks, eq(bookmarks.id, collectionItems.bookmarkId))
+        .leftJoin(links, eq(links.id, bookmarks.linkId))
+        .where(eq(collectionItems.collectionId, id))
+        .orderBy(desc(sql`coalesce(${links.saveCount}, 0)`), asc(bookmarks.title))
+        .limit(topLimit);
+
+      const topBookmarks = topBookmarkRows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        url: r.url,
+        saveCount: Number(r.saveCount),
+      }));
+
+      // Unique share codes that have any views.
+      const [shareCount] = await db
+        .select({ count: sql<number>`count(distinct ${shareViews.shareId})::int` })
+        .from(shareViews)
+        .innerJoin(sharedCollections, eq(sharedCollections.id, shareViews.shareId))
+        .where(eq(sharedCollections.collectionId, id));
+
+      return {
+        totalViews: col?.viewCount ?? 0,
+        shareViews: Number(shareCount?.count ?? 0) > 0
+          ? viewsPerDay.reduce((a, b) => a + b.count, 0)
+          : 0,
+        viewsPerDay,
+        referrerBreakdown,
+        topBookmarks,
+        activeShares: Number(shareCount?.count ?? 0),
+      };
+    },
+    {
+      params: t.Object({ id: t.String({ minLength: 1 }) }),
+      query: t.Object({
+        days: t.Optional(t.Numeric({ minimum: 1, maximum: 90 })),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 50 })),
+      }),
+    },
+  )
   .get("/:id/children", async ({ params: { id }, user }) => {
     const userId = user.id;
     return db
