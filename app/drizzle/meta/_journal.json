@@ -113,6 +113,13 @@
       "when": 1792400000000,
       "tag": "0015_follows",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792500000000,
+      "tag": "0016_view_count",
+      "breakpoints": true
     }
   ]
 }
