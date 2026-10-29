@@ -26,6 +26,8 @@ export type JobType = "enrich-metadata";
 export type JobPayloads = {
   "enrich-metadata": {
     bookmarkId: string;
+    /** The shared link for this URL, if one exists. Its preview is updated too. */
+    linkId: string | null;
     url: string;
     /** The bookmark still holding this title is ours to overwrite. */
     placeholderTitle: string;

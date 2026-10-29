@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach, mock, spyOn } from "bun:test";
+import { describe, test, expect, afterEach, beforeEach, mock, spyOn } from "bun:test";
 import { app } from "../../index";
 import { db } from "../../db";
 import { sql } from "drizzle-orm";
@@ -23,11 +23,14 @@ async function getBookmark(id: string, cookie: string) {
 
 describe("POST /bookmarks metadata enrichment", () => {
   beforeEach(async () => {
-    // The queue is shared across files. Leftover rows from another test (or a
-    // previous run) would be claimed by this test's runOnce() and skew its
-    // exact processed/failed counts — and, worse, a leftover job that fetches
-    // a real URL would time out under a spy with no mock implementation.
+    // The queue and the links table are shared across files. Leftover rows from
+    // another test (or a previous run) would be claimed by this test's runOnce()
+    // and skew its exact processed/failed counts — and, worse, a leftover job
+    // that fetches a real URL would time out under a spy with no mock
+    // implementation. Leftover links would make isNewLink false, so enrichment
+    // would be skipped and the test would see no scrape.
     await db.execute(sql`DELETE FROM "jobs"`);
+    await db.execute(sql`DELETE FROM "links"`);
   });
   afterEach(() => {
     mock.restore();

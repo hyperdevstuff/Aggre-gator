@@ -10,14 +10,14 @@
  */
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
-import { bookmarks } from "../db/schema";
+import { bookmarks, links } from "../db/schema";
 import type { JobPayloads } from "./jobs";
 import scrapeMetadata from "./metadata";
 
 export async function enrichMetadata(
   payload: JobPayloads["enrich-metadata"],
 ) {
-  const { bookmarkId, url, placeholderTitle, keep, fillTitle } = payload;
+  const { bookmarkId, linkId, url, placeholderTitle, keep, fillTitle } = payload;
 
   const meta = await scrapeMetadata(url);
 
@@ -34,20 +34,32 @@ export async function enrichMetadata(
     throw new Error(`scrape failed for ${url}: ${meta.reason ?? "unknown"}`);
   }
 
+  // The bookmark's own preview. `fillTitle` is false when the user supplied
+  // their own title at save time, so the scraped title never clobbers it; the
+  // description and cover are still filled. The placeholder guard protects a
+  // later edit that landed while the job was queued.
   await db
     .update(bookmarks)
     .set({
-      // `fillTitle` is false when the user supplied their own title at save
-      // time. Previously the whole enrichment was skipped in that case, so a
-      // hand-titled bookmark could never get a cover — the two decisions are
-      // independent and are now made separately.
       ...(fillTitle ? { title: meta.title } : {}),
       description: keep.description ?? meta.description,
       cover: keep.cover ?? meta.image,
     })
-    // Only overwrite while the row still holds the placeholder, so a user edit
-    // made while this job waited in the queue survives it. When the user gave us
-    // a title, `placeholderTitle` is that title, so the guard still protects a
-    // later edit — and the title is not written at all.
     .where(and(eq(bookmarks.id, bookmarkId), eq(bookmarks.title, placeholderTitle)));
+
+  // The shared preview on the `links` row. Unlike the bookmark, the link has no
+  // "user-supplied title" concept — it is the canonical preview for the URL, so
+  // the scraped title always wins here. Only the first save enqueues a job, so
+  // this runs once per unique URL.
+  if (linkId) {
+    await db
+      .update(links)
+      .set({
+        title: meta.title,
+        description: meta.description,
+        cover: meta.image,
+        updatedAt: new Date(),
+      })
+      .where(eq(links.id, linkId));
+  }
 }

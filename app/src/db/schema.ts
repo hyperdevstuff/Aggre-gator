@@ -340,7 +340,7 @@ export const links = pgTable(
       .notNull(),
   },
   (table) => ({
-    urlKeyIdx: index("links_url_key_idx").on(table.urlKey),
+    urlKeyIdx: uniqueIndex("links_url_key_unique").on(table.urlKey),
     urlIdx: index("links_url_idx").on(table.url),
   }),
 );
