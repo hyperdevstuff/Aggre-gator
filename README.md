@@ -82,3 +82,23 @@ depend on it. The `.env.example` files document every variable.
   1000/min per client plus tighter caps on `POST /bookmarks`, bulk create, and the public `/share`
   routes. Set `TRUST_PROXY=true` only when a proxy/CDN overwrites `x-forwarded-for`; counters are
   per process, so a multi-replica deploy needs a shared store.
+
+### Optional paid share admission
+
+The share-code route can enforce the spec's one-active-link free allowance.
+Unset `LONGPLAY_SHARE_FEATURE_ID` preserves existing behavior. To opt in, configure
+that access Feature UUID plus server-only `LONGPLAY_SECRET_KEY`, `LONGPLAY_BASE_URL`,
+`LONGPLAY_APP_ID` and explicit `LONGPLAY_ENVIRONMENT` (`sandbox` or `live`).
+The published SDK is pinned to 0.10.15. Never expose the server key to the client.
+
+After existing authentication, email verification and collection ownership checks,
+the server maps `aggregator:user:<authenticated-user-id>` to a billing Customer.
+Only that ID and Feature go to billing; bookmark URLs and contents stay out.
+New and reactivated share codes count active links under the owner's SQL row lock.
+The first free link remains available during billing outages. Additional links
+require a fresh access grant; outages fail closed for that admission. Existing
+active links, public reads and link deactivation are not revoked by billing.
+
+This gate covers share codes only, not public profile visibility, analytics or
+the complete Pro plan. Checkout, Customer management and plan UI are separate
+owner decisions. The existing `user.plan` field is not trusted as payment proof.

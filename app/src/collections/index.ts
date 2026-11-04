@@ -5,6 +5,7 @@ import { collections, bookmarks, collectionItems, sharedCollections, user, user 
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { ConflictError, ForbiddenError, NotFoundError } from "../error";
 import { generateShareCode } from "../utils/nanoid";
+import { readShareAccess, requireShareSlot } from "../utils/share-access";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 import { collectionParentError } from "../../../shared/collection-tree";
@@ -683,51 +684,27 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
       if (!col) throw new NotFoundError();
       if (col.isSystem) throw new ForbiddenError("cannot share system collections");
 
-      // check if already shared — return existing
-      const [existing] = await db
-        .select()
-        .from(sharedCollections)
-        .where(
-          and(
-            eq(sharedCollections.collectionId, id),
-            eq(sharedCollections.userId, userId),
-          ),
-        )
-        .limit(1);
-
-      if (existing) {
-        // re-activate if it was deactivated
-        if (!existing.isActive) {
-          await db
-            .update(sharedCollections)
-            .set({ isActive: true })
-            .where(eq(sharedCollections.id, existing.id));
+      // Billing network work stays outside the SQL lock. A failure still permits
+      // the free slot; the count deciding admission is read inside the transaction.
+      const access = await readShareAccess(userId);
+      return db.transaction(async (tx) => {
+        await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+        const [existing] = await tx.select().from(sharedCollections).where(and(
+          eq(sharedCollections.collectionId, id), eq(sharedCollections.userId, userId),
+        )).limit(1);
+        if (!existing?.isActive) {
+          const [usage] = await tx.select({ count: sql<number>`count(*)::int` })
+            .from(sharedCollections).where(and(eq(sharedCollections.userId, userId), eq(sharedCollections.isActive, true)));
+          requireShareSlot(usage.count, access);
         }
-        return {
-          id: existing.id,
-          shareCode: existing.shareCode,
-          isActive: true,
-          createdAt: existing.createdAt,
-        };
-      }
-
-      // create new share
-      const shareCode = generateShareCode();
-      const [share] = await db
-        .insert(sharedCollections)
-        .values({
-          userId,
-          collectionId: id,
-          shareCode,
-        })
-        .returning();
-
-      return {
-        id: share.id,
-        shareCode: share.shareCode,
-        isActive: share.isActive,
-        createdAt: share.createdAt,
-      };
+        if (existing) {
+          if (!existing.isActive) await tx.update(sharedCollections).set({ isActive: true })
+            .where(eq(sharedCollections.id, existing.id));
+          return { id: existing.id, shareCode: existing.shareCode, isActive: true, createdAt: existing.createdAt };
+        }
+        const [share] = await tx.insert(sharedCollections).values({ userId, collectionId: id, shareCode: generateShareCode() }).returning();
+        return { id: share.id, shareCode: share.shareCode, isActive: share.isActive, createdAt: share.createdAt };
+      });
     },
     {
       params: t.Object({ id: t.String() }),
