@@ -17,6 +17,7 @@
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/openapi": "^1.4.16",
     "@resvg/resvg-wasm": "^2.6.2",
+    "@tinkerlandai/longplay-sdk": "0.10.15",
     "better-auth": "^1.7.5",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
