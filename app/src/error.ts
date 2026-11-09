@@ -83,6 +83,12 @@ export class EmailVerificationRequiredError extends ForbiddenError {
   }
 }
 
+export class PlanRequiredError extends ApiError {
+  constructor(details?: unknown, code = "PLAN_REQUIRED") {
+    super(402, "Plan upgrade required", details, code);
+  }
+}
+
 export class GoneError extends ApiError {
   constructor(message = "This resource is no longer available") {
     super(410, message);

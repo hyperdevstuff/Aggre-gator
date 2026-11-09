@@ -120,6 +120,13 @@
       "when": 1792500000000,
       "tag": "0016_view_count",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792600000000,
+      "tag": "0017_share_views",
+      "breakpoints": true
     }
   ]
 }

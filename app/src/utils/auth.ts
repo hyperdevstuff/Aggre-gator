@@ -5,7 +5,8 @@ import { db } from "../db/index";
 import * as schema from "../db/schema";
 import { env } from "../env";
 import Elysia from "elysia";
-import { EmailVerificationRequiredError, InternalError, UnauthorizedError } from "../error";
+import { EmailVerificationRequiredError, InternalError, PlanRequiredError, UnauthorizedError } from "../error";
+import { PLANS, planOf } from "../config/plans";
 import { validateUsername } from "./username";
 import { findAvailableUsername } from "./user-identity";
 import { sendPasswordResetEmail, sendVerificationEmail as mailVerificationEmail, mailEnabled } from "./mail";
@@ -237,6 +238,34 @@ export function requireVerifiedPublisher(user: { emailVerified?: unknown }) {
   if (user.emailVerified !== true) {
     throw new EmailVerificationRequiredError();
   }
+}
+
+/**
+ * Gate a feature behind the user's plan. `be-19`.
+ *
+ * Throws `PlanRequiredError` (402) when the account's plan does not include the
+ * requested feature. The error carries the required plan (always `pro` today)
+ * and the current plan so the client can render an upgrade prompt.
+ */
+export function requirePlan(
+  user: { plan?: string | null },
+  feature: keyof (typeof PLANS)["free"],
+) {
+  const plan = planOf(user.plan);
+  const value = PLANS[plan][feature];
+  const included = typeof value === "boolean" ? value : value !== 0 && value !== null && value !== undefined;
+  // publishedCollections is a numeric limit, not a boolean gate; treat a finite
+  // non-zero limit as "included" so requirePlan only throws for genuine
+  // feature flags. Count-based limits are enforced by callers.
+  if (!included) {
+    throw new PlanRequiredError(
+      { requiredPlan: "pro", currentPlan: plan, feature },
+      "PLAN_REQUIRED",
+    );
+  }
+  // For boolean feature flags that are false on free, the check above already
+  // threw. Nothing else to do.
+  return;
 }
 
 /**

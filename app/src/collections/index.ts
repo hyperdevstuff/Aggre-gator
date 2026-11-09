@@ -1,10 +1,11 @@
 import Elysia, { t } from "elysia";
-import { betterAuthPlugin, requireVerifiedPublisher } from "../utils/auth";
+import { betterAuthPlugin, requirePlan, requireVerifiedPublisher } from "../utils/auth";
 import { db } from "../db";
 import { collections, bookmarks, collectionItems, sharedCollections, shareViews, links, user, user as users, type CollectionVisibility } from "../db/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { ConflictError, ForbiddenError, NotFoundError } from "../error";
+import { ConflictError, ForbiddenError, NotFoundError, PlanRequiredError } from "../error";
 import { generateShareCode } from "../utils/nanoid";
+import { PLANS, planOf } from "../config/plans";
 import { createPaginationMeta, normalizePagination } from "../utils/pagination";
 
 import { collectionParentError } from "../../../shared/collection-tree";
@@ -137,6 +138,19 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         // each pass validation against an outdated tree.
         await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
         const nodes = await tx.select().from(collections).where(eq(collections.userId, userId));
+        // Plan enforcement: free tier caps published (non-private) collections.
+        if (body.visibility && body.visibility !== "private") {
+          const plan = planOf(user.plan);
+          const limit = PLANS[plan].publishedCollections;
+          const publishedCount = nodes.filter((n) => n.visibility !== "private").length;
+          if (publishedCount >= limit) {
+            throw new PlanRequiredError({
+              requiredPlan: "pro",
+              currentPlan: plan,
+              feature: "publishedCollections",
+            });
+          }
+        }
         const error = collectionParentError(nodes, body.parentId ?? null);
         if (error) throw new ConflictError(error);
         if (body.slug !== undefined && nodes.some((node) => node.slug === body.slug))
@@ -239,6 +253,25 @@ export const collectionRouter = new Elysia({ prefix: "/collections" })
         const nodes = await tx.select().from(collections).where(eq(collections.userId, userId));
         const existing = nodes.find((node) => node.id === id);
         if (!existing) throw new NotFoundError();
+        // Plan enforcement: only a transition private -> published consumes a slot.
+        if (
+          body.visibility &&
+          body.visibility !== "private" &&
+          existing.visibility === "private"
+        ) {
+          const plan = planOf(user.plan);
+          const limit = PLANS[plan].publishedCollections;
+          const publishedCount = nodes.filter(
+            (n) => n.id !== id && n.visibility !== "private",
+          ).length;
+          if (publishedCount >= limit) {
+            throw new PlanRequiredError({
+              requiredPlan: "pro",
+              currentPlan: plan,
+              feature: "publishedCollections",
+            });
+          }
+        }
         // System collections are managed by the app — no field is user-editable.
         if (existing.isSystem && provided.length > 0)
           throw new ConflictError("cannot update system collection");
